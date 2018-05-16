@@ -145,6 +145,8 @@ class View:
         for i in range(start_index, end_index):
             interval_start, interval_end = self.confidence_intervals[i][0]+BED_INDEX_BUFFER, \
                                            self.confidence_intervals[i][1]+BED_INDEX_BUFFER
+            interval_start -= 200
+            interval_end += 200
             # interval_start, interval_end = 18987335, 18987365
 
             interval_length = interval_end - interval_start
@@ -216,7 +218,7 @@ def test(view_object):
     :return:
     """
     start_time = time.time()
-    view_object.parse_region(start_index=0, end_index=10)
+    view_object.parse_region(start_index=0, end_index=20)
     print("TOTAL TIME ELAPSED: ", time.time()-start_time)
 
 

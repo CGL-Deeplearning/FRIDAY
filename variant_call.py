@@ -25,7 +25,8 @@ INPUT:
 Output:
 - A VCF file containing all the variants.
 """
-
+FLANK_SIZE = 5
+WINDOW_SIZE = 300
 
 def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     """
@@ -119,7 +120,7 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
             reference_seq = reference_seqs[batch]
             current_genomic_position = int(start_positions[batch])
             insert_index = 0
-            for seq in range(seqs):
+            for seq in range(FLANK_SIZE, seqs-FLANK_SIZE):
                 ref_base = reference_seq[seq]
 
                 '''

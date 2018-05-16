@@ -95,7 +95,7 @@ class VCFWriter:
             return reference_base, alts, genotype, qual, gq
         else:
             alts = [alts[0]] if alts[0] != reference_base else [alts[1]]
-            genotype = HOM_ALT
+            genotype = HET
             qual, gq = VCFWriter.get_qual_and_gq(probabilities, predicted_class, reference_base)
             return reference_base, alts, genotype, qual, gq
 
