@@ -42,7 +42,7 @@ LOG_LEVEL = LOG_LEVEL_LOW
 
 # only select STRATIFICATION_RATE% of the total homozygous cases if they are dominant
 STRATIFICATION_RATE = 1.0
-MIN_SEQUENCE_BASE_LENGTH_THRESHOLD = 10
+MIN_SEQUENCE_BASE_LENGTH_THRESHOLD = 300
 MIN_VARIANT_IN_WINDOW_THRESHOLD = 1
 BED_INDEX_BUFFER = -1
 
@@ -149,13 +149,11 @@ class View:
 
             interval_length = interval_end - interval_start
             if interval_length < MIN_SEQUENCE_BASE_LENGTH_THRESHOLD:
-                append_length = MIN_SEQUENCE_BASE_LENGTH_THRESHOLD - interval_length
-                interval_start -= append_length
-                # warn_msg = "REGION SKIPPED, TOO SMALL OF A WINDOW " + self.chromosome_name + " "
-                # warn_msg = warn_msg + str(interval_start) + " " + str(interval_end) + "\n"
-                # if LOG_LEVEL == LOG_LEVEL_HIGH:
-                #     sys.stderr.write(TextColor.BLUE + "INFO: " + warn_msg + TextColor.END)
-                # continue
+                warn_msg = "REGION SKIPPED, TOO SMALL OF A WINDOW " + self.chromosome_name + " "
+                warn_msg = warn_msg + str(interval_start) + " " + str(interval_end) + "\n"
+                if LOG_LEVEL == LOG_LEVEL_HIGH:
+                    sys.stderr.write(TextColor.BLUE + "INFO: " + warn_msg + TextColor.END)
+                continue
 
             # get positional variants
             positional_variants = self.get_vcf_record_of_region(interval_start, interval_end)
@@ -171,7 +169,6 @@ class View:
             # process the interval and populate dictionaries
             read_id_list = self.candidate_finder.process_interval(interval_start, interval_end)
             allele_dictionary = self.candidate_finder.positional_allele_frequency
-            print(interval_length, len(sorted(allele_dictionary.keys())))
 
             image_generator = ImageGenerator(self.candidate_finder)
             # get trainable sequences
@@ -179,38 +176,38 @@ class View:
                                                                            positional_variants, read_id_list)
 
             # create a filename and save the image and dictionary
-            filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
-            image_generator.save_image_as_png(img, self.output_dir, filename)
-            self.save_dictionary(allele_dictionary, self.output_dir, filename)
+            # filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
+            # image_generator.save_image_as_png(img, self.output_dir, filename)
+            # self.save_dictionary(allele_dictionary, self.output_dir, filename)
 
             # gather all information about the saved image
-            img_shape_string = ' '.join([str(x) for x in img.shape])
-            file_location = os.path.abspath(self.output_dir) + "/" + filename
-            file_info = file_location + " " + img_shape_string
-            # print(interval_start, interval_end)
+            # img_shape_string = ' '.join([str(x) for x in img.shape])
+            # file_location = os.path.abspath(self.output_dir) + "/" + filename
+            # file_info = file_location + " " + img_shape_string
 
-            from analysis.analyze_png_img import analyze_it
-            # analyze_it(self.output_dir + filename + '.png', img.shape, 0, img.shape[1])
-            # exit()
             for counter, training_sequence in enumerate(sequences):
-                # pos, img_left_indx, img_right_indx, sub_translated_seq, sub_pos_vals, sub_ref_seq
                 pos, left_index, right_index, translated_seq, sub_pos_vals, sub_ref_seq = training_sequence
-                sequence_info = str(self.chromosome_name) + " " + str(pos) + " " + str(left_index) + " " \
-                                + str(right_index) + "," + str(translated_seq)
+
+                # the sequence information
+                sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(translated_seq)
                 sequence_info = sequence_info + "," + str(sub_ref_seq)
+                # file location and information
+                filename = self.chromosome_name + '_' + str(pos)
+                file_location = os.path.abspath(self.output_dir) + "/" + filename
+                sub_img = img[:, left_index:right_index, :]
+                img_shape_string = ' '.join([str(x) for x in sub_img.shape])
+                file_info = file_location + " " + img_shape_string
+
+                image_generator.save_image_as_png(sub_img, self.output_dir, filename)
+
                 summary_string = file_info + "," + sequence_info + "\n"
+
                 self.summary_file.write(summary_string)
 
                 # from analysis.analyze_png_img import analyze_it
                 # print(pos)
                 # print(translated_seq)
-                # # print(sub_pos_vals)
-                # # print(sub_ref_seq)
-                # analyze_it(self.output_dir+filename+'.png', img.shape, left_index, right_index)
-                # if counter == 10:
-                #     break
-                # analyze_it(self.output_dir + filename + '.png', img.shape, 0, img.shape[1])
-            # exit()
+                # analyze_it(self.output_dir+filename+'.png', sub_img.shape, 0, 300)
 
 
 def test(view_object):

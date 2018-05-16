@@ -19,10 +19,14 @@ MIN_DELETE_QUALITY = 20
 VCF_INDEX_BUFFER = -1
 
 # Per sequence threshold
-WINDOW_OVERLAP_JUMP = 5
-WINDOW_SIZE = 20
-WINDOW_FLANKING_SIZE = 20
-BOUNDARY_COLUMNS = 25
+# jump window size so the last 50 bases will be overlapping
+WINDOW_OVERLAP_JUMP = 249
+# image size
+WINDOW_SIZE = 300
+# flanking size is the amount add on each size
+WINDOW_FLANKING_SIZE = 5
+# boundary columns is the number of bases we process for safety
+BOUNDARY_COLUMNS = 5
 
 # Logging configuration
 LOG_LEVEL_HIGH = 1
@@ -274,6 +278,7 @@ class ImageGenerator:
         :param image_height: Height of the image
         :return:
         """
+
         image_row_info = defaultdict(int)
 
         # get the reference row
@@ -310,6 +315,9 @@ class ImageGenerator:
             read_row, read_start, read_end = self.get_read_row(read_id, read_info, image_start, interval_end)
 
             image_index_read_end = image_index_read_start + len(read_row)
+
+            if image_index_read_end - image_index_read_start <= 0:
+                continue
 
             # append the read to the row we want to pack it to
             whole_image[row, image_index_read_start:image_index_read_end, :] = np.array(read_row, dtype=np.float)
@@ -555,30 +563,22 @@ class ImageGenerator:
         img_ended_in_indx = self.positional_info_position_to_index[interval_end + BOUNDARY_COLUMNS] - \
                             self.positional_info_position_to_index[ref_start]
 
-        # generate images through candidate positions only
-        candidate_indices = sorted(self.vcf_positional_dict.keys())
+        for pos in range(interval_start, interval_end, WINDOW_OVERLAP_JUMP):
+            point_indx = self.positional_info_position_to_index[pos] - \
+                         self.positional_info_position_to_index[ref_start]
+            left_window_index = point_indx - WINDOW_FLANKING_SIZE
+            right_window_index = point_indx + WINDOW_SIZE + WINDOW_FLANKING_SIZE
 
-        for i, candidate_index in enumerate(candidate_indices):
-            sub_interval_start = self.positional_info_index_to_position[candidate_index][0] - 10
-            sub_interval_end = self.positional_info_index_to_position[candidate_index][0] + 10
-            if i > 0 and candidate_index < candidate_indices[i-1] + 10:
+            if left_window_index < img_started_in_indx:
                 continue
-            for pos in range(sub_interval_start, sub_interval_end, WINDOW_OVERLAP_JUMP):
-                point_indx = self.positional_info_position_to_index[pos] - \
-                             self.positional_info_position_to_index[ref_start]
-                left_window_index = point_indx - WINDOW_FLANKING_SIZE
-                right_window_index = point_indx + WINDOW_SIZE + WINDOW_FLANKING_SIZE
-                if left_window_index < img_started_in_indx:
-                    continue
-                if right_window_index > img_ended_in_indx:
-                    break
-                img_left_indx = left_window_index - img_started_in_indx
-                img_right_indx = right_window_index - img_started_in_indx
-
-                sub_translated_seq = translated_seq[img_left_indx:img_right_indx]
-                sub_pos_vals = pos_vals[img_left_indx:img_right_indx]
-                sub_ref_seq = ref_seq[img_left_indx:img_right_indx]
-                sliced_windows.append((pos, img_left_indx, img_right_indx, sub_translated_seq, sub_pos_vals,
-                                       sub_ref_seq))
+            if right_window_index > img_ended_in_indx:
+                break
+            img_left_indx = left_window_index - img_started_in_indx
+            img_right_indx = right_window_index - img_started_in_indx
+            sub_translated_seq = translated_seq[img_left_indx:img_right_indx]
+            sub_pos_vals = pos_vals[img_left_indx:img_right_indx]
+            sub_ref_seq = ref_seq[img_left_indx:img_right_indx]
+            sliced_windows.append((pos, img_left_indx, img_right_indx, sub_translated_seq, sub_pos_vals,
+                                   sub_ref_seq))
 
         return image, sliced_windows

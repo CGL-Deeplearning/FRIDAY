@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.model_zoo as model_zoo
 
+FLANK_REGION = 2
+WINDOW_SIZE = 20
 
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
@@ -51,19 +53,19 @@ class ResNet(nn.Module):
         :param num_classes: Number of output classes
         """
         super(ResNet, self).__init__()
-        self.inplanes = 64
-        self.conv1 = nn.Conv2d(image_channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
+        self.inplanes = 16
+        self.conv1 = nn.Conv2d(image_channels, self.inplanes, kernel_size=(1, 3), stride=1, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.maxpool = nn.MaxPool2d(kernel_size=(3, 3), stride=3, padding=1)
 
-        self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=1)
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=1)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=1)
+        self.layer1 = self._make_layer(block, 16, layers[0])
+        self.layer2 = self._make_layer(block, 32, layers[1], stride=1)
+        self.layer3 = self._make_layer(block, 64, layers[2], stride=1)
+        self.layer4 = self._make_layer(block, 128, layers[3], stride=1)
 
-        self.avgpool = nn.AvgPool2d(7, stride=1)
-        self.fc = nn.Linear(512 * 4 * 19, num_classes)
+        self.avgpool = nn.AvgPool2d(3, stride=1)
+        self.fc = nn.Linear(128 * 2 * 33, num_classes)
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
@@ -82,28 +84,30 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        # 10x6x40x100
+        # 10x6x4x100
         x = self.conv1(x)
-        # 10x64x20x50
+        # 10x64x10x104
         x = self.bn1(x)
-        # 10x64x20x50
+        # 10x64x10x104
         x = self.relu(x)
-        # 10x64x20x50
+        # 10x64x10x104
         x = self.maxpool(x)
 
-        # 10x64x10x25
+        # 10x64x4x35
         x = self.layer1(x)
-        # 10x128x10x25
+        # 10x64x4x35
         x = self.layer2(x)
-        # 10x256x10x25
+        # 10x128x4x35
         x = self.layer3(x)
-        # 10x512x10x25
+        # 10x256x4x35
         x = self.layer4(x)
-        # 10x512x10x25
+
+        # 10x512x4x35
         x = self.avgpool(x)
-        # 10x512x4x19
+
+        # 10x512x2x33
         x = x.view(x.size(0), -1)
-        # 10x38912
+        # 10x33792
         x = self.fc(x)
         # 10x20
         return x
@@ -114,7 +118,7 @@ class SeqResNet(nn.Module):
         super(SeqResNet, self).__init__()
         self.image_channels = image_channels
         self.block = BasicBlock
-        self.layers = [3, 3, 3, 3]
+        self.layers = [2, 2, 2, 2]
         self.num_classes = num_classes
         self.all_cells = nn.ModuleList([ResNet(self.image_channels, self.block, self.layers, self.num_classes)
                                       for i in range(seq_length)])
@@ -127,16 +131,18 @@ class SeqResNet(nn.Module):
         return cells
 
     def forward(self, whole_image):
-        start_base_index = 20   # based on flanking region
-        end_base_index = start_base_index + 20  # based on amount of image encoded in one image for training
+        start_base_index = FLANK_REGION   # based on flanking region
+        end_base_index = start_base_index + WINDOW_SIZE  # based on amount of image encoded in one image for training
         cell_index = 0
         seq_preds = []
         for base_index in range(start_base_index, end_base_index):
-            segment_start = base_index - 20
-            segment_end = base_index + 20
+            segment_start = base_index - FLANK_REGION
+            segment_end = base_index + FLANK_REGION
             base_segment_image = whole_image[:, :, segment_start:segment_end, :]
             cell_logits = self.all_cells[cell_index](base_segment_image)
             seq_preds.append(cell_logits)
             cell_logits += 1
+
         sequence_predictions = torch.stack(seq_preds, dim=1)
+
         return sequence_predictions

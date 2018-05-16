@@ -27,6 +27,8 @@ Input:
 Output:
 - A trained model
 """
+FLANK_SIZE = 2
+WINDOW_SIZE = 20
 
 
 def plot_confusion_matrix(num_classes, confusion, epoch_no):
@@ -203,18 +205,29 @@ def train(train_file, validation_file, batch_size, epoch_limit, file_name, gpu_m
             x = images
             y = labels
 
-            # Forward + Backward + Optimize
-            optimizer.zero_grad()
-            outputs = model(x)
-            loss = criterion(outputs.contiguous().view(-1, num_classes), y.contiguous().view(-1))
-            loss.backward()
-            optimizer.step()
+            # WALK ON THE SEQUENCE
+            total_sequences = x.size(2)
+            for seq in range(total_sequences):
+                start_seq_pos = seq
+                end_seq_pos = FLANK_SIZE + seq + WINDOW_SIZE + FLANK_SIZE
+                if end_seq_pos >= total_sequences:
+                    break
 
-            # loss count
-            total_loss += loss.data[0]
-            total_images += (x.size(0))
+                # Forward + Backward + Optimize
+                optimizer.zero_grad()
+                outputs = model(x[:, :, start_seq_pos:end_seq_pos, :])
+                true_labels = y[:, start_seq_pos+FLANK_SIZE:start_seq_pos+FLANK_SIZE+WINDOW_SIZE]
+
+                loss = criterion(outputs.contiguous().view(-1, num_classes), true_labels.contiguous().view(-1))
+                loss.backward()
+                optimizer.step()
+
+                # loss count
+                total_loss += loss.data[0]
+                total_images += (x.size(0))
+
+                print(seq, total_sequences, "DONE")
             batches_done += 1
-
             if batches_done % 1 == 0:
                 avg_loss = (total_loss / total_images) if total_images else 0
                 sys.stderr.write(TextColor.BLUE + "EPOCH: " + str(epoch+1) + " Batches done: " + str(batches_done)

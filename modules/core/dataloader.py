@@ -38,18 +38,17 @@ class SequenceDataset(Dataset):
         np_array_of_img = np.array(img.getdata())
         img_shape = (int(shape_y), int(shape_x), int(shape_z))
         img = np.reshape(np_array_of_img, img_shape)
-
-        # load positional information
-        chromosome_name, genomic_start_position, slice_start, slice_end = self.position_info[index].split(' ')
-        img = img[:, int(slice_start):int(slice_end), :]
         img = np.transpose(img, (1, 0, 2))
 
+        # load positional information
+        chromosome_name, genomic_start_position = self.position_info[index].split(' ')
+
         # load the labels
-        label = [ord(x)-ord('A') for x in self.label[index][20:40]]
+        label = [ord(x)-ord('A') for x in self.label[index]]
         label = np.array(label)
 
         # load genomic position information
-        reference_sequence = self.reference_seq[index][20:40]
+        reference_sequence = self.reference_seq[index]
 
         # type fix and convert to tensor
         img = img.astype(dtype=np.uint8)
