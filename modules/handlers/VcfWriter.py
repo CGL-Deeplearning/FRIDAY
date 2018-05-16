@@ -64,7 +64,7 @@ class VCFWriter:
         return phred_qual, phred_gq
 
     @staticmethod
-    def process_snp_or_del(predictions, reference):
+    def process_snp_or_del(pos, predictions, reference):
         # get the list of prediction labels
         list_prediction_labels = [label for label, probs in predictions[0]]
         predicted_class = max(set(list_prediction_labels), key=list_prediction_labels.count)
@@ -79,7 +79,10 @@ class VCFWriter:
         min_probs_for_each_class = [min(l[i] for l in list_prediction_probabilities) for i in range(num_classes)]
 
         # normalize the probabilities
-        probabilities = [float(i) / sum(min_probs_for_each_class) for i in min_probs_for_each_class]
+        sum_of_probs = sum(min_probs_for_each_class) if sum(min_probs_for_each_class) > 0  else 1
+        if sum(min_probs_for_each_class) <= 0:
+            print("SUM ZERO ENCOUNTERED IN: ", pos)
+        probabilities = [float(i) / sum_of_probs for i in min_probs_for_each_class]
         if alts[0] == reference_base and alts[1] == reference_base:
             genotype = HOM
             qual, gq = VCFWriter.get_qual_and_gq(probabilities, predicted_class, reference_base)

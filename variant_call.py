@@ -168,7 +168,7 @@ def produce_vcf(chromosome_name, prediction_dict, reference_dict, bam_file_path,
     for pos in prediction_dict.keys():
         if len(prediction_dict[pos]) == 1:
             ref, alts, genotype, qual, gq = \
-                vcf_writer.process_snp_or_del(prediction_dict[pos], reference_dict[pos])
+                vcf_writer.process_snp_or_del(pos, prediction_dict[pos], reference_dict[pos])
             if genotype != 0 and '.' not in alts:
                 all_calls.append((chromosome_name, int(pos), int(pos + 1), ref, alts, genotype, qual, gq))
         else:
