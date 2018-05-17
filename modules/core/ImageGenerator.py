@@ -26,7 +26,7 @@ WINDOW_SIZE = 300
 # flanking size is the amount add on each size
 WINDOW_FLANKING_SIZE = 5
 # boundary columns is the number of bases we process for safety
-BOUNDARY_COLUMNS = 5
+BOUNDARY_COLUMNS = 100
 
 # Logging configuration
 LOG_LEVEL_HIGH = 1
@@ -477,10 +477,11 @@ class ImageGenerator:
         :return:
         """
         for pos in positional_vcf.keys():
-            if pos < interval_start or pos > interval_end:
-                continue
             # get bam position
             bam_pos = pos + VCF_INDEX_BUFFER
+            # we we haven't processed the position, we can't assign alleles
+            if pos not in self.positional_info_position_to_index:
+                continue
             indx = self.positional_info_position_to_index[bam_pos]
 
             snp_recs, in_recs, del_recs = positional_vcf[pos]
