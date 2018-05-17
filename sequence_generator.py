@@ -158,7 +158,7 @@ class View:
                 continue
 
             # get positional variants
-            positional_variants = self.get_vcf_record_of_region(interval_start, interval_end)
+            positional_variants = self.get_vcf_record_of_region(interval_start-500, interval_end+500)
 
             if len(positional_variants) < MIN_VARIANT_IN_WINDOW_THRESHOLD:
                 warn_msg = "REGION SKIPPED, INSUFFICIENT NUMBER OF VARIANTS " + self.chromosome_name + " "
