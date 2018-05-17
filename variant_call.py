@@ -120,7 +120,8 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
             reference_seq = reference_seqs[batch]
             current_genomic_position = int(start_positions[batch])
             insert_index = 0
-            for seq in range(FLANK_SIZE, seqs-FLANK_SIZE):
+            for seq in range(FLANK_SIZE, seqs-FLANK_SIZE+1):
+
                 ref_base = reference_seq[seq]
 
                 '''
@@ -132,13 +133,9 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                 true_label = labels[batch, seq]
                 fake_probs = [0.0] * 21
                 fake_probs[true_label] = 1.0
-
-                # if current_genomic_position not in positional_allele_dict and current_genomic_position in allele_dict:
-                #     positional_allele_dict[current_genomic_position] = list(allele_dict[current_genomic_position].keys())
-
                 reference_dict[current_genomic_position][insert_index] = ref_base
                 prediction_dict[current_genomic_position][insert_index].append((true_label, fake_probs))
-                if ref_base != '*':
+                if reference_seq[seq+1] != '*':
                     insert_index = 0
                     current_genomic_position += 1
                 else:

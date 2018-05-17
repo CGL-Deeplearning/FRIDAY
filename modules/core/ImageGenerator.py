@@ -491,10 +491,6 @@ class ImageGenerator:
 
             # SNP records
             for snp_rec in snp_recs:
-                if bam_pos == 833268:
-                    print(interval_start, interval_end)
-                    print(snp_rec)
-                    print(alt_alleles_found)
                 alt_allele = snp_rec.alt[0]
                 alt_ = (alt_allele, 1)
                 # check if the allele is actually present in the BAM
