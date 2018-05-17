@@ -479,8 +479,9 @@ class ImageGenerator:
         for pos in positional_vcf.keys():
             # get bam position
             bam_pos = pos + VCF_INDEX_BUFFER
+
             # we we haven't processed the position, we can't assign alleles
-            if pos not in self.positional_info_position_to_index:
+            if bam_pos not in self.positional_info_position_to_index:
                 continue
             indx = self.positional_info_position_to_index[bam_pos]
 
@@ -490,6 +491,10 @@ class ImageGenerator:
 
             # SNP records
             for snp_rec in snp_recs:
+                if bam_pos == 833268:
+                    print(interval_start, interval_end)
+                    print(snp_rec)
+                    print(alt_alleles_found)
                 alt_allele = snp_rec.alt[0]
                 alt_ = (alt_allele, 1)
                 # check if the allele is actually present in the BAM

@@ -45,6 +45,7 @@ STRATIFICATION_RATE = 1.0
 MIN_SEQUENCE_BASE_LENGTH_THRESHOLD = 300
 MIN_VARIANT_IN_WINDOW_THRESHOLD = 1
 BED_INDEX_BUFFER = -1
+SAFE_BOUNDARY_BASES = 500
 
 
 def build_chromosomal_interval_trees(confident_bed_path):
@@ -158,7 +159,8 @@ class View:
                 continue
 
             # get positional variants
-            positional_variants = self.get_vcf_record_of_region(interval_start-500, interval_end+500)
+            positional_variants = self.get_vcf_record_of_region(interval_start - SAFE_BOUNDARY_BASES,
+                                                                interval_end + SAFE_BOUNDARY_BASES)
 
             if len(positional_variants) < MIN_VARIANT_IN_WINDOW_THRESHOLD:
                 warn_msg = "REGION SKIPPED, INSUFFICIENT NUMBER OF VARIANTS " + self.chromosome_name + " "
@@ -169,7 +171,8 @@ class View:
                 continue
 
             # process the interval and populate dictionaries
-            read_id_list = self.candidate_finder.process_interval(interval_start, interval_end)
+            read_id_list = self.candidate_finder.process_interval(interval_start - SAFE_BOUNDARY_BASES,
+                                                                  interval_end + SAFE_BOUNDARY_BASES)
             allele_dictionary = self.candidate_finder.positional_allele_frequency
 
             image_generator = ImageGenerator(self.candidate_finder)
@@ -218,7 +221,7 @@ def test(view_object):
     :return:
     """
     start_time = time.time()
-    view_object.parse_region(start_index=0, end_index=20)
+    view_object.parse_region(start_index=170, end_index=250)
     print("TOTAL TIME ELAPSED: ", time.time()-start_time)
 
 
