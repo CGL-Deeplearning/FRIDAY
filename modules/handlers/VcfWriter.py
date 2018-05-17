@@ -81,7 +81,8 @@ class VCFWriter:
         # normalize the probabilities
         sum_of_probs = sum(min_probs_for_each_class) if sum(min_probs_for_each_class) > 0  else 1
         if sum(min_probs_for_each_class) <= 0:
-            print("SUM ZERO ENCOUNTERED IN: ", pos)
+            print("SUM ZERO ENCOUNTERED IN: ", pos, predictions, reference)
+            exit()
         probabilities = [float(i) / sum_of_probs for i in min_probs_for_each_class]
         if alts[0] == reference_base and alts[1] == reference_base:
             genotype = HOM

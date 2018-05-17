@@ -172,8 +172,8 @@ def produce_vcf(chromosome_name, prediction_dict, reference_dict, bam_file_path,
                 vcf_writer.process_snp_or_del(pos, prediction_dict[pos], reference_dict[pos])
             if genotype != 0 and '.' not in alts:
                 all_calls.append((chromosome_name, int(pos), int(pos + 1), ref, alts, genotype, qual, gq))
-        else:
-            print('IN: ', pos)
+        # else:
+        #     print('IN: ', pos)
 
     # sort based on position
     all_calls.sort(key=operator.itemgetter(1))
