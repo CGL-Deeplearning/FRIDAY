@@ -20,7 +20,7 @@ MISMATCH_ALLELE = 1
 INSERT_ALLELE = 2
 DELETE_ALLELE = 3
 
-MIN_DELETE_QUALITY =20
+MIN_DELETE_QUALITY = 20
 BOUNDARY_COLUMNS = 20
 
 
@@ -49,8 +49,8 @@ class CandidateFinder:
         
         insert_length_info saves the maximum length insert given a genomic position.
         '''
-        self.base_dictionary = defaultdict(lambda: defaultdict(int))
-        self.insert_dictionary = defaultdict(lambda: defaultdict(int))
+        self.base_dictionary = defaultdict(lambda: defaultdict(tuple))
+        self.insert_dictionary = defaultdict(lambda: defaultdict(tuple))
         self.insert_length_info = defaultdict(int)
 
         # positional information

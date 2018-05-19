@@ -60,7 +60,7 @@ class ImageGenerator:
         # for image generation
         self.image_row_for_reads = defaultdict(list)
         self.image_row_for_ref = defaultdict(list)
-        self.positional_info_index_to_position = defaultdict(int)
+        self.positional_info_index_to_position = defaultdict(tuple)
         self.positional_info_position_to_index = defaultdict(int)
         self.base_frequency = defaultdict(lambda: defaultdict(int))
         self.index_based_coverage = defaultdict(int)
@@ -441,7 +441,7 @@ class ImageGenerator:
             bases = []
             total_bases = self.index_based_coverage[i]
             for base in self.base_frequency[i]:
-                base_frequency = self.base_frequency[i][base] / total_bases
+                base_frequency = self.base_frequency[i][base] / total_bases if total_bases else 0
                 if base_frequency >= ALLELE_FREQUENCY_THRESHOLD_FOR_REPORTING:
                     bases.append(base)
                     # warn if a really abundant allele is not in VCF
