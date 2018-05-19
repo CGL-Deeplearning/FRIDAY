@@ -145,7 +145,7 @@ class View:
         for i in range(start_index, end_index):
             interval_start, interval_end = self.confidence_intervals[i][0]+BED_INDEX_BUFFER, \
                                            self.confidence_intervals[i][1]+BED_INDEX_BUFFER
-            interval_start, interval_end = 427930, 428608
+            # interval_start, interval_end = 427930, 428608
             interval_start -= 50
             interval_end += 350
             # interval_start, interval_end = 18987335, 18987365
