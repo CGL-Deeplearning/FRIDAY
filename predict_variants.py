@@ -14,6 +14,7 @@ import operator
 import pickle
 from tqdm import tqdm
 import os
+import time
 from multiprocessing import Pool
 """
 This script uses a trained model to call variants on a given set of images generated from the genome.
@@ -260,6 +261,7 @@ def write_vcf(bam_file_path, sample_name, output_dir, vcf_calls):
 
 def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, bam_file_path, sample_name, output_dir,
                  max_threads):
+    program_start_time = time.time()
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "SAMPLE NAME: " + sample_name + "\n")
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PLEASE USE --sample_name TO CHANGE SAMPLE NAME.\n")
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "OUTPUT DIRECTORY: " + output_dir + "\n")
@@ -292,6 +294,8 @@ def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, bam_fi
 
     write_vcf(bam_file_path, sample_name, output_dir, vcf_ready_calls)
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "VARIANT CALLING COMPLETE.\n")
+    program_end_time = time.time()
+    sys.stderr.write(TextColor.PURPLE + "TIME ELAPSED: " + str(program_end_time-program_start_time) + "\n")
 
 
 
