@@ -26,7 +26,7 @@ WINDOW_SIZE = 300
 # flanking size is the amount add on each size
 WINDOW_FLANKING_SIZE = 5
 # boundary columns is the number of bases we process for safety
-BOUNDARY_COLUMNS = 100
+BOUNDARY_COLUMNS = 50
 
 # Logging configuration
 LOG_LEVEL_HIGH = 1
@@ -380,10 +380,13 @@ class ImageGenerator:
         :param base_b: Base 2
         :return:
         """
+        if base_a == 'N':
+            base_a = '.'
+        if base_b == 'N':
+            base_b = '.'
         if base_b < base_a:
             base_a, base_b = base_b, base_a
         encoded_base = base_a + base_b
-        encoded_base = encoded_base.replace('N', '.')
         base_to_letter_map = {'**': 0, '*.': 1, '*A': 2, '*C': 3, '*G': 4, '*T': 5,
                                        '..': 6, '.A': 7, '.C': 8, '.G': 9, '.T': 10,
                                                 'AA': 11, 'AC': 12, 'AG': 13, 'AT': 14,
