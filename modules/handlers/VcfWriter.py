@@ -19,6 +19,7 @@ class VCFWriter:
         bam_file_name = bam_file_path.rstrip().split('/')[-1].split('.')[0]
         vcf_header = self.get_vcf_header(sample_name)
         time_str = time.strftime("%m%d%Y_%H%M%S")
+
         self.vcf_file = VariantFile(output_dir + bam_file_name + '_' + time_str + '.vcf', 'w', header=vcf_header)
 
     def write_vcf_record(self, chrm, st_pos, end_pos, ref, alts, genotype, qual, gq, rec_filter):

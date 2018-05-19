@@ -11,6 +11,7 @@ from modules.handlers.TextColor import TextColor
 from collections import defaultdict
 from modules.handlers.VcfWriter import VCFWriter
 import operator
+import pickle
 import os
 """
 This script uses a trained model to call variants on a given set of images generated from the genome.
@@ -28,6 +29,27 @@ Output:
 FLANK_SIZE = 5
 WINDOW_SIZE = 300
 
+
+def save_dictionary(dictionary, directory, file_name):
+    """
+    Save a dictionary to a file.
+    :param dictionary: The dictionary to save
+    :param directory: Directory to save the file to
+    :param file_name: Name of file
+    :return:
+    """
+    with open(directory + file_name, 'wb') as f:
+        pickle.dump(dictionary, f, pickle.HIGHEST_PROTOCOL)
+
+
+def prediction_dictionary_structure():
+    return defaultdict(list)
+
+
+def reference_dictionary_structure():
+    return defaultdict(int)
+
+
 def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     """
     Create a prediction table/dictionary of an images set using a trained model.
@@ -39,8 +61,8 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     :return: Prediction dictionary
     """
     # the prediction table/dictionary
-    prediction_dict = defaultdict(lambda: defaultdict(list))
-    reference_dict = defaultdict(lambda: defaultdict(int))
+    prediction_dict = defaultdict(prediction_dictionary_structure)
+    reference_dict = defaultdict(reference_dictionary_structure)
     chromosome_name = ''
     transformations = transforms.Compose([transforms.ToTensor()])
 
@@ -212,11 +234,11 @@ def call_variant():
     chromosome_name, prediction_dict, reference_dict = \
         predict(FLAGS.csv_file, FLAGS.batch_size, FLAGS.model_path, FLAGS.gpu_mode, FLAGS.num_workers)
 
+    save_dictionary(prediction_dict, FLAGS.output_dir, str(chromosome_name) + "_predictions.pkl")
+    save_dictionary(reference_dict, FLAGS.output_dir, str(chromosome_name) + "_reference.pkl")
+    file_location = FLAGS.output_dir + str(chromosome_name) + "_predictions.pkl"
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PREDICTION COMPLETED SUCCESSFULLY.\n")
-
-    produce_vcf(chromosome_name, prediction_dict, reference_dict, FLAGS.bam_file, FLAGS.sample_name, FLAGS.output_dir)
-
-    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "FINISHED CALLING VARIANT.\n")
+    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PREDICTION FILE SAVED: " + file_location + "\n")
 
 
 if __name__ == '__main__':
@@ -224,7 +246,6 @@ if __name__ == '__main__':
     Processes arguments and performs tasks.
     '''
     parser = argparse.ArgumentParser()
-    parser.register("type", "bool", lambda v: v.lower() == "true")
     parser.add_argument(
         "--csv_file",
         type=str,

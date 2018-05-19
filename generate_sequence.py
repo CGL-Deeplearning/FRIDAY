@@ -34,7 +34,7 @@ Output:
 # Global debug helpers
 DEBUG_PRINT_CANDIDATES = False
 DEBUG_TIME_PROFILE = False
-DEBUG_TEST_PARALLEL = False
+DEBUG_TEST_PARALLEL = True
 LOG_LEVEL_HIGH = 0
 LOG_LEVEL_LOW = 1
 LOG_LEVEL = LOG_LEVEL_LOW
@@ -132,7 +132,7 @@ class View:
         :param file_name: Name of file
         :return:
         """
-        with open(directory + file_name + '.pkl', 'wb') as f:
+        with open(directory + "candidate_dictionaries/" + file_name + '.pkl', 'wb') as f:
             pickle.dump(dictionary, f, pickle.HIGHEST_PROTOCOL)
 
     def parse_region(self, start_index, end_index):
@@ -146,6 +146,7 @@ class View:
         for i in range(start_index, end_index):
             interval_start, interval_end = self.confidence_intervals[i][0]+BED_INDEX_BUFFER, \
                                            self.confidence_intervals[i][1]+BED_INDEX_BUFFER
+            # interval_start, interval_end = 3082813, 3086239
             interval_start -= 200
             interval_end += 200
             # interval_start, interval_end = 18987335, 18987365
@@ -180,10 +181,9 @@ class View:
             img, sequences = image_generator.get_segmented_image_sequences(interval_start, interval_end,
                                                                            positional_variants, read_id_list)
 
-            # create a filename and save the image and dictionary
-            # filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
-            # image_generator.save_image_as_png(img, self.output_dir, filename)
-            # self.save_dictionary(allele_dictionary, self.output_dir, filename)
+            # save allele dictionary
+            filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
+            self.save_dictionary(allele_dictionary, self.output_dir, filename)
 
             # gather all information about the saved image
             # img_shape_string = ' '.join([str(x) for x in img.shape])
@@ -221,7 +221,7 @@ def test(view_object):
     :return:
     """
     start_time = time.time()
-    view_object.parse_region(start_index=170, end_index=250)
+    view_object.parse_region(start_index=0, end_index=50)
     print("TOTAL TIME ELAPSED: ", time.time()-start_time)
 
 
@@ -265,6 +265,10 @@ def create_output_dir_for_chromosome(output_dir, chr_name):
     if not os.path.exists(summary_path):
         os.mkdir(summary_path)
 
+    candidate_dictionar_path = path_to_dir + "candidate_dictionaries" + "/"
+    if not os.path.exists(candidate_dictionar_path):
+        os.mkdir(candidate_dictionar_path)
+
     return path_to_dir
 
 
@@ -295,8 +299,8 @@ def chromosome_level_parallelization(chr_name, bam_file, ref_file, vcf_file, out
     each_chunk_size = 100
 
     if DEBUG_TEST_PARALLEL:
-        each_chunk_size = 4
-        total_segments = 40
+        each_chunk_size = 100
+        total_segments = 400
 
     for i in tqdm(range(0, total_segments, each_chunk_size), file=sys.stdout, dynamic_ncols=True):
         start_position = i
@@ -320,6 +324,7 @@ def chromosome_level_parallelization(chr_name, bam_file, ref_file, vcf_file, out
                 break
         # remove summary files and make one file
         summary_file_to_csv(output_path, [chr_name])
+        merge_all_candidate_dictionaries(output_path, [chr_name])
 
         chr_end_time = time.time()
         sys.stderr.write(TextColor.RED + "CHROMOSOME PROCESSES FINISHED SUCCESSFULLY" + "\n")
@@ -367,6 +372,7 @@ def genome_level_parallelization(bam_file, ref_file, vcf_file, output_dir_path, 
             break
 
     summary_file_to_csv(output_dir_path, chr_list)
+    merge_all_candidate_dictionaries(output_dir_path, chr_list)
 
     program_end_time = time.time()
     sys.stderr.write(TextColor.RED + "PROCESSED FINISHED SUCCESSFULLY" + "\n")
@@ -391,6 +397,30 @@ def summary_file_to_csv(output_dir_path, chr_list):
         file_paths = filemanager_object.get_file_paths_from_directory(path_to_dir)
         # dump all bed files into one
         filemanager_object.concatenate_files(file_paths, concatenated_file_name)
+        # delete all temporary files
+        filemanager_object.delete_files(file_paths)
+        # remove the directory
+        os.rmdir(path_to_dir)
+
+
+def merge_all_candidate_dictionaries(output_dir_path, chr_list):
+    """
+    Merge all dictionaries containing candidate alleles to one
+    :param output_dir_path: Path to the output directory
+    :param chr_list: List of chromosomes
+    :return:
+    """
+    for chr_name in chr_list:
+        # here we dumped all the bed files
+        path_to_dir = output_dir_path + chr_name + "/candidate_dictionaries/"
+
+        concatenated_file_name = output_dir_path + chr_name + "_candidate_alleles.pkl"
+
+        filemanager_object = FileManager()
+        # get all bed file paths from the directory
+        file_paths = filemanager_object.get_file_paths_from_directory(path_to_dir)
+        # dump all bed files into one
+        filemanager_object.merge_dictionaries(file_paths, concatenated_file_name)
         # delete all temporary files
         filemanager_object.delete_files(file_paths)
         # remove the directory

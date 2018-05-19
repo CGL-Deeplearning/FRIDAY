@@ -1,4 +1,5 @@
 import shutil
+import pickle
 from os import listdir, remove
 from os.path import isfile, join
 """
@@ -30,6 +31,24 @@ class FileManager:
                 with open(file_path, 'rb') as in_file:
                     # 100MB per writing chunk to avoid reading big file into memory.
                     shutil.copyfileobj(in_file, out_file, 1024*1024*100)
+
+    @staticmethod
+    def merge_dictionaries(file_paths, output_file_path):
+        """
+        Concatenate dictionaries given in list of file paths to a single dictionary
+        :param file_paths: List of file path
+        :param output_file_path: Output file path name
+        :return:
+        """
+        merged_dict = {}
+
+        for file_path in file_paths:
+            dictionary = pickle.load(open(file_path, "rb"))
+            z = {**merged_dict, **dictionary}
+            merged_dict = z
+
+        # save the merged file
+        pickle.dump(merged_dict, open(output_file_path, "wb"))
 
     @staticmethod
     def get_file_paths_from_directory(directory_path):
