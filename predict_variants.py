@@ -44,12 +44,8 @@ def save_dictionary(dictionary, directory, file_name):
         pickle.dump(dictionary, f, pickle.HIGHEST_PROTOCOL)
 
 
-def prediction_dictionary_structure():
-    return defaultdict(list)
-
-
-def reference_dictionary_structure():
-    return defaultdict(tuple)
+prediction_dict = defaultdict(lambda: defaultdict(list))
+reference_dict = defaultdict(lambda: defaultdict(tuple))
 
 
 def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
@@ -63,8 +59,6 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     :return: Prediction dictionary
     """
     # the prediction table/dictionary
-    prediction_dict = defaultdict(prediction_dictionary_structure)
-    reference_dict = defaultdict(reference_dictionary_structure)
     chromosome_name = ''
     transformations = transforms.Compose([transforms.ToTensor()])
 
@@ -166,15 +160,13 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                 else:
                     insert_index += 1
 
-    return chromosome_name, prediction_dict, reference_dict
+    return chromosome_name
 
 
-def produce_vcf(chromosome_name, prediction_dict, reference_dict, bam_file_path, sample_name, output_dir):
+def produce_vcf(chromosome_name, bam_file_path, sample_name, output_dir):
     """
     Convert prediction dictionary to a VCF file
     :param chromosome_name: Chromosome name
-    :param prediction_dict: prediction dictionary containing predictions of each image records
-    :param reference_dict: Dictionary containing reference information
     :param bam_file_path: Path to the BAM file
     :param sample_name: Name of the sample in the BAM file
     :param output_dir: Output directory
@@ -211,7 +203,7 @@ def produce_vcf(chromosome_name, prediction_dict, reference_dict, bam_file_path,
         vcf_writer.write_vcf_record(chrm, st_pos, end_pos, ref, alt_field, genotype, phred_qual, phred_gq, rec_filter)
 
 
-def produce_vcf_records(arg_tuple):
+def produce_vcf_records(chromosome_name, pos_list):
     """
     Convert prediction dictionary to a VCF file
     :param: arg_tuple: Tuple of arguments containing these values:
@@ -227,7 +219,6 @@ def produce_vcf_records(arg_tuple):
     """
     # object that can write and handle VCF
     # vcf_writer = VCFWriter(bam_file_path, sample_name, output_dir, thread_id)
-    chromosome_name, pos_list, prediction_dict, reference_dict = arg_tuple
     # collate multi-allelic records to a single record
     all_calls = []
     for pos in pos_list:
@@ -272,10 +263,10 @@ def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, bam_fi
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "SAMPLE NAME: " + sample_name + "\n")
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PLEASE USE --sample_name TO CHANGE SAMPLE NAME.\n")
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "OUTPUT DIRECTORY: " + output_dir + "\n")
-    chr_name, pred_dict, ref_dict = predict(csv_file, batch_size, model_path, gpu_mode, num_workers)
+    chr_name = predict(csv_file, batch_size, model_path, gpu_mode, num_workers)
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PREDICTION COMPLETED SUCCESSFULLY.\n")
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "GENERATING VCF.\n")
-    genomic_positions = list(pred_dict.keys())
+    genomic_positions = list(prediction_dict.keys())
     total_segments = len(genomic_positions)
     each_chunk_size = int(total_segments/max_threads)
     arg_list = []
@@ -285,12 +276,18 @@ def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, bam_fi
         pos_list = genomic_positions[start_position:end_position]
 
         # gather all parameters
-        args = (chr_name, pos_list, pred_dict, ref_dict)
+        args = (chr_name, pos_list)
         arg_list.append(args)
 
-    pool = Pool(processes=len(arg_list))
+    pool = Pool(processes=max_threads)
+    results = [list() for i in range(len(arg_list))]
+    for idx in range(len(arg_list)):
+        results[idx] = pool.apply_async(produce_vcf_records, arg_list[idx])
 
-    vcf_ready_calls = pool.map(produce_vcf_records, arg_list)
+    vcf_ready_calls = list()
+    for idx in range(len(arg_list)):
+        vcf_ready_calls.append(results[idx].get())
+
     vcf_ready_calls = [item for list_of_calls in vcf_ready_calls for item in list_of_calls]
 
     write_vcf(bam_file_path, sample_name, output_dir, vcf_ready_calls)
