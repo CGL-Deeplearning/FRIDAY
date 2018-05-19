@@ -124,15 +124,14 @@ class View:
         return positional_variants
 
     @staticmethod
-    def save_dictionary(dictionary, directory, file_name):
+    def save_dictionary(dictionary, file_path):
         """
         Save a dictionary to a file.
         :param dictionary: The dictionary to save
-        :param directory: Directory to save the file to
-        :param file_name: Name of file
+        :param file_path: Path to the output file
         :return:
         """
-        with open(directory + "candidate_dictionaries/" + file_name + '.pkl', 'wb') as f:
+        with open(file_path, 'wb') as f:
             pickle.dump(dictionary, f, pickle.HIGHEST_PROTOCOL)
 
     def parse_region(self, start_index, end_index):
@@ -182,8 +181,10 @@ class View:
                                                                            positional_variants, read_id_list)
 
             # save allele dictionary
-            filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
-            self.save_dictionary(allele_dictionary, self.output_dir, filename)
+            allele_dict_filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
+            allele_dict_filename = os.path.abspath(self.output_dir) + "/candidate_dictionaries/" \
+                                 + allele_dict_filename + '.pkl'
+            self.save_dictionary(allele_dictionary, allele_dict_filename)
 
             # gather all information about the saved image
             # img_shape_string = ' '.join([str(x) for x in img.shape])
@@ -199,9 +200,10 @@ class View:
                 # file location and information
                 filename = self.chromosome_name + '_' + str(pos)
                 file_location = os.path.abspath(self.output_dir) + "/" + filename
+
                 sub_img = img[:, left_index:right_index, :]
                 img_shape_string = ' '.join([str(x) for x in sub_img.shape])
-                file_info = file_location + " " + img_shape_string
+                file_info = file_location + " " + allele_dict_filename + " " + img_shape_string
 
                 image_generator.save_image_as_png(sub_img, self.output_dir, filename)
 
@@ -221,7 +223,7 @@ def test(view_object):
     :return:
     """
     start_time = time.time()
-    view_object.parse_region(start_index=0, end_index=50)
+    view_object.parse_region(start_index=0, end_index=10)
     print("TOTAL TIME ELAPSED: ", time.time()-start_time)
 
 

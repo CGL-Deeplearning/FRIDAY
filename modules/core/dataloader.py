@@ -33,7 +33,7 @@ class SequenceDataset(Dataset):
 
     def __getitem__(self, index):
         # load the image
-        file_name, shape_y, shape_x, shape_z = self.file_info[index].split(' ')
+        file_name, allele_dict_path, shape_y, shape_x, shape_z = self.file_info[index].split(' ')
         img = Image.open(file_name + '.png')
         np_array_of_img = np.array(img.getdata())
         img_shape = (int(shape_y), int(shape_x), int(shape_z))
@@ -59,7 +59,7 @@ class SequenceDataset(Dataset):
 
         chromosome_name = chromosome_name
 
-        positional_information = (chromosome_name, genomic_start_position, reference_sequence)
+        positional_information = (chromosome_name, genomic_start_position, reference_sequence, allele_dict_path)
 
         return img, label, positional_information
 

@@ -72,7 +72,7 @@ class VCFWriter:
 
         # get alts from label
         alts = VCFWriter.prediction_label_to_allele(predicted_class)
-        reference_base = reference[0]
+        reference_base = reference[0][0]
 
         # get the probabilities
         list_prediction_probabilities = [probs for label, probs in predictions[0]]
