@@ -174,7 +174,7 @@ class View:
             # process the interval and populate dictionaries
             read_id_list = self.candidate_finder.process_interval(interval_start - SAFE_BOUNDARY_BASES,
                                                                   interval_end + SAFE_BOUNDARY_BASES)
-            allele_dictionary = self.candidate_finder.positional_allele_frequency
+            # allele_dictionary = self.candidate_finder.positional_allele_frequency
 
             image_generator = ImageGenerator(self.candidate_finder)
             # get trainable sequences
@@ -182,8 +182,8 @@ class View:
                                                                            positional_variants, read_id_list)
 
             # save allele dictionary
-            filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
-            self.save_dictionary(allele_dictionary, self.output_dir, filename)
+            # filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
+            # self.save_dictionary(allele_dictionary, self.output_dir, filename)
 
             # gather all information about the saved image
             # img_shape_string = ' '.join([str(x) for x in img.shape])
@@ -324,7 +324,7 @@ def chromosome_level_parallelization(chr_name, bam_file, ref_file, vcf_file, out
                 break
         # remove summary files and make one file
         summary_file_to_csv(output_path, [chr_name])
-        merge_all_candidate_dictionaries(output_path, [chr_name])
+        # merge_all_candidate_dictionaries(output_path, [chr_name])
 
         chr_end_time = time.time()
         sys.stderr.write(TextColor.RED + "CHROMOSOME PROCESSES FINISHED SUCCESSFULLY" + "\n")
@@ -372,7 +372,7 @@ def genome_level_parallelization(bam_file, ref_file, vcf_file, output_dir_path, 
             break
 
     summary_file_to_csv(output_dir_path, chr_list)
-    merge_all_candidate_dictionaries(output_dir_path, chr_list)
+    # merge_all_candidate_dictionaries(output_dir_path, chr_list)
 
     program_end_time = time.time()
     sys.stderr.write(TextColor.RED + "PROCESSED FINISHED SUCCESSFULLY" + "\n")
