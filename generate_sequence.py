@@ -45,7 +45,7 @@ STRATIFICATION_RATE = 1.0
 MIN_SEQUENCE_BASE_LENGTH_THRESHOLD = 300
 MIN_VARIANT_IN_WINDOW_THRESHOLD = 1
 BED_INDEX_BUFFER = -1
-SAFE_BOUNDARY_BASES = 100
+SAFE_BOUNDARY_BASES = 50
 
 
 def build_chromosomal_interval_trees(confident_bed_path):
@@ -147,8 +147,8 @@ class View:
             interval_start, interval_end = self.confidence_intervals[i][0]+BED_INDEX_BUFFER, \
                                            self.confidence_intervals[i][1]+BED_INDEX_BUFFER
             # interval_start, interval_end = 3082813, 3086239
-            interval_start -= 200
-            interval_end += 200
+            interval_start -= 150
+            interval_end += 150
             # interval_start, interval_end = 18987335, 18987365
 
             interval_length = interval_end - interval_start
@@ -174,7 +174,7 @@ class View:
             # process the interval and populate dictionaries
             read_id_list = self.candidate_finder.process_interval(interval_start - SAFE_BOUNDARY_BASES,
                                                                   interval_end + SAFE_BOUNDARY_BASES)
-            # allele_dictionary = self.candidate_finder.positional_allele_frequency
+            allele_dictionary = self.candidate_finder.positional_allele_frequency
 
             image_generator = ImageGenerator(self.candidate_finder)
             # get trainable sequences
@@ -182,8 +182,8 @@ class View:
                                                                            positional_variants, read_id_list)
 
             # save allele dictionary
-            # filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
-            # self.save_dictionary(allele_dictionary, self.output_dir, filename)
+            filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
+            self.save_dictionary(allele_dictionary, self.output_dir, filename)
 
             # gather all information about the saved image
             # img_shape_string = ' '.join([str(x) for x in img.shape])
