@@ -85,21 +85,44 @@ class VCFWriter:
             print("SUM ZERO ENCOUNTERED IN: ", pos, predictions, reference)
             exit()
         probabilities = [float(i) / sum_of_probs for i in min_probs_for_each_class]
-        if alts[0] == reference_base and alts[1] == reference_base:
-            genotype = HOM
+
+        qual, gq = VCFWriter.get_qual_and_gq(probabilities, predicted_class, reference_base)
+
+        return reference_base, alts, qual, gq
+
+
+    @staticmethod
+    def process_insert(pos, predictions, reference):
+        alts_list = []
+        reference_seq = ''
+        quals = []
+        gqs = []
+        for insert_index in range(len(predictions)):
+            # get the list of prediction labels
+            list_prediction_labels = [label for label, probs in predictions[insert_index]]
+            predicted_class = max(set(list_prediction_labels), key=list_prediction_labels.count)
+
+            # get alts from label
+            alts = VCFWriter.prediction_label_to_allele(predicted_class)
+            reference_base = reference[insert_index][0]
+            reference_seq += reference_base if reference_base != '*' else ''
+            # get the probabilities
+            list_prediction_probabilities = [probs for label, probs in predictions[insert_index]]
+            num_classes = len(list_prediction_probabilities[0])
+            min_probs_for_each_class = [min(l[i] for l in list_prediction_probabilities) for i in range(num_classes)]
+
+            # normalize the probabilities
+            sum_of_probs = sum(min_probs_for_each_class) if sum(min_probs_for_each_class) > 0 else 1
+            if sum(min_probs_for_each_class) <= 0:
+                print("SUM ZERO ENCOUNTERED IN: ", pos, predictions, reference)
+                exit()
+            probabilities = [float(i) / sum_of_probs for i in min_probs_for_each_class]
+            alts_list.append(alts)
             qual, gq = VCFWriter.get_qual_and_gq(probabilities, predicted_class, reference_base)
-            return reference_base, alts, genotype, qual, gq
-        elif alts[0] != reference_base and alts[1] != reference_base:
-            if alts[0] == alts[1]:
-                alts = [alts[0]]
-            genotype = HOM_ALT
-            qual, gq = VCFWriter.get_qual_and_gq(probabilities, predicted_class, reference_base)
-            return reference_base, alts, genotype, qual, gq
-        else:
-            alts = [alts[0]] if alts[0] != reference_base else [alts[1]]
-            genotype = HET
-            qual, gq = VCFWriter.get_qual_and_gq(probabilities, predicted_class, reference_base)
-            return reference_base, alts, genotype, qual, gq
+            quals.append(qual)
+            gqs.append(gq)
+
+        return reference_seq, alts_list, quals, gqs
 
     @staticmethod
     def solve_multiple_alts(alts, ref):
@@ -252,7 +275,7 @@ class VCFWriter:
     @staticmethod
     def get_filter(record, last_end):
         chrm, st_pos, end_pos, ref, alt_field, genotype, phred_qual, phred_gq = record
-        if st_pos <= last_end:
+        if st_pos < last_end:
             return 'conflictPos'
         if genotype == '0/0':
             return 'refCall'

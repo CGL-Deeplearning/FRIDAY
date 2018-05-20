@@ -223,7 +223,7 @@ def test(view_object):
     :return:
     """
     start_time = time.time()
-    view_object.parse_region(start_index=0, end_index=1)
+    view_object.parse_region(start_index=0, end_index=50)
     print("TOTAL TIME ELAPSED: ", time.time()-start_time)
 
 
@@ -304,7 +304,7 @@ def chromosome_level_parallelization(chr_name, bam_file, ref_file, vcf_file, out
         each_chunk_size = 100
         total_segments = 400
 
-    for i in tqdm(range(0, total_segments, each_chunk_size), file=sys.stdout, dynamic_ncols=True):
+    for i in range(0, total_segments, each_chunk_size):
         start_position = i
         end_position = min(i + each_chunk_size, total_segments)
         chunk_intervals = c_intervals[start_position:end_position]
@@ -484,7 +484,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--max_threads",
         type=int,
-        default=4,
+        default=8,
         help="Number of maximum threads for this region."
     )
     parser.add_argument(
