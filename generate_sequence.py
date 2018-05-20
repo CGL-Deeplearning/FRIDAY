@@ -304,7 +304,7 @@ def chromosome_level_parallelization(chr_name, bam_file, ref_file, vcf_file, out
         each_chunk_size = 100
         total_segments = 400
 
-    for i in range(0, total_segments, each_chunk_size):
+    for i in tqdm(range(0, total_segments, each_chunk_size), file=sys.stdout, dynamic_ncols=True):
         start_position = i
         end_position = min(i + each_chunk_size, total_segments)
         chunk_intervals = c_intervals[start_position:end_position]
