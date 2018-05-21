@@ -4,18 +4,20 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
+import multiprocessing
 from torch.autograd import Variable
 from modules.models.Seq2Seq_CNN import SeqResNet
+from pysam import VariantFile
 from modules.core.dataloader import SequenceDataset
 from modules.handlers.TextColor import TextColor
 from collections import defaultdict
 from modules.handlers.VcfWriter import VCFWriter
+from modules.handlers.FileManager import FileManager
 import operator
 import pickle
 from tqdm import tqdm
 import os
 import time
-from multiprocessing import Pool
 """
 This script uses a trained model to call variants on a given set of images generated from the genome.
 The process is:
@@ -38,19 +40,6 @@ DEL = 3
 HOM = 0
 HET = 1
 HOM_ALT = 2
-
-
-def save_dictionary(dictionary, directory, file_name):
-    """
-    Save a dictionary to a file.
-    :param dictionary: The dictionary to save
-    :param directory: Directory to save the file to
-    :param file_name: Name of file
-    :return:
-    """
-    with open(directory + file_name, 'wb') as f:
-        pickle.dump(dictionary, f, pickle.HIGHEST_PROTOCOL)
-
 
 prediction_dict = defaultdict(lambda: defaultdict(list))
 reference_dict = defaultdict(lambda: defaultdict(tuple))
@@ -171,44 +160,6 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     return chromosome_name
 
 
-def find_insert_alleles(alts_list, prediction_list, reference_list):
-    # find the zygosity of the site
-    min_len_insert = min([len(alt) for alt in alts_list])
-    zygosity_votes = []
-    for i in range(1, min_len_insert):
-        ref_base = reference_list[i][0]
-        predicted_bases = prediction_list[i]
-        if predicted_bases[0] == ref_base and predicted_bases[1] == ref_base:
-            zygosity_votes.append(HOM)
-        elif predicted_bases[0] != ref_base and predicted_bases[1] != ref_base:
-            zygosity_votes.append(HOM_ALT)
-        else:
-            zygosity_votes.append(HET)
-
-    zygosity_of_site = max(zygosity_votes,key=zygosity_votes.count)
-
-    if zygosity_of_site == HOM:
-        return [], HOM
-
-    # now based on zygosity pick alleles
-    # first score each allele
-    alts_score = defaultdict(int)
-    for alt in alts_list:
-        score = 0.0
-        for i in range(len(alt)):
-            predicted_base = prediction_list[i]
-            if alt[i] in predicted_base:
-                score += 1.0
-            else:
-                score -= 1.0
-        alts_score[alt] = score
-
-    if zygosity_of_site == HET:
-        return sorted(alts_score.keys(), key=operator.itemgetter(1))[:1], HET
-    if zygosity_of_site == HOM_ALT:
-        return sorted(alts_score.keys(), key=operator.itemgetter(1))[:2], HOM_ALT
-
-
 def get_genotype(alt_base, predicted_bases):
     if alt_base == predicted_bases[0] and alt_base == predicted_bases[1]:
         return HOM_ALT
@@ -323,7 +274,7 @@ def get_predicted_alleles(pos, alts_list):
     return get_site_record(all_records)
 
 
-def produce_vcf_records(chromosome_name, pos_list):
+def produce_vcf_records(chromosome_name, output_dir, thread_no, pos_list):
     """
     Convert prediction dictionary to a VCF file
     :param: arg_tuple: Tuple of arguments containing these values:
@@ -340,21 +291,18 @@ def produce_vcf_records(chromosome_name, pos_list):
     # object that can write and handle VCF
     # vcf_writer = VCFWriter(bam_file_path, sample_name, output_dir, thread_id)
     # collate multi-allelic records to a single record
-    all_calls = []
     current_allele_dict = ''
     allele_dict = {}
+    record_file = open(output_dir + chromosome_name + "_" + str(thread_no) + ".tsv", 'w')
     for pos in pos_list:
         allele_dict_path = reference_dict[pos][0][1]
 
         if allele_dict_path != current_allele_dict:
             allele_dict = pickle.load(open(allele_dict_path, 'rb'))
+            current_allele_dict = allele_dict_path
 
         if pos not in allele_dict:
             continue
-        # if pos+5 > 259465 and pos-5<259465:
-        #     alleles = sorted(allele_dict[pos].items(), key=operator.itemgetter(1))[:2]
-        #     record = get_predicted_alleles(pos, alleles)
-        #     exit()
 
         alleles = sorted(allele_dict[pos].items(), key=operator.itemgetter(1))[:2]
         record = get_predicted_alleles(pos, alleles)
@@ -362,21 +310,39 @@ def produce_vcf_records(chromosome_name, pos_list):
             continue
 
         ref, alts, qual, gq, genotype = record
+        if len(alts) == 1:
+            alts.append('.')
+        rec_end = int(pos + len(ref) - 1)
+        record_string = chromosome_name + "\t" + str(pos) + "\t" + str(rec_end) + "\t" + ref + "\t" + '\t'.join(alts) \
+                        + "\t" + genotype + "\t" + str(qual) + "\t" + str(gq) + "\t" + "\n"
+        record_file.write(record_string)
 
-        all_calls.append((chromosome_name, int(pos), int(pos + len(ref)), ref, alts, genotype, qual, gq))
 
-    return all_calls
+def merge_call_files(vcf_file_directory):
+    filemanager_object = FileManager()
+    # get all bed file paths from the directory
+    file_paths = filemanager_object.get_file_paths_from_directory(vcf_file_directory)
+    all_records = []
+    for file_path in file_paths:
+        with open(file_path, 'r') as tsv:
+            for line in tsv:
+                chr_name, pos_st, pos_end, ref, alt1, alt2, genotype, qual, gq = line.strip().split('\t')
+                alts = []
+                pos_st, pos_end, qual, gq = int(pos_st), int(pos_end), float(qual), float(gq)
+                if alt1 != '.':
+                    alts.append(alt1)
+                if alt2 != '.':
+                    alts.append(alt2)
+                all_records.append((chr_name, pos_st, pos_end, ref, alts, genotype, qual, gq))
 
+    filemanager_object.delete_files(file_paths)
+    os.rmdir(vcf_file_directory)
 
-def write_vcf(bam_file_path, sample_name, output_dir, vcf_calls):
-    vcf_writer = VCFWriter(bam_file_path, sample_name, output_dir)
-    for record in vcf_calls:
-        chrm, st_pos, end_pos, ref, alts, genotype, qual, gq, rec_filter = record
-        vcf_writer.write_vcf_record(chrm, st_pos, end_pos, ref, alts, genotype, qual, gq, rec_filter)
+    return all_records
 
 
 def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, bam_file_path, sample_name, output_dir,
-                 max_threads):
+                 vcf_dir, max_threads):
     program_start_time = time.time()
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "SAMPLE NAME: " + sample_name + "\n")
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PLEASE USE --sample_name TO CHANGE SAMPLE NAME.\n")
@@ -384,38 +350,39 @@ def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, bam_fi
     chr_name = predict(csv_file, batch_size, model_path, gpu_mode, num_workers)
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PREDICTION COMPLETED SUCCESSFULLY.\n")
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "GENERATING VCF.\n")
-    genomic_positions = list(prediction_dict.keys())
-    total_segments = len(genomic_positions)
-    each_chunk_size = int(total_segments/max_threads)
-    arg_list = []
-    for i in range(0, total_segments, each_chunk_size):
+    pos_list = list(prediction_dict.keys())
+    each_chunk_size = 10000
+    thread_no = 1
+    for i in range(0, len(pos_list), each_chunk_size):
         start_position = i
-        end_position = min(i + each_chunk_size, total_segments)
-        pos_list = genomic_positions[start_position:end_position]
+        end_position = min(i + each_chunk_size, len(pos_list))
 
+        sub_pos = pos_list[start_position:end_position]
         # gather all parameters
-        args = (chr_name, pos_list)
-        arg_list.append(args)
+        args = (chr_name, vcf_dir, thread_no, sub_pos)
+        p = multiprocessing.Process(target=produce_vcf_records, args=args)
+        p.start()
+        thread_no += 1
 
-    pool = Pool(processes=max_threads)
-    results = [list() for i in range(len(arg_list))]
-    for idx in range(len(arg_list)):
-        results[idx] = pool.apply_async(produce_vcf_records, arg_list[idx])
+        # wait until we have room for new processes to start
+        while True:
+            if len(multiprocessing.active_children()) < max_threads:
+                break
 
-    all_calls = list()
-    for idx in range(len(arg_list)):
-        all_calls.append(results[idx].get())
-
-    pool.close()
-
-    all_calls = [item for list_of_calls in all_calls for item in list_of_calls]
+    # wait until we have room for new processes to start
+    while True:
+        if len(multiprocessing.active_children()) < max_threads:
+            break
+    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "VARIANT CALLING COMPLETE.\n")
+    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "MERGING FILES.\n")
+    all_calls = merge_call_files(vcf_dir)
 
     # sort based on position
     all_calls.sort(key=operator.itemgetter(1))
     # print(all_calls)
     last_end = 0
-    vcf_ready_records = list()
-
+    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "WRITING VCF.\n")
+    vcf_writer = VCFWriter(bam_file_path, sample_name, output_dir)
     for record in all_calls:
         # get the record filter ('PASS' or not)
         rec_filter = VCFWriter.get_filter(record, last_end)
@@ -427,13 +394,12 @@ def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, bam_fi
             # HOM
             last_end = end_pos
         # add the record to VCF
-        vcf_ready_records.append((chrm, st_pos, end_pos, ref, alt_field, genotype, phred_qual, phred_gq, rec_filter))
+        vcf_writer.write_vcf_record(chrm, st_pos, end_pos, ref, alt_field, genotype, phred_qual, phred_gq, rec_filter)
 
-    write_vcf(bam_file_path, sample_name, output_dir, vcf_ready_records)
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "VARIANT CALLING COMPLETE.\n")
     program_end_time = time.time()
 
-    sys.stderr.write(TextColor.PURPLE + "TIME ELAPSED: " + str(program_end_time-program_start_time) + "\n")
+    sys.stderr.write(TextColor.PURPLE + "TIME ELAPSED: " + str(program_end_time - program_start_time) + "\n")
 
 
 def handle_output_directory(output_dir):
@@ -448,7 +414,11 @@ def handle_output_directory(output_dir):
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
-    return output_dir
+    vcf_path = output_dir + "vcfs" + "/"
+    if not os.path.exists(vcf_path):
+        os.mkdir(vcf_path)
+
+    return output_dir, vcf_path
 
 
 if __name__ == '__main__':
@@ -515,7 +485,7 @@ if __name__ == '__main__':
         help="Number of maximum threads for this region."
     )
     FLAGS, unparsed = parser.parse_known_args()
-    FLAGS.output_dir = handle_output_directory(FLAGS.output_dir)
+    FLAGS.output_dir, vcf_dir = handle_output_directory(FLAGS.output_dir)
     call_variant(FLAGS.csv_file,
                  FLAGS.batch_size,
                  FLAGS.model_path,
@@ -524,5 +494,6 @@ if __name__ == '__main__':
                  FLAGS.bam_file,
                  FLAGS.sample_name,
                  FLAGS.output_dir,
+                 vcf_dir,
                  FLAGS.max_threads)
 
