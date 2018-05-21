@@ -273,10 +273,12 @@ def get_predicted_alleles(pos, alts_list):
                 overall_qual = min(overall_qual, qual)
                 overall_gq = min(overall_gq, gq)
 
-            genotype = max(genotype_votes, key=genotype_votes.count)
             avg_score = score / total_len_evaluated if total_len_evaluated else 0
-            if avg_score >= 1.0 and genotype != HOM and skip == False:
-                all_records.append((ref_seq, alt_seq.replace('.', ''), genotype, overall_qual, overall_gq, DEL))
+
+            if avg_score >= 1.0 and skip is False:
+                genotype = max(genotype_votes, key=genotype_votes.count)
+                if genotype != HOM:
+                    all_records.append((ref_seq, alt_seq.replace('.', ''), genotype, overall_qual, overall_gq, DEL))
 
     if len(all_records) == 0:
         return None
