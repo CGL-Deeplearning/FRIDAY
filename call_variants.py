@@ -221,7 +221,7 @@ def get_predicted_alleles(pos, alts_list):
             overall_qual = 1000.0
             genotype_votes = []
             total_len_evaluated = 0
-            if len(alt_seq) < len(predicted_alts_list):
+            if len(alt_seq) > len(predicted_alts_list):
                 sys.stderr.write("PREDICTED ALT IS SMALLER THAN INSERT ALLELE: " + str(pos) + " " + alt_seq + "\n")
                 continue
             for i in range(len(alt_seq)):
@@ -258,7 +258,7 @@ def get_predicted_alleles(pos, alts_list):
             skip = False
             for i in range(len(alt_seq)):
                 if pos+i not in reference_dict:
-                    sys.stderr.write("PREDICTED ALT IS SMALLER THAN DEL ALLELE: " + str(pos) + " " + alt_seq + "\n")
+                    sys.stderr.write("DEL ALLELE CAN'T BE PROCESSED: " + str(pos) + " " + alt_seq + "\n")
                     skip = True
                     break
                 ref_seq += reference_dict[pos+i][0][0]
