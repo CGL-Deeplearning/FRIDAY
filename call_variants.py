@@ -316,7 +316,7 @@ def produce_vcf_records(chromosome_name, output_dir, thread_no, pos_list):
         if pos not in allele_dict:
             continue
 
-        alleles = sorted(allele_dict[pos].items(), key=operator.itemgetter(1))[:2]
+        alleles = sorted(allele_dict[pos].items(), key=operator.itemgetter(1), reverse=True)[:2]
         record = get_predicted_alleles(pos, alleles)
         if record is None:
             continue
