@@ -188,7 +188,7 @@ def get_site_record(all_records):
     for record in all_records:
         ref_seq, alt_seq, genotype, qual, gq, rec_type = record
         if ref_seq != site_ref and len(site_ref) > 1:
-            alt_seq += ref_seq[len(ref_seq):]
+            alt_seq = alt_seq + site_ref[len(ref_seq):]
         site_alts.append(alt_seq)
     site_gq = min(site_gqs)
     site_qual = min(site_quals)
@@ -245,7 +245,6 @@ def get_predicted_alleles(pos, alts_list):
             avg_score = score / total_len_evaluated if total_len_evaluated else 0.0
 
             if avg_score == 1.0 and genotype != HOM:
-
                 all_records.append((ref_seq, alt_seq, genotype, overall_qual, overall_gq, IN))
 
         elif alt_type == DEL:
