@@ -221,11 +221,16 @@ def get_predicted_alleles(pos, alts_list):
             overall_qual = 1000.0
             genotype_votes = []
             total_len_evaluated = 0
+            if len(alt_seq) < len(predicted_alts_list):
+                sys.stderr.write("PREDICTED ALT IS SMALLER THAN INSERT ALLELE: " + str(pos) + " " + alt_seq + "\n")
+                continue
             for i in range(len(alt_seq)):
+
                 if i == 0 and alt_seq[i] == reference_dict[pos][0][0]:
                     continue
 
                 total_len_evaluated += 1
+
                 if alt_seq[i] in predicted_alts_list[i]:
                     score += 1.0
 
@@ -237,7 +242,7 @@ def get_predicted_alleles(pos, alts_list):
 
             genotype = max(genotype_votes, key=genotype_votes.count)
 
-            avg_score = score / total_len_evaluated
+            avg_score = score / total_len_evaluated if total_len_evaluated else 0.0
 
             if avg_score == 1.0 and genotype != HOM:
 
@@ -250,7 +255,12 @@ def get_predicted_alleles(pos, alts_list):
             alt_seq = alt_seq[0] + '.' * (len(alt_seq) - 1)
             total_len_evaluated = 0
             overall_qual, overall_gq = 1000.0, 1000.0
+            skip = False
             for i in range(len(alt_seq)):
+                if pos+i not in reference_dict:
+                    sys.stderr.write("PREDICTED ALT IS SMALLER THAN DEL ALLELE: " + str(pos) + " " + alt_seq + "\n")
+                    skip = True
+                    break
                 ref_seq += reference_dict[pos+i][0][0]
                 if i == 0 and alt_seq[i] == reference_dict[pos][0][0]:
                     continue
@@ -264,8 +274,8 @@ def get_predicted_alleles(pos, alts_list):
                 overall_gq = min(overall_gq, gq)
 
             genotype = max(genotype_votes, key=genotype_votes.count)
-            avg_score = score / total_len_evaluated
-            if avg_score >= 1.0 and genotype != HOM:
+            avg_score = score / total_len_evaluated if total_len_evaluated else 0
+            if avg_score >= 1.0 and genotype != HOM and skip == False:
                 all_records.append((ref_seq, alt_seq.replace('.', ''), genotype, overall_qual, overall_gq, DEL))
 
     if len(all_records) == 0:
@@ -348,12 +358,12 @@ def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, bam_fi
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PLEASE USE --sample_name TO CHANGE SAMPLE NAME.\n")
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "OUTPUT DIRECTORY: " + output_dir + "\n")
     chr_name = predict(csv_file, batch_size, model_path, gpu_mode, num_workers)
-    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PREDICTION COMPLETED SUCCESSFULLY.\n")
-    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "GENERATING VCF.\n")
+    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PREDICTION GENERATED SUCCESSFULLY.\n")
+    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "COMPILING PREDICTIONS TO CALL VARIANTS.\n")
     pos_list = list(prediction_dict.keys())
-    each_chunk_size = 10000
+    each_chunk_size = int(len(pos_list) / max_threads)
     thread_no = 1
-    for i in range(0, len(pos_list), each_chunk_size):
+    for i in tqdm(range(0, len(pos_list), each_chunk_size), file=sys.stdout, dynamic_ncols=True):
         start_position = i
         end_position = min(i + each_chunk_size, len(pos_list))
 
@@ -371,7 +381,7 @@ def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, bam_fi
 
     # wait until we have room for new processes to start
     while True:
-        if len(multiprocessing.active_children()) < max_threads:
+        if len(multiprocessing.active_children()) == 0:
             break
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "VARIANT CALLING COMPLETE.\n")
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "MERGING FILES.\n")
