@@ -224,6 +224,8 @@ def get_predicted_alleles(pos, alts_list):
             if len(alt_seq) > len(predicted_alts_list):
                 sys.stderr.write("PREDICTED ALT IS SMALLER THAN INSERT ALLELE: " + str(pos) + " " + alt_seq + "\n")
                 continue
+            len_diff = len(predicted_alts_list) - len(alt_seq)
+            alt_seq = alt_seq + '*' * len_diff
             for i in range(len(alt_seq)):
 
                 if i == 0 and alt_seq[i] == reference_dict[pos][0][0]:
