@@ -37,7 +37,7 @@ DEBUG_TIME_PROFILE = False
 DEBUG_TEST_PARALLEL = False
 LOG_LEVEL_HIGH = 0
 LOG_LEVEL_LOW = 1
-LOG_LEVEL = LOG_LEVEL_LOW
+LOG_LEVEL = LOG_LEVEL_HIGH
 
 
 # only select STRATIFICATION_RATE% of the total homozygous cases if they are dominant
@@ -145,10 +145,9 @@ class View:
         for i in range(start_index, end_index):
             interval_start, interval_end = self.confidence_intervals[i][0]+BED_INDEX_BUFFER, \
                                            self.confidence_intervals[i][1]+BED_INDEX_BUFFER
-            # interval_start, interval_end = 427930, 428608
+            # interval_start, interval_end = 18435685, 18435695
             interval_start -= 50
             interval_end += 350
-            # interval_start, interval_end = 18987335, 18987365
 
             interval_length = interval_end - interval_start
             if interval_length < MIN_SEQUENCE_BASE_LENGTH_THRESHOLD:
@@ -192,10 +191,10 @@ class View:
             # file_info = file_location + " " + img_shape_string
 
             for counter, training_sequence in enumerate(sequences):
-                pos, left_index, right_index, translated_seq, sub_pos_vals, sub_ref_seq = training_sequence
+                pos, left_index, right_index, label_seq, sub_ref_seq = training_sequence
 
                 # the sequence information
-                sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(translated_seq)
+                sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(label_seq)
                 sequence_info = sequence_info + "," + str(sub_ref_seq)
                 # file location and information
                 filename = self.chromosome_name + '_' + str(pos)
@@ -214,7 +213,7 @@ class View:
                 # from analysis.analyze_png_img import analyze_it
                 # print(pos)
                 # print(translated_seq)
-                # analyze_it(self.output_dir+filename+'.png', sub_img.shape, 0, 300)
+                # analyze_it(self.output_dir+filename+'.png', sub_img.shape, 0, 310)
 
 
 def test(view_object):
@@ -223,7 +222,7 @@ def test(view_object):
     :return:
     """
     start_time = time.time()
-    view_object.parse_region(start_index=0, end_index=50)
+    view_object.parse_region(start_index=0, end_index=10)
     print("TOTAL TIME ELAPSED: ", time.time()-start_time)
 
 

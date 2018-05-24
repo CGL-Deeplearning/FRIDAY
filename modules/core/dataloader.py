@@ -44,7 +44,7 @@ class SequenceDataset(Dataset):
         chromosome_name, genomic_start_position = self.position_info[index].split(' ')
 
         # load the labels
-        label = [ord(x)-ord('A') for x in self.label[index]]
+        label = [int(x) for x in self.label[index]]
         label = np.array(label)
 
         # load genomic position information

@@ -25,18 +25,18 @@ def get_base_by_color(base):
     if 0.0 <= base <= 3.0:
         return ' '
 
-
-def get_alt_support_by_color(is_in_support):
+def get_alt_support_by_color(support_color):
     """
     ***NOT USED YET***
     :param is_in_support:
     :return:
     """
-    if is_in_support == 254.0:
+    if support_color == 254.0:
         return 1
-    elif is_in_support == 152.0:
+    if support_color == 127.0:
+        return 2
+    if support_color == 5.0:
         return 0
-
 
 def get_quality_by_color(map_quality):
     """
@@ -96,6 +96,15 @@ def analyze_array(img):
                 print(' ', end='')
         print()
 
+    print("SUPPORT CHANNEL")
+    for i in range(img_h):
+        for j in range(img_w):
+            if img[i][j][6] != 0:
+                print(get_alt_support_by_color(img[i][j][6]), end='')
+            else:
+                print(' ', end='')
+        print()
+
 
 def analyze_it(img, shape, start_index, end_index):
     file = img
@@ -111,6 +120,15 @@ def analyze_it(img, shape, start_index, end_index):
         for j in range(img_w):
             if img[i][j][0] != 0:
                 print(get_base_by_color(img[i][j][0]), end='')
+            else:
+                print(' ', end='')
+        print()
+
+    print("SUPPORT CHANNEL")
+    for i in range(img_h):
+        for j in range(img_w):
+            if img[i][j][6] != 0:
+                print(get_alt_support_by_color(img[i][j][5]), end='')
             else:
                 print(' ', end='')
         print()

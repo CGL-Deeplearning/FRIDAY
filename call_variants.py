@@ -147,7 +147,7 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                 '''
 
                 true_label = labels[batch, seq]
-                fake_probs = [0.0] * 21
+                fake_probs = [0.0] * 6
                 fake_probs[true_label] = 1.0
                 reference_dict[current_genomic_position][insert_index] = (ref_base, allele_dict_path)
                 prediction_dict[current_genomic_position][insert_index].append((true_label, fake_probs))
@@ -160,131 +160,18 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     return chromosome_name
 
 
-def get_genotype(alt_base, predicted_bases):
-    if alt_base == predicted_bases[0] and alt_base == predicted_bases[1]:
-        return HOM_ALT
-    elif alt_base == predicted_bases[0] or alt_base == predicted_bases[1]:
-        return HET
-    else:
-        return HOM
+def get_record_from_prediction(pos, alleles):
+    predictions = prediction_dict[pos]
+    genotype, qual, gq = VCFWriter.process_prediction(pos, predictions)
+    alts = list(alleles.keys())
+    ref_base = reference_dict[pos][0][0]
+    return ref_base, alts, genotype, qual, gq
 
 
-def get_site_record(all_records):
-    site_ref = ''
-    site_alts = []
-    site_quals = []
-    site_gqs = []
-    site_genotypes = []
-    for record in all_records:
-        ref_seq, alt_seq, genotype, qual, gq, rec_type = record
-        site_gqs.append(gq)
-        site_quals.append(qual)
-        site_genotypes.append(genotype)
-        if rec_type == DEL:
-            site_ref = ref_seq
-        elif site_ref == '':
-            site_ref = ref_seq
-
-    for record in all_records:
-        ref_seq, alt_seq, genotype, qual, gq, rec_type = record
-        if ref_seq != site_ref and len(site_ref) > 1:
-            alt_seq = alt_seq + site_ref[len(ref_seq):]
-        site_alts.append(alt_seq)
-    site_gq = min(site_gqs)
-    site_qual = min(site_quals)
-
-    if len(site_alts) > 1:
-        site_genotype = '1/2'
-    elif site_genotypes[0] == HET:
-        site_genotype = '0/1'
-    else:
-        site_genotype = '1/1'
-
-    return site_ref, site_alts, site_qual, site_gq, site_genotype
-
-
-def get_predicted_alleles(pos, alts_list):
-    all_records = []
-    for alt, freq in alts_list:
-        alt_seq, alt_type = alt
-        if alt_type == SNP:
-            ref, predicted_alts_list, qual, gq = \
-                VCFWriter.process_snp_or_del(pos, prediction_dict[pos], reference_dict[pos])
-            genotype = get_genotype(alt_seq, predicted_alts_list)
-            if genotype != HOM:
-                all_records.append((ref, alt_seq, genotype, qual, gq, SNP))
-        elif alt_type == IN:
-            ref_seq, predicted_alts_list, quals, gqs = \
-                VCFWriter.process_insert(pos, prediction_dict[pos], reference_dict[pos])
-            score = 0.0
-            overall_gq = 1000.0
-            overall_qual = 1000.0
-            genotype_votes = []
-            total_len_evaluated = 0
-            if len(alt_seq) > len(predicted_alts_list):
-                sys.stderr.write("PREDICTED ALT IS SMALLER THAN INSERT ALLELE: " + str(pos) + " " + alt_seq + "\n")
-                continue
-            len_diff = len(predicted_alts_list) - len(alt_seq)
-            alt_seq = alt_seq + '*' * len_diff
-            for i in range(len(alt_seq)):
-
-                if i == 0 and alt_seq[i] == reference_dict[pos][0][0]:
-                    continue
-
-                total_len_evaluated += 1
-
-                if alt_seq[i] in predicted_alts_list[i]:
-                    score += 1.0
-
-                genotype_votes.append(get_genotype(alt_seq[i], predicted_alts_list[i]))
-
-                overall_qual = min(overall_qual, quals[i])
-
-                overall_gq = min(overall_gq, gqs[i])
-
-            genotype = max(genotype_votes, key=genotype_votes.count)
-
-            avg_score = score / total_len_evaluated if total_len_evaluated else 0.0
-
-            if avg_score == 1.0 and genotype != HOM:
-                all_records.append((ref_seq, alt_seq, genotype, overall_qual, overall_gq, IN))
-
-        elif alt_type == DEL:
-            score = 0.0
-            genotype_votes = []
-            ref_seq = ''
-            alt_seq = alt_seq[0] + '.' * (len(alt_seq) - 1)
-            total_len_evaluated = 0
-            overall_qual, overall_gq = 1000.0, 1000.0
-            skip = False
-            for i in range(len(alt_seq)):
-                if pos+i not in reference_dict:
-                    sys.stderr.write("DEL ALLELE CAN'T BE PROCESSED: " + str(pos) + " " + alt_seq + "\n")
-                    skip = True
-                    break
-                ref_seq += reference_dict[pos+i][0][0]
-                if i == 0 and alt_seq[i] == reference_dict[pos][0][0]:
-                    continue
-                total_len_evaluated += 1
-                ref, predicted_alts_list, qual, gq = \
-                    VCFWriter.process_snp_or_del(pos+i, prediction_dict[pos+i], reference_dict[pos+i])
-                if alt_seq[i] in predicted_alts_list:
-                    score += 1.0
-                genotype_votes.append(get_genotype(alt_seq[i], predicted_alts_list))
-                overall_qual = min(overall_qual, qual)
-                overall_gq = min(overall_gq, gq)
-
-            avg_score = score / total_len_evaluated if total_len_evaluated else 0
-
-            if avg_score >= 1.0 and skip is False:
-                genotype = max(genotype_votes, key=genotype_votes.count)
-                if genotype != HOM:
-                    all_records.append((ref_seq, alt_seq.replace('.', ''), genotype, overall_qual, overall_gq, DEL))
-
-    if len(all_records) == 0:
-        return None
-
-    return get_site_record(all_records)
+def check_if_homozygous(genotype):
+    if genotype[0] == '0' and genotype[1] == '0':
+        return True
+    return False
 
 
 def produce_vcf_records(chromosome_name, output_dir, thread_no, pos_list):
@@ -317,17 +204,23 @@ def produce_vcf_records(chromosome_name, output_dir, thread_no, pos_list):
         if pos not in allele_dict:
             continue
 
-        alleles = sorted(allele_dict[pos].items(), key=operator.itemgetter(1), reverse=True)[:2]
-        record = get_predicted_alleles(pos, alleles)
+        alleles = allele_dict[pos]
+
+        record = get_record_from_prediction(pos, alleles)
+
         if record is None:
             continue
 
+        record = VCFWriter.get_proper_alleles(record)
         ref, alts, qual, gq, genotype = record
+        if check_if_homozygous(genotype) is True:
+            continue
         if len(alts) == 1:
             alts.append('.')
         rec_end = int(pos + len(ref) - 1)
+        genotype_str = genotype[0] + '/' + genotype[1]
         record_string = chromosome_name + "\t" + str(pos) + "\t" + str(rec_end) + "\t" + ref + "\t" + '\t'.join(alts) \
-                        + "\t" + genotype + "\t" + str(qual) + "\t" + str(gq) + "\t" + "\n"
+                        + "\t" + genotype_str + "\t" + str(qual) + "\t" + str(gq) + "\t" + "\n"
         record_file.write(record_string)
 
 
@@ -363,9 +256,11 @@ def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, bam_fi
     chr_name = predict(csv_file, batch_size, model_path, gpu_mode, num_workers)
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PREDICTION GENERATED SUCCESSFULLY.\n")
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "COMPILING PREDICTIONS TO CALL VARIANTS.\n")
+
     pos_list = list(prediction_dict.keys())
     each_chunk_size = int(len(pos_list) / max_threads)
     thread_no = 1
+
     for i in tqdm(range(0, len(pos_list), each_chunk_size), file=sys.stdout, dynamic_ncols=True):
         start_position = i
         end_position = min(i + each_chunk_size, len(pos_list))

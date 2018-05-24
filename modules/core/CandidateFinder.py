@@ -52,6 +52,7 @@ class CandidateFinder:
         self.base_dictionary = defaultdict(lambda: defaultdict(tuple))
         self.insert_dictionary = defaultdict(lambda: defaultdict(tuple))
         self.insert_length_info = defaultdict(int)
+        self.delete_length_info = defaultdict(int)
 
         # positional information
         '''
@@ -69,7 +70,7 @@ class CandidateFinder:
         self.coverage = defaultdict(int)
         self.rms_mq = defaultdict(int)
         self.mismatch_count = defaultdict(int)
-        self.read_info = defaultdict(list)
+        self.read_info = defaultdict(tuple)
         self.allele_dictionary = defaultdict(lambda: defaultdict(list))
         self.read_allele_dictionary = {}
 
@@ -127,7 +128,7 @@ class CandidateFinder:
         """
         self.reference_dictionary[position] = ref_base
 
-    def _update_read_allele_dictionary(self, read_id, pos, allele, allele_type):
+    def _update_read_allele_dictionary(self, pos, allele, allele_type):
         """
         Update the read dictionary with an allele
         :param pos: Genomic position
@@ -183,11 +184,12 @@ class CandidateFinder:
 
             if allele != ref:
                 self.mismatch_count[i] += 1
-                self._update_read_allele_dictionary(read_id, i, allele, MISMATCH_ALLELE)
+                self._update_read_allele_dictionary(i, allele, MISMATCH_ALLELE)
 
     def parse_delete(self, read_id, alignment_position, length, ref_sequence):
         """
         Process a cigar operation that is a delete
+        :param read_id: Unique id of the read
         :param alignment_position: Alignment position
         :param length: Length of the delete
         :param ref_sequence: Reference sequence of delete
@@ -210,13 +212,16 @@ class CandidateFinder:
         allele = self.reference_dictionary[alignment_position] + ref_sequence
 
         # record the delete where it first starts
-        self._update_read_allele_dictionary(read_id, alignment_position + 1, allele, DELETE_ALLELE)
+        self.delete_length_info[alignment_position] = max(self.delete_length_info[alignment_position], length)
+        self._update_read_allele_dictionary(alignment_position + 1, allele, DELETE_ALLELE)
 
     def parse_insert(self, read_id, alignment_position, read_sequence, qualities):
         """
         Process a cigar operation where there is an insert
+        :param read_id: Unique id of the reads
         :param alignment_position: Position where the insert happened
         :param read_sequence: The insert read sequence
+        :param qualities: Base qualities of the sequence
         :return:
 
         This method updates the candidates dictionary. Mostly by adding read IDs to the specific positions.
@@ -226,7 +231,7 @@ class CandidateFinder:
 
         # record the insert where it first starts
         self.mismatch_count[alignment_position] += 1
-        self._update_read_allele_dictionary(read_id, alignment_position + 1, allele, INSERT_ALLELE)
+        self._update_read_allele_dictionary(alignment_position + 1, allele, INSERT_ALLELE)
         self._update_insert_dictionary(read_id, alignment_position, read_sequence, qualities)
 
     def parse_cigar_tuple(self, cigar_code, length, alignment_position, ref_sequence, read_sequence, read_id, quality):

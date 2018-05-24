@@ -4,7 +4,7 @@ from scipy import misc
 import sys
 import numpy as np
 from modules.handlers.TextColor import TextColor
-
+import operator
 """
 Generate image and label of that image given a region. 
 """
@@ -34,6 +34,15 @@ LOG_LEVEL_LOW = 0
 LOG_LEVEL = LOG_LEVEL_LOW
 WARN_COLOR = TextColor.RED
 
+PLOIDY = 2
+SNP =1
+IN = 2
+DEL = 3
+
+HOM = 0
+HET = 1
+HOM_ALT = 2
+
 
 class ImageGenerator:
     """
@@ -58,15 +67,76 @@ class ImageGenerator:
         The indices would be: {A: 1, C: 2, T: 3, *: 4, *: 5, *: 6, A: 7, A: 8, A: 9}
         """
         # for image generation
-        self.image_row_for_reads = defaultdict(list)
-        self.image_row_for_ref = defaultdict(list)
+        self.top_alleles = defaultdict(list)
+        self.image_row_for_reads = defaultdict(tuple)
+        self.image_row_for_ref = defaultdict(tuple)
         self.positional_info_index_to_position = defaultdict(tuple)
         self.positional_info_position_to_index = defaultdict(int)
         self.base_frequency = defaultdict(lambda: defaultdict(int))
         self.index_based_coverage = defaultdict(int)
         self.reference_base_by_index = defaultdict(int)
-        self.vcf_positional_dict = defaultdict(list)
+        self.vcf_positional_dict = defaultdict(int)
         self.reference_string = ''
+
+    def get_support_for_read(self, read_id, read_start_pos, read_end_pos):
+        support_dict = defaultdict(tuple)
+        pos = read_start_pos
+        while pos < read_end_pos:
+            candidate_alleles = self.pos_dicts.positional_allele_frequency[pos] \
+                if pos in self.pos_dicts.positional_allele_frequency else None
+            if candidate_alleles is not None:
+                if pos not in self.top_alleles:
+                    self.top_alleles[pos] = \
+                        sorted(self.pos_dicts.positional_allele_frequency[pos].items(), key=operator.itemgetter(1),
+                               reverse=True)[:PLOIDY]
+                support_candidate_type = SNP
+                supported_allele = ''
+                for counter, allele_info in enumerate(self.top_alleles[pos]):
+                    allele, freq = allele_info
+                    alt_allele, allele_type = allele
+                    read_allele = ''
+                    if allele_type == SNP:
+                        # if there is a base in that position for that read
+                        if pos in self.pos_dicts.base_dictionary[read_id]:
+                            # get the base and the base quality
+                            read_base, base_q = self.pos_dicts.base_dictionary[read_id][pos]
+                            read_allele = read_base
+                    elif allele_type == IN:
+                        if pos in self.pos_dicts.base_dictionary[read_id]:
+                            # get the base and the base quality
+                            base, base_q = self.pos_dicts.base_dictionary[read_id][pos]
+                            read_allele = read_allele + base
+                        # if this specific read has an insert
+                        if read_id in self.pos_dicts.insert_dictionary and \
+                                pos in self.pos_dicts.insert_dictionary[read_id]:
+                            # insert bases and qualities
+                            in_bases, in_qualities = self.pos_dicts.insert_dictionary[read_id][pos]
+                            read_allele = read_allele + in_bases
+                    elif allele_type == DEL:
+                        del_len = len(alt_allele)
+                        alt_allele = alt_allele[0] + '*' * (del_len - 1)
+                        i = pos
+                        while i in self.pos_dicts.base_dictionary[read_id]:
+                            base, base_q = self.pos_dicts.base_dictionary[read_id][i]
+                            if i > pos and base != '*':
+                                break
+                            read_allele = read_allele + base
+                            i += 1
+
+                    if read_allele == alt_allele:
+                        support_candidate_type = allele_type
+                        supported_allele = alt_allele
+                        support_dict[pos] = (counter+1, allele_type, alt_allele)
+                        break
+
+                if support_candidate_type == DEL:
+                    pos += len(supported_allele) - 1
+                else:
+                    pos += 1
+            else:
+                pos += 1
+
+        return support_dict
 
     def post_process_reads(self, read_id_list, interval_start, interval_end):
         """
@@ -79,8 +149,9 @@ class ImageGenerator:
             start_pos_new = max(start_pos, interval_start)
             end_pos_new = min(end_pos, interval_end)
             read_to_image_row = []
-            for pos in range(start_pos, end_pos):
+            support_dict = self.get_support_for_read(read_id, start_pos, end_pos)
 
+            for pos in range(start_pos_new, end_pos_new):
                 if pos < interval_start:
                     continue
 
@@ -92,6 +163,12 @@ class ImageGenerator:
                     print(pos, read_id)
                     continue
 
+                if pos in support_dict:
+                    support_allele_no, support_allele_type, support_allele = support_dict[pos]
+                    # print(pos, support_allele_type, support_allele, support_allele_no)
+                else:
+                    support_allele_no = 0
+
                 # if there is a base in that position for that read
                 if pos in self.pos_dicts.base_dictionary[read_id]:
                     # get the base and the base quality
@@ -101,9 +178,9 @@ class ImageGenerator:
                     # get the reference base of that position
                     ref_base = self.pos_dicts.reference_dictionary[pos]
                     # combine all the pileup attributes we want to encode in the image
-                    pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction)
+                    pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction, support_allele_no)
                     # create a channel object to covert these features to a pixel
-                    channel_object = ImageChannels(pileup_attributes, ref_base, 0)
+                    channel_object = ImageChannels(pileup_attributes, ref_base)
                     # add the pixel to the row
                     read_to_image_row.append(channel_object.get_channels())
                     index_of_position = self.positional_info_position_to_index[pos]
@@ -130,8 +207,8 @@ class ImageGenerator:
                             base_q = in_qualities[i]
                             cigar_code = 2
                             ref_base = ''
-                            pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction)
-                            channel_object = ImageChannels(pileup_attributes, ref_base, 0)
+                            pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction, 0)
+                            channel_object = ImageChannels(pileup_attributes, ref_base)
                             read_to_image_row.append(channel_object.get_channels())
 
                             self.base_frequency[self.positional_info_position_to_index[pos] + i + 1][base] += 1
@@ -147,8 +224,8 @@ class ImageGenerator:
                             base_q = MIN_DELETE_QUALITY
                             cigar_code = 2
                             ref_base = ''
-                            pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction)
-                            channel_object = ImageChannels(pileup_attributes, ref_base, 0)
+                            pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction, 0)
+                            channel_object = ImageChannels(pileup_attributes, ref_base)
                             read_to_image_row.append(channel_object.get_channels())
 
                             indx = self.positional_info_position_to_index[pos] + total_insert_bases + i + 1
@@ -343,58 +420,6 @@ class ImageGenerator:
             sys.stderr.write("ERROR: ERROR SAVING FILE: " + file_name + ".png" + "\n" + TextColor.END)
             sys.stderr.write()
 
-    def get_allele_bases_from_vcf_genotype(self, indx, vcf_records, base_frequencies, ref_base):
-        """
-        Get allelic bases using vcf
-        :param indx: Index of corresponding position
-        :param vcf_records: VCF records of that position
-        :param base_frequencies: Base frequency dictionary of the position
-        :param ref_base: Reference base
-        :return:
-        """
-        bases = []
-        for vcf_record in vcf_records:
-            allele, genotype = vcf_record
-            if not base_frequencies[allele] and LOG_LEVEL == LOG_LEVEL_HIGH:
-                vcf_record_msg = str(self.pos_dicts.chromosome_name) + "\t" + str(vcf_record)
-                warn_msg = "WARN:\tPOSITIONAL MISMATCH\t" + str(indx) + "\t" + vcf_record_msg + "\n"
-                sys.stderr.write(WARN_COLOR + warn_msg + TextColor.END)
-            # hom_alt
-            if genotype[0] == genotype[1]:
-                bases.append(allele)
-                bases.append(allele)
-            else:
-                bases.append(allele)
-        if len(bases) == 0:
-            return ref_base, ref_base
-        elif len(bases) == 1:
-            return bases[0], ref_base
-        else:
-            return bases[0], bases[1]
-
-    @staticmethod
-    def get_translated_letter(base_a, base_b):
-        """
-        Given two bases, translate them to a value for labeling
-        :param base_a: Base 1
-        :param base_b: Base 2
-        :return:
-        """
-        if base_a == 'N':
-            base_a = '.'
-        if base_b == 'N':
-            base_b = '.'
-        if base_b < base_a:
-            base_a, base_b = base_b, base_a
-        encoded_base = base_a + base_b
-        base_to_letter_map = {'**': 0, '*.': 1, '*A': 2, '*C': 3, '*G': 4, '*T': 5,
-                                       '..': 6, '.A': 7, '.C': 8, '.G': 9, '.T': 10,
-                                                'AA': 11, 'AC': 12, 'AG': 13, 'AT': 14,
-                                                          'CC': 15, 'CG': 16, 'CT': 17,
-                                                                    'GG': 18, 'GT': 19,
-                                                                              'TT': 20}
-        return base_to_letter_map[encoded_base]
-
     def get_label_sequence(self, interval_start, interval_end):
         """
         Get the label of a genomic interval
@@ -404,79 +429,48 @@ class ImageGenerator:
         """
         start_index = self.positional_info_position_to_index[interval_start]
         end_index = self.positional_info_position_to_index[interval_end]
-        # we try to pick bases naively based on frequencies for debugging purpose
-        string_a = ''
-        string_b = ''
-        # the bases we see in VCF
-        vcf_string_a = ''
-        vcf_string_b = ''
-        # helps keep track of positions
-        positional_values = ''
         # label sequence
-        translated_sequence = ''
         reference_string = ''
+        label_sequence = ''
 
         for i in range(start_index, end_index):
             # build the reference string
             reference_string += self.reference_string[i]
-            # see if we are in insert or in a true genomic position
-            pos_increase = 0 if self.positional_info_index_to_position[i][1] is True else 1
-            # reference base
-            ref_base = self.reference_base_by_index[i]
-            positional_values = positional_values + str(pos_increase)
-            vcf_alts = []
-            # from the positional vcf upte the label
-            if i in self.vcf_positional_dict:
-                alt_a, alt_b = self.get_allele_bases_from_vcf_genotype(i, self.vcf_positional_dict[i],
-                                                                       self.base_frequency[i], ref_base)
-                vcf_string_a += alt_a
-                vcf_string_b += alt_b
-                vcf_alts.append(alt_a)
-                vcf_alts.append(alt_b)
-                translated_sequence = translated_sequence + chr(ord('A') + self.get_translated_letter(alt_a, alt_b))
-            else:
-                vcf_string_a += ref_base
-                vcf_string_b += ref_base
-                translated_sequence = translated_sequence + chr(ord('A') + self.get_translated_letter(ref_base, ref_base))
+            # from the positional vcf to the label string
+            label_sequence = label_sequence + str(self.vcf_positional_dict[i])
 
-            # naively pick most frequent bases and see if you are way off
-            # helpful for debugging
-            bases = []
-            total_bases = self.index_based_coverage[i]
-            for base in self.base_frequency[i]:
-                base_frequency = self.base_frequency[i][base] / total_bases if total_bases else 0
-                if base_frequency >= ALLELE_FREQUENCY_THRESHOLD_FOR_REPORTING:
-                    bases.append(base)
-                    # warn if a really abundant allele is not in VCF
-                    if base not in vcf_alts and base != ref_base and LOG_LEVEL == LOG_LEVEL_HIGH:
-                        genome_position = self.positional_info_index_to_position[i][0]
-                        msg = str(self.chromosome_name) + "\t" + str(genome_position) + "\t" + str(ref_base) + "\t" \
-                              + str(base) + "\t" + str(self.base_frequency[i][base]) + "\t" + str(total_bases) + "\t" \
-                              + str(int(base_frequency*100)) + "\n"
-                        warn_msg = "WARN:\tBAM MISMATCH\t" + msg
-                        sys.stderr.write(WARN_COLOR + warn_msg + TextColor.END)
-            if len(bases) == 0:
-                string_a += '-'
-                string_b += '-'
-            elif len(bases) == 1:
-                string_a += bases[0] if bases[0] != ref_base else '-'
-                string_b += bases[0] if bases[0] != ref_base else '-'
-            else:
-                string_a += bases[0] if bases[0] != ref_base else '-'
-                string_b += bases[1] if bases[1] != ref_base else '-'
+        return label_sequence, reference_string
 
-        if ALLELE_DEBUG:
-            print(string_a)
-            print(string_b)
+    @staticmethod
+    def get_genotype_from_vcf_tuple(vcf_tuple):
+        if vcf_tuple[0] != vcf_tuple[1]:
+            return HET
+        if vcf_tuple[0] == vcf_tuple[1] and vcf_tuple[0] != 0:
+            return HOM_ALT
+        return HOM
 
-        return vcf_string_a, vcf_string_b, translated_sequence, positional_values, reference_string
+    @staticmethod
+    def get_site_label_from_allele_tuple(pos, allele_tuple):
+        base_to_letter_map = {'0/0': 0, '0/1': 1, '1/1': 2, '0/2': 3, '2/2': 4, '1/2': 5}
+        if allele_tuple[1] == HOM and allele_tuple[2] == HOM:
+            return base_to_letter_map['0/0']
+        elif allele_tuple[1] == HET and allele_tuple[2] == HET:
+            return base_to_letter_map['1/2']
+        elif allele_tuple[1] == HET:
+            return base_to_letter_map['0/1']
+        elif allele_tuple[1] == HOM_ALT:
+            return base_to_letter_map['1/1']
+        elif allele_tuple[2] == HET:
+            return base_to_letter_map['0/1']
+        elif allele_tuple[2] == HOM_ALT:
+            return base_to_letter_map['1/1']
+        elif allele_tuple[1] == HOM_ALT and  allele_tuple[2] == HOM_ALT:
+            sys.stderr.write("WARN: INVALID VCF RECORD FOUND " + str(pos) + " " + str(allele_tuple) + "\n")
 
-    def populate_vcf_alleles(self, positional_vcf, interval_start, interval_end):
+    def populate_vcf_alleles(self, positional_vcf):
         """
         From positional VCF alleles, populate the positional dictionary.
         :param positional_vcf: Positional VCF dictionar
-        :param interval_start: Interval start
-        :param interval_end: Interval end
         :return:
         """
         for pos in positional_vcf.keys():
@@ -488,62 +482,33 @@ class ImageGenerator:
                 continue
             indx = self.positional_info_position_to_index[bam_pos]
 
-            snp_recs, in_recs, del_recs = positional_vcf[pos]
             alt_alleles_found = self.pos_dicts.positional_allele_frequency[bam_pos] \
                 if bam_pos in self.pos_dicts.positional_allele_frequency else []
 
+            vcf_alts = []
+
+            snp_recs, in_recs, del_recs = positional_vcf[pos]
             # SNP records
             for snp_rec in snp_recs:
-                alt_allele = snp_rec.alt[0]
-                alt_ = (alt_allele, 1)
-                # check if the allele is actually present in the BAM
-                if alt_ in alt_alleles_found:
-                    self.vcf_positional_dict[indx].append((alt_allele, snp_rec.genotype))
-                elif LOG_LEVEL == LOG_LEVEL_HIGH:
-                    vcf_record_msg = str(self.chromosome_name) + "\t" + str(snp_rec)
-                    warn_msg = "WARN:\tVCF MISMATCH\t" + str(indx) + "\t" + vcf_record_msg + "\n"
-                    sys.stderr.write(WARN_COLOR + warn_msg + TextColor.END)
+                vcf_alts.append((snp_rec.alt[0], SNP, snp_rec.genotype))
 
             # insert record
             for in_rec in in_recs:
-                alt_ = (in_rec.alt, 2)
-                # check if the allele is actually present in the BAM
-                if alt_ in alt_alleles_found:
-                    for i in range(1, len(in_rec.alt)):
-                        self.vcf_positional_dict[indx+i].append((in_rec.alt[i], in_rec.genotype))
-                elif LOG_LEVEL == LOG_LEVEL_HIGH:
-                    vcf_record_msg = str(self.chromosome_name) + "\t" + str(in_rec)
-                    warn_msg = "WARN:\tVCF MISMATCH\t" + str(indx) + "\t" + vcf_record_msg + "\n"
-                    sys.stderr.write(WARN_COLOR + warn_msg + TextColor.END)
+                vcf_alts.append((in_rec.alt, IN, in_rec.genotype))
 
             # delete record
             for del_rec in del_recs:
-                alt_ = (del_rec.ref, 3)
-                # check if the allele is actually present in the BAM
-                if alt_ in alt_alleles_found:
-                    for i in range(1, len(del_rec.ref)):
-                        del_indx = self.positional_info_position_to_index[bam_pos+i]
-                        self.vcf_positional_dict[del_indx].append(('.', del_rec.genotype))
-                elif LOG_LEVEL == LOG_LEVEL_HIGH:
-                    vcf_record_msg = str(self.chromosome_name) + "\t" + str(del_rec)
-                    warn_msg = "WARN:\tVCF MISMATCH\t" + str(indx) + "\t" + vcf_record_msg + "\n"
-                    sys.stderr.write(WARN_COLOR + warn_msg + TextColor.END)
+                # for delete reference holds which bases are deleted hence that's the alt allele
+                vcf_alts.append((del_rec.ref, DEL, del_rec.genotype))
 
-    def create_region_alignment_image(self, interval_start, interval_end, positional_variants, read_id_list):
-        """
-        Generate labeled images of a given region of the genome
-        :param interval_start: Starting genomic position of the interval
-        :param interval_end: End genomic position of the interval
-        :param positional_variants: List of positional variants in that region
-        :param read_id_list: List of reads ids that fall in this region
-        :return:
-        """
-        image = self.create_image(interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS, read_id_list)
-        self.populate_vcf_alleles(positional_variants, interval_start, interval_end)
-        vcf_a, vcf_b, translated_seq, pos_vals, ref_seq = self.get_label_sequence(interval_start - BOUNDARY_COLUMNS,
-                                                                                  interval_end + BOUNDARY_COLUMNS)
+            alts_with_genotype = {1: 0, 2: 0}
+            for counter, allele in enumerate(alt_alleles_found):
+                for vcf_allele in vcf_alts:
+                    vcf_tuple = (vcf_allele[0], vcf_allele[1])
+                    if allele == vcf_tuple:
+                        alts_with_genotype[counter+1] = self.get_genotype_from_vcf_tuple(vcf_allele[2])
 
-        return image, vcf_a, vcf_b, translated_seq, pos_vals, ref_seq
+            self.vcf_positional_dict[indx] = self.get_site_label_from_allele_tuple(pos, alts_with_genotype)
 
     def get_segmented_image_sequences(self, interval_start, interval_end, positional_variants, read_id_list):
         """
@@ -554,12 +519,14 @@ class ImageGenerator:
         :param read_id_list: List of reads ids that fall in this region
         :return:
         """
-        # post process reference and read
+        # post process reference and read and label
         self.post_process_reference(interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS)
         self.post_process_reads(read_id_list, interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS)
+        self.populate_vcf_alleles(positional_variants)
+        # get the image
+        image = self.create_image(interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS, read_id_list)
+        label_seq, ref_seq = self.get_label_sequence(interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS)
 
-        image, vcf_a, vcf_b, translated_seq, pos_vals, ref_seq = \
-            self.create_region_alignment_image(interval_start, interval_end, positional_variants, read_id_list)
         sliced_windows = []
         ref_row, ref_start, ref_end = self.image_row_for_ref
         img_started_in_indx = self.positional_info_position_to_index[interval_start - BOUNDARY_COLUMNS] - \
@@ -567,6 +534,11 @@ class ImageGenerator:
 
         img_ended_in_indx = self.positional_info_position_to_index[interval_end + BOUNDARY_COLUMNS] - \
                             self.positional_info_position_to_index[ref_start]
+
+        # print(label_seq)
+        # from analysis.analyze_png_img import analyze_array
+        # analyze_array(image)
+        # exit()
 
         for pos in range(interval_start, interval_end, WINDOW_OVERLAP_JUMP):
             point_indx = self.positional_info_position_to_index[pos] - \
@@ -580,10 +552,8 @@ class ImageGenerator:
                 break
             img_left_indx = left_window_index - img_started_in_indx
             img_right_indx = right_window_index - img_started_in_indx
-            sub_translated_seq = translated_seq[img_left_indx:img_right_indx]
-            sub_pos_vals = pos_vals[img_left_indx:img_right_indx]
+            sub_label_seq = label_seq[img_left_indx:img_right_indx]
             sub_ref_seq = ref_seq[img_left_indx:img_right_indx]
-            sliced_windows.append((pos, img_left_indx, img_right_indx, sub_translated_seq, sub_pos_vals,
-                                   sub_ref_seq))
+            sliced_windows.append((pos, img_left_indx, img_right_indx, sub_label_seq, sub_ref_seq))
 
         return image, sliced_windows
