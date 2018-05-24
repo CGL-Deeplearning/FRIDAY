@@ -163,15 +163,10 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
 def get_record_from_prediction(pos, alleles):
     predictions = prediction_dict[pos]
     genotype, qual, gq = VCFWriter.process_prediction(pos, predictions)
-    alts = list(alleles.keys())
+    alleles_present = sorted(alleles.items(), key=operator.itemgetter(1), reverse=True)[:2]
+    alts = list(alleles[0] for alleles in alleles_present)
     ref_base = reference_dict[pos][0][0]
     return ref_base, alts, genotype, qual, gq
-
-
-def check_if_homozygous(genotype):
-    if genotype[0] == '0' and genotype[1] == '0':
-        return True
-    return False
 
 
 def produce_vcf_records(chromosome_name, output_dir, thread_no, pos_list):
@@ -211,16 +206,17 @@ def produce_vcf_records(chromosome_name, output_dir, thread_no, pos_list):
         if record is None:
             continue
 
+        ref_base, alts, genotype, qual, gq = record
+
+        if genotype == '0/0':
+            continue
         record = VCFWriter.get_proper_alleles(record)
         ref, alts, qual, gq, genotype = record
-        if check_if_homozygous(genotype) is True:
-            continue
         if len(alts) == 1:
             alts.append('.')
         rec_end = int(pos + len(ref) - 1)
-        genotype_str = genotype[0] + '/' + genotype[1]
         record_string = chromosome_name + "\t" + str(pos) + "\t" + str(rec_end) + "\t" + ref + "\t" + '\t'.join(alts) \
-                        + "\t" + genotype_str + "\t" + str(qual) + "\t" + str(gq) + "\t" + "\n"
+                        + "\t" + genotype + "\t" + str(qual) + "\t" + str(gq) + "\t" + "\n"
         record_file.write(record_string)
 
 
@@ -260,6 +256,8 @@ def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, bam_fi
     pos_list = list(prediction_dict.keys())
     each_chunk_size = int(len(pos_list) / max_threads)
     thread_no = 1
+    # produce_vcf_records(chr_name, vcf_dir, thread_no, pos_list)
+    # exit()
 
     for i in tqdm(range(0, len(pos_list), each_chunk_size), file=sys.stdout, dynamic_ncols=True):
         start_position = i

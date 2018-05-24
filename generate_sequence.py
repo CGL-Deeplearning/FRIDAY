@@ -145,7 +145,7 @@ class View:
         for i in range(start_index, end_index):
             interval_start, interval_end = self.confidence_intervals[i][0]+BED_INDEX_BUFFER, \
                                            self.confidence_intervals[i][1]+BED_INDEX_BUFFER
-            # interval_start, interval_end = 18435685, 18435695
+            # interval_start, interval_end = 18435681, 18435699
             interval_start -= 50
             interval_end += 350
 
@@ -172,7 +172,6 @@ class View:
             # process the interval and populate dictionaries
             read_id_list = self.candidate_finder.process_interval(interval_start - SAFE_BOUNDARY_BASES,
                                                                   interval_end + SAFE_BOUNDARY_BASES)
-            allele_dictionary = self.candidate_finder.positional_allele_frequency
 
             image_generator = ImageGenerator(self.candidate_finder)
             # get trainable sequences
@@ -180,6 +179,7 @@ class View:
                                                                            positional_variants, read_id_list)
 
             # save allele dictionary
+            allele_dictionary = image_generator.pos_dicts.positional_allele_frequency
             allele_dict_filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
             allele_dict_filename = os.path.abspath(self.output_dir) + "/candidate_dictionaries/" \
                                  + allele_dict_filename + '.pkl'

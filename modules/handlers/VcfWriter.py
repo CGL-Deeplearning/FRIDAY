@@ -5,9 +5,9 @@ import math
 import time
 import numpy as np
 
-DEL_TYPE = '3'
-IN_TYPE = '2'
-MATCH_TYPE = '1'
+DEL_TYPE = 3
+IN_TYPE = 2
+SNP_TYPE = 1
 HOM = 0
 HET = 1
 HOM_ALT = 2
@@ -64,6 +64,10 @@ class VCFWriter:
                 return alt1, ref, alt1 + alt2[1:]
             elif type1 == IN_TYPE and type2 == DEL_TYPE:
                 return alt2, alt2 + alt1[1:], ref
+            elif type1 == DEL_TYPE and type2 == SNP_TYPE:
+                return alt1, ref, alt2 + alt1[1:]
+            elif type1 == SNP_TYPE and type2 == DEL_TYPE:
+                return alt2, alt1 + alt2[1:], ref
             elif type1 == DEL_TYPE:
                 return alt1, ref, alt2
             elif type2 == DEL_TYPE:
@@ -73,10 +77,10 @@ class VCFWriter:
 
     @staticmethod
     def solve_single_alt(alts, ref):
-        # print(alts)
-        alt1, alt_type = alts
+        alt1, alt_type = alts[0]
         if alt_type == DEL_TYPE:
             return alt1, ref, '.'
+
         return ref, alt1, '.'
 
     @staticmethod
@@ -86,26 +90,6 @@ class VCFWriter:
         return tuple(split_values)
 
     @staticmethod
-    def get_genotype_for_single_allele(records):
-        for record in records:
-            probs = [record[8], record[9], record[10]]
-            genotype_list = ['0/0', '0/1', '1/1']
-            gq, index = max([(v, i) for i, v in enumerate(probs)])
-            qual = sum(probs) - probs[0]
-            ref = record[3]
-            alt_with_types = list()
-            alt_with_types.append((record[4], record[6]))
-            # print(alt_with_types)
-            ref, alt1, alt2 = VCFWriter.solve_single_alt(alt_with_types[0], ref)
-            # print(ref, rec_alt1, rec_alt2)
-            phred_qual = min(60, -10 * np.log10(1 - qual) if 1 - qual >= 0.0000001 else 60)
-            phred_qual = math.ceil(phred_qual * 100.0) / 100.0
-            phred_gq = min(60, -10 * np.log10(1 - gq) if 1 - gq >= 0.0000001 else 60)
-            phred_gq = math.ceil(phred_gq * 100.0) / 100.0
-
-            return record[0], record[1], record[2], ref, [alt1, alt2], genotype_list[index], phred_qual, phred_gq
-
-    @staticmethod
     def process_prediction(pos, predictions):
         # get the list of prediction labels
         list_prediction_labels = [label for label, probs in predictions[0]]
@@ -113,6 +97,7 @@ class VCFWriter:
 
         # get alts from label
         genotype = VCFWriter.prediction_label_to_allele(predicted_class)
+        genotype = genotype[0] + '/' + genotype[1]
 
         # get the probabilities
         list_prediction_probabilities = [probs for label, probs in predictions[0]]
@@ -133,21 +118,29 @@ class VCFWriter:
     @staticmethod
     def get_proper_alleles(record):
         ref, alt_field, genotype, phred_qual, phred_gq = record
-        if len(alt_field) == 1:
-            ref, alt1, alt2 = VCFWriter.solve_single_alt(alt_field[0], ref)
-        else:
-            ref, alt1, alt2 = VCFWriter.solve_multiple_alts(alt_field, ref)
 
-        gts = genotype
+        gts = genotype.split('/')
         refined_alt = []
         if gts[0] == '1' or gts[1] == '1':
-            refined_alt.append(alt_field[0][0])
+            refined_alt.append(alt_field[0])
         if gts[0] == '2' or gts[1] == '2':
-            refined_alt.append(alt_field[1][0])
+            refined_alt.append(alt_field[1])
         if gts[0] == '0' and gts[1] == '0':
             refined_alt.append('.')
 
-        record = ref, refined_alt, phred_qual, phred_gq, genotype
+        if len(refined_alt) == 1:
+            ref, alt1, alt2 = VCFWriter.solve_single_alt(refined_alt, ref)
+        else:
+            ref, alt1, alt2 = VCFWriter.solve_multiple_alts(refined_alt, ref)
+
+        refined_alt = [alt1, alt2]
+        refined_gt = genotype
+        if genotype == '0/2':
+            refined_gt = '0/1'
+        if genotype == '2/2':
+            refined_gt = '1/1'
+
+        record = ref, refined_alt, phred_qual, phred_gq, refined_gt
 
         return record
 
