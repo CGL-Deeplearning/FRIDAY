@@ -37,7 +37,7 @@ DEBUG_TIME_PROFILE = False
 DEBUG_TEST_PARALLEL = False
 LOG_LEVEL_HIGH = 0
 LOG_LEVEL_LOW = 1
-LOG_LEVEL = LOG_LEVEL_HIGH
+LOG_LEVEL = LOG_LEVEL_LOW
 
 
 # only select STRATIFICATION_RATE% of the total homozygous cases if they are dominant
