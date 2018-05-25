@@ -145,6 +145,7 @@ class View:
         for i in range(start_index, end_index):
             interval_start, interval_end = self.confidence_intervals[i][0]+BED_INDEX_BUFFER, \
                                            self.confidence_intervals[i][1]+BED_INDEX_BUFFER
+            # interval_start, interval_end = 4125067+BED_INDEX_BUFFER, 4125067+BED_INDEX_BUFFER
             interval_start -= 50
             interval_end += 350
 
@@ -178,7 +179,7 @@ class View:
                                                                            positional_variants, read_id_list)
 
             # save allele dictionary
-            allele_dictionary = image_generator.pos_dicts.positional_allele_frequency
+            allele_dictionary = image_generator.top_alleles
             allele_dict_filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
             allele_dict_filename = os.path.abspath(self.output_dir) + "/candidate_dictionaries/" \
                                  + allele_dict_filename + '.pkl'
@@ -211,8 +212,8 @@ class View:
 
                 # from analysis.analyze_png_img import analyze_it
                 # print(pos)
-                # print(translated_seq)
-                # analyze_it(self.output_dir+filename+'.png', sub_img.shape, 0, 310)
+                # print(label_seq)
+                # analyze_it(self.output_dir+filename+'.png', sub_img.shape)
 
 
 def test(view_object):
@@ -221,7 +222,7 @@ def test(view_object):
     :return:
     """
     start_time = time.time()
-    view_object.parse_region(start_index=0, end_index=10)
+    view_object.parse_region(start_index=0, end_index=1)
     print("TOTAL TIME ELAPSED: ", time.time()-start_time)
 
 
@@ -300,7 +301,7 @@ def chromosome_level_parallelization(chr_name, bam_file, ref_file, vcf_file, out
 
     if DEBUG_TEST_PARALLEL:
         each_chunk_size = 100
-        total_segments = 400
+        total_segments = 700
 
     for i in tqdm(range(0, total_segments, each_chunk_size), file=sys.stdout, dynamic_ncols=True):
         start_position = i

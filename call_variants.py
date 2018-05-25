@@ -151,6 +151,8 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                 fake_probs[true_label] = 1.0
                 reference_dict[current_genomic_position][insert_index] = (ref_base, allele_dict_path)
                 prediction_dict[current_genomic_position][insert_index].append((true_label, fake_probs))
+                if current_genomic_position == 4125066:
+                    print(reference_dict[current_genomic_position], true_label)
                 if reference_seq[seq+1] != '*':
                     insert_index = 0
                     current_genomic_position += 1
@@ -163,8 +165,7 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
 def get_record_from_prediction(pos, alleles):
     predictions = prediction_dict[pos]
     genotype, qual, gq = VCFWriter.process_prediction(pos, predictions)
-    alleles_present = sorted(alleles.items(), key=operator.itemgetter(1), reverse=True)[:2]
-    alts = list(alleles[0] for alleles in alleles_present)
+    alts = list(allele[0] for allele in alleles)
     ref_base = reference_dict[pos][0][0]
     return ref_base, alts, genotype, qual, gq
 
@@ -198,7 +199,7 @@ def produce_vcf_records(chromosome_name, output_dir, thread_no, pos_list):
 
         if pos not in allele_dict:
             continue
-        if pos == 1518132:
+        if pos == 4125067:
             print(allele_dict[1518132], prediction_dict[1518132])
         alleles = allele_dict[pos]
 
@@ -211,11 +212,11 @@ def produce_vcf_records(chromosome_name, output_dir, thread_no, pos_list):
 
         if genotype == '0/0':
             continue
-        if pos == 1518132:
+        if pos == 4125066:
             print('BEFORE', record)
         record = VCFWriter.get_proper_alleles(record)
         ref, alts, qual, gq, genotype = record
-        if pos == 1518132:
+        if pos == 4125066:
             print('AFTER', record)
         if len(alts) == 1:
             alts.append('.')

@@ -482,8 +482,8 @@ class ImageGenerator:
                 continue
             indx = self.positional_info_position_to_index[bam_pos]
 
-            alt_alleles_found = self.pos_dicts.positional_allele_frequency[bam_pos] \
-                if bam_pos in self.pos_dicts.positional_allele_frequency else []
+            alt_alleles_found = self.top_alleles[bam_pos] \
+                if bam_pos in self.top_alleles else []
 
             vcf_alts = []
 
@@ -503,9 +503,10 @@ class ImageGenerator:
 
             alts_with_genotype = {1: 0, 2: 0}
             for counter, allele in enumerate(alt_alleles_found):
+                allele_tuple = (allele[0])
                 for vcf_allele in vcf_alts:
                     vcf_tuple = (vcf_allele[0], vcf_allele[1])
-                    if allele == vcf_tuple:
+                    if allele_tuple == vcf_tuple:
                         alts_with_genotype[counter+1] = self.get_genotype_from_vcf_tuple(vcf_allele[2])
 
             self.vcf_positional_dict[indx] = self.get_site_label_from_allele_tuple(pos, alts_with_genotype)
