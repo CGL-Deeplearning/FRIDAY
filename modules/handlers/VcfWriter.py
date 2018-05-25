@@ -1,5 +1,4 @@
 from pysam import VariantFile, VariantHeader
-from collections import defaultdict
 from modules.handlers.BamHandler import BamHandler
 import math
 import time

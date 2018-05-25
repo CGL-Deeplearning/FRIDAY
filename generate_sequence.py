@@ -145,7 +145,7 @@ class View:
         for i in range(start_index, end_index):
             interval_start, interval_end = self.confidence_intervals[i][0]+BED_INDEX_BUFFER, \
                                            self.confidence_intervals[i][1]+BED_INDEX_BUFFER
-            # interval_start, interval_end = 39552326+BED_INDEX_BUFFER, 39552346+BED_INDEX_BUFFER
+
             interval_start -= 50
             interval_end += 350
 
@@ -376,7 +376,7 @@ def genome_level_parallelization(bam_file, ref_file, vcf_file, output_dir_path, 
     # merge_all_candidate_dictionaries(output_dir_path, chr_list)
 
     program_end_time = time.time()
-    sys.stderr.write(TextColor.RED + "PROCESSED FINISHED SUCCESSFULLY" + "\n")
+    sys.stderr.write(TextColor.RED + "ALL PROCESSES FINISHED SUCCESSFULLY" + "\n")
     sys.stderr.write(TextColor.CYAN + "TOTAL TIME FOR GENERATING ALL RESULTS: " + str(program_end_time-program_start_time) + "\n")
 
 
