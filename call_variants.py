@@ -199,8 +199,8 @@ def produce_vcf_records(chromosome_name, output_dir, thread_no, pos_list):
 
         if pos not in allele_dict:
             continue
-        if pos == 4125067:
-            print(allele_dict[1518132], prediction_dict[1518132])
+        if pos == 15699744:
+            print(allele_dict[15699744], prediction_dict[15699744])
         alleles = allele_dict[pos]
 
         record = get_record_from_prediction(pos, alleles)
@@ -212,11 +212,11 @@ def produce_vcf_records(chromosome_name, output_dir, thread_no, pos_list):
 
         if genotype == '0/0':
             continue
-        if pos == 4125066:
+        if pos == 15699744:
             print('BEFORE', record)
         record = VCFWriter.get_proper_alleles(record)
         ref, alts, qual, gq, genotype = record
-        if pos == 4125066:
+        if pos == 15699744:
             print('AFTER', record)
         if len(alts) == 1:
             alts.append('.')
