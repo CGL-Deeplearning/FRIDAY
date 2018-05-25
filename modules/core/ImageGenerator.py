@@ -464,7 +464,7 @@ class ImageGenerator:
             return base_to_letter_map['0/2']
         elif allele_tuple[2] == HOM_ALT:
             return base_to_letter_map['2/2']
-        elif allele_tuple[1] == HOM_ALT and  allele_tuple[2] == HOM_ALT:
+        elif allele_tuple[1] == HOM_ALT and allele_tuple[2] == HOM_ALT:
             sys.stderr.write("WARN: INVALID VCF RECORD FOUND " + str(pos) + " " + str(allele_tuple) + "\n")
 
     def populate_vcf_alleles(self, positional_vcf):
@@ -508,7 +508,7 @@ class ImageGenerator:
                     vcf_tuple = (vcf_allele[0], vcf_allele[1])
                     if allele_tuple == vcf_tuple:
                         alts_with_genotype[counter+1] = self.get_genotype_from_vcf_tuple(vcf_allele[2])
-            print(pos, alts_with_genotype, vcf_alts, alt_alleles_found, self.get_site_label_from_allele_tuple(pos, alts_with_genotype))
+
             self.vcf_positional_dict[indx] = self.get_site_label_from_allele_tuple(pos, alts_with_genotype)
 
     def get_segmented_image_sequences(self, interval_start, interval_end, positional_variants, read_id_list):
