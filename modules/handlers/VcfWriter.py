@@ -61,7 +61,7 @@ class VCFWriter:
             return ref, alt1, alt2
         elif type1 == DEL_TYPE or type2 == DEL_TYPE:
             if type1 == DEL_TYPE and type2 == IN_TYPE:
-                return alt1, ref, alt1 + alt2[1:]
+                return alt1, ref, alt2 + alt1[1:]
             elif type1 == IN_TYPE and type2 == DEL_TYPE:
                 return alt2, alt1 + alt2[1:], ref
             elif type1 == DEL_TYPE and type2 == SNP_TYPE:
