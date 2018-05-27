@@ -15,7 +15,7 @@ from torchvision import transforms
 from torch.autograd import Variable
 from modules.core.dataloader import SequenceDataset
 from modules.models.ModelHandler import ModelHandler
-from modules.models.Seq2Seq_CNN import SeqResNet
+from modules.models.Seq2Seq_deepspeech import SimpleModel
 from modules.handlers.TextColor import TextColor
 """
 Train a model and save the model that performs best.
@@ -32,12 +32,7 @@ WINDOW_SIZE = 20
 
 
 def plot_confusion_matrix(num_classes, confusion, epoch_no):
-    base_to_letter_map = {'**': 0, '*.': 1, '*A': 2, '*C': 3, '*G': 4, '*T': 5,
-                          '..': 6, '.A': 7, '.C': 8, '.G': 9, '.T': 10,
-                          'AA': 11, 'AC': 12, 'AG': 13, 'AT': 14,
-                          'CC': 15, 'CG': 16, 'CT': 17,
-                          'GG': 18, 'GT': 19,
-                          'TT': 20}
+    base_to_letter_map = {'0/0': 0, '0/1': 1, '1/1': 2, '0/2': 3, '2/2': 4, '1/2': 5}
     all_categories = list(sorted(base_to_letter_map, key=lambda k: base_to_letter_map[k]))
     # Normalize by dividing every row by its sum
     for i in range(num_classes):
@@ -109,24 +104,35 @@ def test(data_file, batch_size, gpu_mode, trained_model, num_classes, num_worker
             images = images.cuda()
             labels = labels.cuda()
 
-        # Predict + confusion_matrix + loss
-        outputs = test_model(images)
-        test_loss = test_criterion(outputs.contiguous().view(-1, num_classes), labels.contiguous().view(-1))
+        total_sequences = images.size(2)
+        for seq in range(total_sequences):
+            start_seq_pos = seq
+            end_seq_pos = FLANK_SIZE + seq + WINDOW_SIZE + FLANK_SIZE
+            if end_seq_pos >= total_sequences:
+                break
 
-        # update the confusion matrix
-        batches = outputs.size(0)
-        seqs = outputs.size(1)
-        for batch in range(batches):
-            for seq in range(seqs):
-                preds = outputs[batch, seq, :].data
-                true_label = labels[batch, seq].data.cpu().numpy()[0]
-                top_n, top_i = preds.topk(1)
-                predicted_label = top_i[0]
-                confusion_matrix[true_label, predicted_label] += 1
+            # Forward + Backward + Optimize
+            outputs = trained_model(images[:, :, start_seq_pos:end_seq_pos, :])
+            true_labels = labels[:, start_seq_pos + FLANK_SIZE:start_seq_pos + FLANK_SIZE + WINDOW_SIZE]
 
-        # Loss count
-        total_loss += float(test_loss.data[0])
-        total_images += float(images.size(0))
+            # update the confusion matrix
+            batches = outputs.size(0)
+            seqs = outputs.size(1)
+            for batch in range(batches):
+                for seq in range(seqs):
+                    preds = outputs[batch, seq, :].data
+                    true_label = labels[batch, seq].data.cpu().numpy()[0]
+                    top_n, top_i = preds.topk(1)
+                    predicted_label = top_i[0]
+                    confusion_matrix[true_label, predicted_label] += 1
+
+            loss = test_criterion(outputs.contiguous().view(-1, num_classes), true_labels.contiguous().view(-1))
+
+            # loss count
+            total_loss += loss.data[0]
+            total_images += (images.size(0))
+            print(seq, total_sequences, "DONE")
+
         batches_done += 1
         if batches_done % 1 == 0:
             sys.stderr.write(TextColor.BLUE+'Batches done: ' + str(batches_done) + " / " + str(len(test_loader)) +
@@ -140,7 +146,7 @@ def test(data_file, batch_size, gpu_mode, trained_model, num_classes, num_worker
     sys.stderr.write(TextColor.YELLOW+'Test Loss: ' + str(avg_loss) + "\n"+TextColor.END)
 
 
-def train(train_file, validation_file, batch_size, epoch_limit, file_name, gpu_mode, num_workers, num_classes=21):
+def train(train_file, validation_file, batch_size, epoch_limit, file_name, gpu_mode, num_workers, num_classes=6):
     """
     Train a model and save
     :param train_file: A CSV file containing train image information
@@ -170,8 +176,8 @@ def train(train_file, validation_file, batch_size, epoch_limit, file_name, gpu_m
                               )
     sys.stderr.write(TextColor.PURPLE + 'Data loading finished\n' + TextColor.END)\
 
-    model = SeqResNet(image_channels=6, seq_length=20, num_classes=num_classes)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.00021723010296152584, weight_decay=1.4433597247180705e-06)
+    model = SimpleModel(image_channels=8)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=0.001)
     if gpu_mode:
         model = model.cuda()
 
@@ -181,8 +187,6 @@ def train(train_file, validation_file, batch_size, epoch_limit, file_name, gpu_m
 
     if gpu_mode:
         model = torch.nn.DataParallel(model).cuda()
-
-    running_test_loss = -1
 
     # Train the Model
     sys.stderr.write(TextColor.PURPLE + 'Training starting\n' + TextColor.END)
@@ -226,8 +230,8 @@ def train(train_file, validation_file, batch_size, epoch_limit, file_name, gpu_m
                 total_loss += loss.data[0]
                 total_images += (x.size(0))
 
-                print(seq, total_sequences, "DONE")
             batches_done += 1
+
             if batches_done % 1 == 0:
                 avg_loss = (total_loss / total_images) if total_images else 0
                 sys.stderr.write(TextColor.BLUE + "EPOCH: " + str(epoch+1) + " Batches done: " + str(batches_done)

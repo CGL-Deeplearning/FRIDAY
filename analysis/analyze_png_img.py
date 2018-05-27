@@ -14,29 +14,44 @@ def get_base_by_color(base):
     """
     if 250.0 <= base <= 255.0:
         return 'A'
-    if 100.0 <= base <= 105.0:
+    if 99.0 <= base <= 105.0:
         return 'C'
     if 180.0 <= base <= 185.0:
         return 'G'
     if 25.0 <= base <= 35.0:
         return 'T'
-    if 3.0 <= base <= 7.0:
+    if 55.0 <= base <= 65.0:
         return '*'
+    if 145.0 <= base <= 155.0:
+        return '.'
+    if 4.0 <= base <= 6.0:
+        return 'N'
     if 0.0 <= base <= 3.0:
         return ' '
 
+
 def get_alt_support_by_color(support_color):
     """
-    ***NOT USED YET***
-    :param is_in_support:
     :return:
     """
-    if support_color == 254.0:
+    if 240.0 <= support_color <= 255.0:
         return 1
-    if support_color == 127.0:
+    if 117.0 <= support_color <= 131.0:
         return 2
-    if support_color == 5.0:
+    if 0.0 <= support_color <= 10.0:
         return 0
+
+
+def get_alt_type_by_color(alt_type_color):
+    if alt_type_color == 2.0:
+        return 0
+    if alt_type_color == 150.0:
+        return 1
+    if alt_type_color == 254.0:
+        return 2
+    if alt_type_color == 50.0:
+        return 3
+
 
 def get_quality_by_color(map_quality):
     """
@@ -46,6 +61,7 @@ def get_quality_by_color(map_quality):
     """
     color = math.floor(((map_quality / 254) * 9))
     return color
+
 
 def get_match_ref_color(is_match):
     """
@@ -104,6 +120,14 @@ def analyze_array(img):
             else:
                 print(' ', end='')
         print()
+    print("SUPPORT TYPE CHANNEL")
+    for i in range(img_h):
+        for j in range(img_w):
+            if img[i][j][7] != 0:
+                print(get_alt_type_by_color(img[i][j][7]), end='')
+            else:
+                print(' ', end='')
+        print()
 
 
 def analyze_it(img, shape):
@@ -123,11 +147,41 @@ def analyze_it(img, shape):
                 print(' ', end='')
         print()
 
-    print("SUPPORT CHANNEL")
+    print("ALLELE SUPPORT CHANNEL")
     for i in range(img_h):
         for j in range(img_w):
             if img[i][j][6] != 0:
                 print(get_alt_support_by_color(img[i][j][6]), end='')
+            else:
+                print(' ', end='')
+        print()
+    print("SUPPORT TYPE CHANNEL")
+    for i in range(img_h):
+        for j in range(img_w):
+            if img[i][j][7] != 0:
+                print(get_alt_type_by_color(img[i][j][7]), end='')
+            else:
+                print(' ', end='')
+        print()
+
+
+def analyze_tensor(img):
+    img = img * 255.0
+    img_c, img_w, img_h = img.shape
+    print("BASE CHANNEL")
+    for i in range(img_h):
+        for j in range(img_w):
+            if img[0][j][i] != 0:
+                print(get_base_by_color(img[0][j][i]), end='')
+            else:
+                print(' ', end='')
+        print()
+
+    print("SUPPORT CHANNEL")
+    for i in range(img_h):
+        for j in range(img_w):
+            if img[6][j][i] != 0:
+                print(get_alt_support_by_color(img[6][j][i]), end='')
             else:
                 print(' ', end='')
         print()

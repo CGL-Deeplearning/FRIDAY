@@ -35,7 +35,7 @@ LOG_LEVEL = LOG_LEVEL_LOW
 WARN_COLOR = TextColor.RED
 
 PLOIDY = 2
-SNP =1
+SNP = 1
 IN = 2
 DEL = 3
 
@@ -167,6 +167,7 @@ class ImageGenerator:
                     support_allele_no, support_allele_type, support_allele = support_dict[pos]
                     # print(pos, support_allele_type, support_allele, support_allele_no)
                 else:
+                    support_allele_type = 0
                     support_allele_no = 0
 
                 # if there is a base in that position for that read
@@ -178,7 +179,8 @@ class ImageGenerator:
                     # get the reference base of that position
                     ref_base = self.pos_dicts.reference_dictionary[pos]
                     # combine all the pileup attributes we want to encode in the image
-                    pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction, support_allele_no)
+                    pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction, support_allele_no,
+                                         support_allele_type)
                     # create a channel object to covert these features to a pixel
                     channel_object = ImageChannels(pileup_attributes, ref_base)
                     # add the pixel to the row
@@ -207,7 +209,7 @@ class ImageGenerator:
                             base_q = in_qualities[i]
                             cigar_code = 2
                             ref_base = ''
-                            pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction, 0)
+                            pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction, 0, 0)
                             channel_object = ImageChannels(pileup_attributes, ref_base)
                             read_to_image_row.append(channel_object.get_channels())
 
@@ -224,7 +226,7 @@ class ImageGenerator:
                             base_q = MIN_DELETE_QUALITY
                             cigar_code = 2
                             ref_base = ''
-                            pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction, 0)
+                            pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction, 0, 0)
                             channel_object = ImageChannels(pileup_attributes, ref_base)
                             read_to_image_row.append(channel_object.get_channels())
 

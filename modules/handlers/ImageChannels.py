@@ -8,9 +8,10 @@ INSERT_CIGAR_CODE = 1
 DELETE_CIGAR_CODE = 2
 IMAGE_DEPTH_THRESHOLD = 300
 
-global_base_color_dictionary = {'A': 254.0, 'C': 100.0, 'G': 180.0, 'T': 30.0, '*': 5.0, '.': 5.0, 'N': 5.0}
+global_base_color_dictionary = {'A': 254.0, 'C': 100.0, 'G': 180.0, 'T': 30.0, '*': 60.0, '.': 150.0, 'N': 5.0}
 global_cigar_color_dictionary = {0: MAX_COLOR_VALUE, 1: MAX_COLOR_VALUE*0.6, 2: MAX_COLOR_VALUE*0.3}
 global_allele_support_dictionary = {0: 5.0, 1: 254.0, 2: 127.0}
+global_allele_type_dictionary = {0: 2.0, 1: 150.0, 2: 254.0, 3: 50.0}
 
 
 class ImageChannels:
@@ -30,8 +31,9 @@ class ImageChannels:
         self.cigar_code = pileup_attributes[3]
         self.is_rev = pileup_attributes[4]
         self.supports_allele = pileup_attributes[5]
+        self.support_allele_type = pileup_attributes[6]
         self.ref_base = ref_base
-        self.is_match = True if self.ref_base == self.pileup_base else False
+        self.is_match = True if self.ref_base == self.pileup_base and self.ref_base != '*' else False
 
     @staticmethod
     def get_total_number_of_channels():
@@ -43,7 +45,7 @@ class ImageChannels:
         Get empty channel values
         :return:
         """
-        return [0, 0, 0, 0, 0, 0, 0]
+        return [0, 0, 0, 0, 0, 0, 0, 0]
 
     def get_channels(self):
         """
@@ -67,7 +69,11 @@ class ImageChannels:
         support_color = global_allele_support_dictionary[self.supports_allele] \
             if self.supports_allele in global_allele_support_dictionary else 5.0
 
-        return [base_color, base_qual_color, map_qual_color, strand_color, match_color, cigar_color, support_color]
+        support_type_color = global_allele_type_dictionary[self.support_allele_type] \
+            if self.support_allele_type in global_allele_type_dictionary else 2.0
+
+        return [base_color, base_qual_color, map_qual_color, strand_color, match_color, cigar_color, support_color,
+                support_type_color]
 
     @staticmethod
     def get_channels_for_ref(pileup_base):
@@ -82,6 +88,7 @@ class ImageChannels:
         is_rev = False
         is_match = True
         supports_allele = 0
+        support_type = 1
 
         base_color = global_base_color_dictionary[pileup_base] \
             if pileup_base in global_base_color_dictionary else 0.0
@@ -100,4 +107,8 @@ class ImageChannels:
         support_color = global_allele_support_dictionary[supports_allele] \
             if supports_allele in global_allele_support_dictionary else 0.0
 
-        return [base_color, base_qual_color, map_qual_color, strand_color, match_color, cigar_color, support_color]
+        support_type_color = global_allele_type_dictionary[support_type] \
+            if support_type in global_allele_type_dictionary else 0.0
+
+        return [base_color, base_qual_color, map_qual_color, strand_color, match_color, cigar_color, support_color,
+                support_type_color]
