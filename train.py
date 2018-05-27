@@ -93,7 +93,7 @@ def test(data_file, batch_size, gpu_mode, trained_model, num_classes, num_worker
     total_loss = 0
     total_images = 0
     batches_done = 0
-    confusion_matrix = torch.zeros(num_classes, num_classes)
+    # confusion_matrix = torch.zeros(num_classes, num_classes)
     for i, (images, labels, position_progress) in enumerate(test_loader):
         if gpu_mode is True and images.size(0) % 8 != 0:
             continue
@@ -112,26 +112,25 @@ def test(data_file, batch_size, gpu_mode, trained_model, num_classes, num_worker
                 break
 
             # Forward + Backward + Optimize
-            outputs = trained_model(images[:, :, start_seq_pos:end_seq_pos, :])
+            outputs = test_model(images[:, :, start_seq_pos:end_seq_pos, :])
             true_labels = labels[:, start_seq_pos + FLANK_SIZE:start_seq_pos + FLANK_SIZE + WINDOW_SIZE]
 
             # update the confusion matrix
-            batches = outputs.size(0)
-            seqs = outputs.size(1)
-            for batch in range(batches):
-                for seq in range(seqs):
-                    preds = outputs[batch, seq, :].data
-                    true_label = labels[batch, seq].data.cpu().numpy()[0]
-                    top_n, top_i = preds.topk(1)
-                    predicted_label = top_i[0]
-                    confusion_matrix[true_label, predicted_label] += 1
+            # batches = outputs.size(0)
+            # seqs = outputs.size(1)
+            # for batch in range(batches):
+            #     for seq in range(seqs):
+            #         preds = outputs[batch, seq, :].data
+            #         true_label = labels[batch, seq].data.cpu().numpy()[0]
+            #         top_n, top_i = preds.topk(1)
+            #         predicted_label = top_i[0]
+            #         confusion_matrix[true_label, predicted_label] += 1
 
             loss = test_criterion(outputs.contiguous().view(-1, num_classes), true_labels.contiguous().view(-1))
 
             # loss count
             total_loss += loss.data[0]
             total_images += (images.size(0))
-            print(seq, total_sequences, "DONE")
 
         batches_done += 1
         if batches_done % 1 == 0:
@@ -141,7 +140,7 @@ def test(data_file, batch_size, gpu_mode, trained_model, num_classes, num_worker
     avg_loss = total_loss / total_images if total_images else 0
     test_loss_file.write(str(train_epoch) + "," + str(avg_loss) + "\n")
 
-    plot_confusion_matrix(num_classes, confusion_matrix, train_epoch)
+    # plot_confusion_matrix(num_classes, confusion_matrix, train_epoch)
 
     sys.stderr.write(TextColor.YELLOW+'Test Loss: ' + str(avg_loss) + "\n"+TextColor.END)
 
