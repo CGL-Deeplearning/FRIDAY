@@ -32,29 +32,18 @@ def inception_v3(pretrained=False, **kwargs):
 
 class Inception3(nn.Module):
 
-    def __init__(self, num_classes=3, aux_logits=False, transform_input=False):
+    def __init__(self, image_channels, aux_logits=False, transform_input=False):
         super(Inception3, self).__init__()
         self.aux_logits = aux_logits
         self.transform_input = transform_input
-        self.Conv2d_1a_3x3 = BasicConv2d(7, 32, kernel_size=3, stride=2)
-        self.Conv2d_2a_3x3 = BasicConv2d(32, 32, kernel_size=3)
+        self.Conv2d_1a_3x3 = BasicConv2d(image_channels, 32, kernel_size=3, stride=2)
+        self.Conv2d_2a_3x3 = BasicConv2d(32, 32, kernel_size=3, stride=2)
         self.Conv2d_2b_3x3 = BasicConv2d(32, 64, kernel_size=3, padding=1)
         self.Conv2d_3b_1x1 = BasicConv2d(64, 80, kernel_size=1)
-        self.Conv2d_4a_3x3 = BasicConv2d(80, 192, kernel_size=3)
-        self.Mixed_5b = InceptionA(192, pool_features=32)
-        self.Mixed_5c = InceptionA(256, pool_features=64)
-        self.Mixed_5d = InceptionA(288, pool_features=64)
-        self.Mixed_6a = InceptionB(288)
-        self.Mixed_6b = InceptionC(768, channels_7x7=128)
-        self.Mixed_6c = InceptionC(768, channels_7x7=160)
-        self.Mixed_6d = InceptionC(768, channels_7x7=160)
-        self.Mixed_6e = InceptionC(768, channels_7x7=192)
-        if aux_logits:
-            self.AuxLogits = InceptionAux(768, num_classes)
-        self.Mixed_7a = InceptionD(768)
-        self.Mixed_7b = InceptionE(1280)
-        self.Mixed_7c = InceptionE(2048)
-        self.fc = nn.Linear(2048, num_classes)
+        self.Conv2d_4a_3x3 = BasicConv2d(80, 80, kernel_size=3)
+        self.Mixed_4a = InceptionA(80, pool_features=32)
+        self.Mixed_5a = InceptionB(256)
+        self.in_features = 8096
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
@@ -69,59 +58,26 @@ class Inception3(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x):
-        x *= 254
-        # 299 x 299 x 3
+        # 8, seq_len, depth=100
         x = self.Conv2d_1a_3x3(x)
-        # 149 x 149 x 32
         x = self.Conv2d_2a_3x3(x)
-        # 147 x 147 x 32
         x = self.Conv2d_2b_3x3(x)
-        # 147 x 147 x 64
-        x = F.max_pool2d(x, kernel_size=3, stride=2)
-        # 73 x 73 x 64
         x = self.Conv2d_3b_1x1(x)
-        # 73 x 73 x 80
         x = self.Conv2d_4a_3x3(x)
-        # 71 x 71 x 192
-        x = F.max_pool2d(x, kernel_size=3, stride=2)
-        # 35 x 35 x 192
-        x = self.Mixed_5b(x)
-        # 35 x 35 x 256
-        x = self.Mixed_5c(x)
-        # 35 x 35 x 288
-        x = self.Mixed_5d(x)
-        # 35 x 35 x 288
-        x = self.Mixed_6a(x)
-        # 17 x 17 x 768
-        x = self.Mixed_6b(x)
-        # 17 x 17 x 768
-        x = self.Mixed_6c(x)
-
-        # 17 x 17 x 768
-        x = self.Mixed_6d(x)
-        # 17 x 17 x 768
-        x = self.Mixed_6e(x)
-        # 17 x 17 x 768
-        if self.training and self.aux_logits:
-            aux = self.AuxLogits(x)
-        # 17 x 17 x 768
-        x = self.Mixed_7a(x)
-        # 8 x 8 x 1280
-        x = self.Mixed_7b(x)
-        # 8 x 8 x 2048
-        x = self.Mixed_7c(x)
-        # 8 x 8 x 2048
-        x = F.avg_pool2d(x, kernel_size=8)
-        # 1 x 1 x 2048
+        x = self.Mixed_4a(x)
+        x = self.Mixed_5a(x)
+        # 736, seq_len, 12
         x = F.dropout(x, training=self.training)
-        # 1 x 1 x 2048
+        # 736, seq_len, 12
+        x = F.avg_pool2d(x, kernel_size=(2, 1))
+        # 736, seq_len, 3
+        # x = x.transpose(1, 2).contiguous()
+        # seq_len, 736, 3
         x = x.view(x.size(0), -1)
-        # 2048
-        x = self.fc(x)
-        # 1000 (num_classes)
-        if self.training and self.aux_logits:
-            return x, aux
-
+        # print(x.size())
+        # exit()
+        # exit()
+        # batch, seq_len, 2208
         return x
 
 
@@ -161,11 +117,11 @@ class InceptionB(nn.Module):
 
     def __init__(self, in_channels):
         super(InceptionB, self).__init__()
-        self.branch3x3 = BasicConv2d(in_channels, 384, kernel_size=3, stride=2)
+        self.branch3x3 = BasicConv2d(in_channels, 384, kernel_size=3, stride=(1, 2), padding=1)
 
         self.branch3x3dbl_1 = BasicConv2d(in_channels, 64, kernel_size=1)
         self.branch3x3dbl_2 = BasicConv2d(64, 96, kernel_size=3, padding=1)
-        self.branch3x3dbl_3 = BasicConv2d(96, 96, kernel_size=3, stride=2)
+        self.branch3x3dbl_3 = BasicConv2d(96, 96, kernel_size=3, stride=(1, 2), padding=1)
 
     def forward(self, x):
         branch3x3 = self.branch3x3(x)
@@ -174,7 +130,7 @@ class InceptionB(nn.Module):
         branch3x3dbl = self.branch3x3dbl_2(branch3x3dbl)
         branch3x3dbl = self.branch3x3dbl_3(branch3x3dbl)
 
-        branch_pool = F.max_pool2d(x, kernel_size=3, stride=2)
+        branch_pool = F.max_pool2d(x, kernel_size=3, stride=(1, 2), padding=1)
 
         outputs = [branch3x3, branch3x3dbl, branch_pool]
         return torch.cat(outputs, 1)

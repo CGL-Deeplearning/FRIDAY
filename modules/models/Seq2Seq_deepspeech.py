@@ -73,10 +73,10 @@ class SimpleModel(nn.Module):
     def __init__(self, image_channels, rnn_type=nn.LSTM, rnn_hidden_size=768, nb_layers=5, bidirectional=True, num_classes=6):
         super(SimpleModel, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(image_channels, 32, kernel_size=(1, 3), stride=(1, 1), padding=(0, 0)),
+            nn.Conv2d(image_channels, 32, kernel_size=(3, 3), stride=(1, 1), padding=(0, 0)),
             nn.BatchNorm2d(32),
             nn.Hardtanh(0, 20, inplace=True),
-            nn.Conv2d(32, 32, kernel_size=(3, 3), stride=(2, 1), padding=(1, 0)),
+            nn.Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(0, 0)),
             nn.BatchNorm2d(32),
             nn.Hardtanh(0, 20, inplace=True)
         )
@@ -101,13 +101,21 @@ class SimpleModel(nn.Module):
         self.inference_softmax = InferenceBatchSoftmax()
 
     def forward(self, x):
-        x = x.transpose(2, 3)
+        print(x.size())
         x = self.conv(x)
+        print(x.size())
+        exit()
         sizes = x.size()
         x = x.view(sizes[0], sizes[1] * sizes[2], sizes[3])  # Collapse feature dimension
         x = x.transpose(1, 2).transpose(0, 1).contiguous()
+        print(x.size())
         x = self.rnns(x)
+        print(x.size())
         x = self.fc(x)
+        print(x.size())
         x = x.transpose(0, 1)
+        print(x.size())
         x = self.inference_softmax(x)
+        print(x.size())
+        exit()
         return x

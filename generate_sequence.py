@@ -42,7 +42,7 @@ LOG_LEVEL = LOG_LEVEL_LOW
 
 # only select STRATIFICATION_RATE% of the total homozygous cases if they are dominant
 STRATIFICATION_RATE = 1.0
-MIN_SEQUENCE_BASE_LENGTH_THRESHOLD = 300
+MIN_SEQUENCE_BASE_LENGTH_THRESHOLD = 20
 MIN_VARIANT_IN_WINDOW_THRESHOLD = 1
 BED_INDEX_BUFFER = -1
 SAFE_BOUNDARY_BASES = 50
@@ -146,9 +146,6 @@ class View:
             interval_start, interval_end = self.confidence_intervals[i][0]+BED_INDEX_BUFFER, \
                                            self.confidence_intervals[i][1]+BED_INDEX_BUFFER
 
-            interval_start -= 50
-            interval_end += 350
-
             interval_length = interval_end - interval_start
             if interval_length < MIN_SEQUENCE_BASE_LENGTH_THRESHOLD:
                 warn_msg = "REGION SKIPPED, TOO SMALL OF A WINDOW " + self.chromosome_name + " "
@@ -211,9 +208,9 @@ class View:
                 self.summary_file.write(summary_string)
 
                 # from analysis.analyze_png_img import analyze_it
-                # print(pos)
-                # print(label_seq)
+                # print(" " * 10 + label_seq)
                 # analyze_it(self.output_dir+filename+'.png', sub_img.shape)
+                # exit()
 
 
 def test(view_object):
@@ -222,7 +219,7 @@ def test(view_object):
     :return:
     """
     start_time = time.time()
-    view_object.parse_region(start_index=0, end_index=1)
+    view_object.parse_region(start_index=0, end_index=5)
     print("TOTAL TIME ELAPSED: ", time.time()-start_time)
 
 

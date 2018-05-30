@@ -6,7 +6,7 @@ MIN_DELETE_QUALITY = 20.0
 MATCH_CIGAR_CODE = 0
 INSERT_CIGAR_CODE = 1
 DELETE_CIGAR_CODE = 2
-IMAGE_DEPTH_THRESHOLD = 300
+IMAGE_DEPTH_THRESHOLD = 120
 
 global_base_color_dictionary = {'A': 254.0, 'C': 100.0, 'G': 180.0, 'T': 30.0, '*': 60.0, '.': 150.0, 'N': 5.0}
 global_cigar_color_dictionary = {0: MAX_COLOR_VALUE, 1: MAX_COLOR_VALUE*0.6, 2: MAX_COLOR_VALUE*0.3}
@@ -59,7 +59,7 @@ class ImageChannels:
 
         map_qual_color = (MAX_COLOR_VALUE * min(self.map_qual, MAP_QUALITY_CAP)) / MAP_QUALITY_CAP
 
-        strand_color = 240.0 if self.is_rev else 70.0
+        strand_color = 254.0 if self.is_rev else 70.0
 
         match_color = MAX_COLOR_VALUE * 0.2 if self.is_match is True else MAX_COLOR_VALUE * 1.0
 

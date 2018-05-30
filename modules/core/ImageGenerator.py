@@ -20,13 +20,13 @@ VCF_INDEX_BUFFER = -1
 
 # Per sequence threshold
 # jump window size so the last 50 bases will be overlapping
-WINDOW_OVERLAP_JUMP = 249
+WINDOW_OVERLAP_JUMP = 1
 # image size
-WINDOW_SIZE = 300
+WINDOW_SIZE = 1
 # flanking size is the amount add on each size
-WINDOW_FLANKING_SIZE = 5
+WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety
-BOUNDARY_COLUMNS = 50
+BOUNDARY_COLUMNS = 20
 
 # Logging configuration
 LOG_LEVEL_HIGH = 1
@@ -538,12 +538,18 @@ class ImageGenerator:
         img_ended_in_indx = self.positional_info_position_to_index[interval_end + BOUNDARY_COLUMNS] - \
                             self.positional_info_position_to_index[ref_start]
 
+        candidate_finder_positions = sorted(self.top_alleles.keys())
         # print(label_seq)
         # from analysis.analyze_png_img import analyze_array
         # analyze_array(image)
         # exit()
 
-        for pos in range(interval_start, interval_end, WINDOW_OVERLAP_JUMP):
+        for i, pos in enumerate(candidate_finder_positions):
+            if pos < interval_start or pos > interval_end:
+                continue
+            # if i > 0 and candidate_finder_positions[i] - candidate_finder_positions[i-1] < int(WINDOW_SIZE/2):
+            #     continue
+            pos = pos - int(WINDOW_SIZE / 2)
             point_indx = self.positional_info_position_to_index[pos] - \
                          self.positional_info_position_to_index[ref_start]
             left_window_index = point_indx - WINDOW_FLANKING_SIZE
@@ -555,7 +561,8 @@ class ImageGenerator:
                 break
             img_left_indx = left_window_index - img_started_in_indx
             img_right_indx = right_window_index - img_started_in_indx
-            sub_label_seq = label_seq[img_left_indx:img_right_indx]
+            # sub_label_seq = label_seq[img_left_indx:img_right_indx]
+            sub_label_seq = label_seq[point_indx]
             sub_ref_seq = ref_seq[img_left_indx:img_right_indx]
             sliced_windows.append((pos, img_left_indx, img_right_indx, sub_label_seq, sub_ref_seq))
 
