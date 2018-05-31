@@ -107,7 +107,7 @@ def test(data_file, batch_size, gpu_mode, encoder_model, num_classes, num_worker
             avg_loss = total_loss / total_images if total_images else 0
             pbar.update(1)
             cm_value = confusion_matrix.value()
-            accuracy = 100. * (cm_value[1][1] + cm_value[2][2] + cm_value[3][3] + cm_value[4][4] +
+            accuracy = 100.0 * (cm_value[1][1] + cm_value[2][2] + cm_value[3][3] + cm_value[4][4] +
                                cm_value[5][5]) / (cm_value.sum() - cm_value[0][0])
             pbar.set_description("Accuracy: " + str(accuracy))
 
