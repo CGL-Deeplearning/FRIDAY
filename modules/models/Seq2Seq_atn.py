@@ -8,13 +8,20 @@ class EncoderCNN(nn.Module):
     def __init__(self, image_channels, embed_size):
         """Load the pretrained ResNet-152 and replace top fc layer."""
         super(EncoderCNN, self).__init__()
-        self.inception = Inception3(image_channels)
-        self.linear = nn.Linear(self.inception.in_features, embed_size)
+        self.inception_alt1 = Inception3(image_channels)
+        self.inception_alt2 = Inception3(image_channels)
+        self.linear_alt1 = nn.Linear(self.inception_alt1.in_features, embed_size)
+        self.linear_alt2 = nn.Linear(self.inception_alt2.in_features, embed_size)
 
     def forward(self, images):
         """Extract feature vectors from input images."""
-        features = self.inception(images)
-        features = self.linear(features)
+        allele_1_image = images[:, 0:8, :, :]
+        allele_2_image = torch.cat((images[:, 0:6, :, :], images[:, 7:9, :, :]), dim=1)
+        features_alt1 = self.inception_alt1(allele_1_image)
+        features_alt1 = self.linear_alt1(features_alt1)
+        features_alt2 = self.inception_alt2(allele_2_image)
+        features_alt2 = self.linear_alt2(features_alt2)
+        features = torch.cat((features_alt1, features_alt2), dim=1)
         return features
 
 
@@ -23,7 +30,7 @@ class EncoderCRNN(nn.Module):
         super(EncoderCRNN, self).__init__()
         self.cnn_encoder = EncoderCNN(image_channels, hidden_size)
         self.hidden_size = hidden_size
-        self.linear = nn.Linear(hidden_size, 6)
+        self.linear = nn.Linear(hidden_size * 2, 6)
         # self.gru = nn.GRU(hidden_size, hidden_size)
 
     def forward(self, x):
