@@ -37,27 +37,16 @@ class EncoderCRNN(nn.Module):
         self.gru_alt2 = nn.GRU(self.input_size, hidden_size, num_layers=1, bidirectional=True, batch_first=True)
 
     def forward(self, x):
-        # features = self.cnn_encoder(x)
-        # output = self.linear(features)
-        # output = features.view(1, features.size(0), -1)
-        print("IMAGE SIZE IN FORWARD: ", x.size())
         batch_size = x.size(0)
         allele_1_image = x[:, 0:8, :, :].contiguous()
         allele_1_image = allele_1_image.view(batch_size, allele_1_image.size(2), -1)
-        print(allele_1_image.size())
         allele_2_image = torch.cat((x[:, 0:6, :, :], x[:, 7:9, :, :]), dim=1)
         allele_2_image = allele_2_image.view(batch_size, allele_2_image.size(2), -1)
-        print(allele_2_image.size())
         alt1_x, hidden_alt1 = self.gru_alt1(allele_1_image)
         alt2_x, hidden_alt2 = self.gru_alt2(allele_2_image)
-        print(alt1_x.size(), alt2_x.size())
         combined_logits = torch.cat((alt1_x, alt2_x), dim=2)
-        print(combined_logits.size())
         features = self.linear(combined_logits.view(batch_size, -1))
-        print(features.size())
         logits = self.classify(features)
-        print(logits.size())
-        # output, hidden = self.gru(output, hidden)
         return logits
 
     def init_hidden(self, batch_size, num_layers=1, num_directions=2):
