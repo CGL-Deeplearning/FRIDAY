@@ -1,6 +1,5 @@
-import os
 import argparse
-from PIL import Image, ImageOps
+from PIL import Image
 import numpy as np
 import math
 
@@ -43,14 +42,14 @@ def get_alt_support_by_color(support_color):
 
 
 def get_alt_type_by_color(alt_type_color):
-    if alt_type_color == 2.0:
-        return 0
-    if alt_type_color == 150.0:
-        return 1
-    if alt_type_color == 254.0:
-        return 2
-    if alt_type_color == 50.0:
-        return 3
+    if 1.0 <= alt_type_color <= 2.0:
+        return '-'
+    if 145.0 <= alt_type_color <= 155.0:
+        return 'S'
+    if 245.0 <= alt_type_color <= 260.0:
+        return 'I'
+    if 45.0 <= alt_type_color == 55.0:
+        return 'D'
 
 
 def get_quality_by_color(map_quality):
@@ -138,7 +137,7 @@ def analyze_it(img, shape):
     img = np.reshape(np_array_of_img, shape)
     img = np.transpose(img, (0, 1, 2))
     img_h, img_w, img_c = img.shape
-    print("BASE CHANNEL")
+    # print("BASE CHANNEL")
     for i in range(img_h):
         for j in range(img_w):
             if img[i][j][0] != 0:
@@ -146,7 +145,7 @@ def analyze_it(img, shape):
             else:
                 print(' ', end='')
         print()
-
+    return
     print("ALLELE SUPPORT CHANNEL")
     for i in range(img_h):
         for j in range(img_w):
@@ -155,6 +154,7 @@ def analyze_it(img, shape):
             else:
                 print(' ', end='')
         print()
+
     print("SUPPORT TYPE CHANNEL")
     for i in range(img_h):
         for j in range(img_w):
@@ -185,21 +185,3 @@ def analyze_tensor(img):
             else:
                 print(' ', end='')
         print()
-
-
-if __name__ == '__main__':
-    """
-    Processes arguments and performs tasks to generate the pileup.
-    """
-
-    parser = argparse.ArgumentParser()
-    parser.register("type", "bool", lambda v: v.lower() == "true")
-    parser.add_argument(
-        "--img",
-        type=str,
-        required=True,
-        help="Path to the image."
-    )
-    FLAGS, not_parsed_flags = parser.parse_known_args()
-    # make output directory if not already created
-    analyze_it(FLAGS.img)

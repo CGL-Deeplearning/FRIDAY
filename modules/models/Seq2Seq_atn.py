@@ -40,7 +40,7 @@ class EncoderCRNN(nn.Module):
         # features = self.cnn_encoder(x)
         # output = self.linear(features)
         # output = features.view(1, features.size(0), -1)
-        print(x.size())
+        print("IMAGE SIZE IN FORWARD: ", x.size())
         batch_size = x.size(0)
         allele_1_image = x[:, 0:8, :, :].contiguous()
         allele_1_image = allele_1_image.view(batch_size, allele_1_image.size(2), -1)
