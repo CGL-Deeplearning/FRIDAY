@@ -69,12 +69,6 @@ def test(data_file, batch_size, gpu_mode, encoder_model, num_classes, num_worker
 
             images = Variable(images)
             labels = Variable(labels)
-            if gpu_mode == 1:
-                encoder_hidden_1 = Variable(encoder_model.module.init_hidden(images.size(0)))
-                encoder_hidden_2 = Variable(encoder_model.module.init_hidden(images.size(0)))
-            else:
-                encoder_hidden_1 = Variable(encoder_model.init_hidden(images.size(0)))
-                encoder_hidden_2 = Variable(encoder_model.init_hidden(images.size(0)))
             if gpu_mode:
                 # encoder_hidden = encoder_hidden.cuda()
                 images = images.cuda()
@@ -87,7 +81,7 @@ def test(data_file, batch_size, gpu_mode, encoder_model, num_classes, num_worker
             # if gpu_mode:
             #     decoder_input = decoder_input.cuda()
 
-            encoder_output = encoder_model(images, encoder_hidden_1, encoder_hidden_2)
+            encoder_output = encoder_model(images)
             # encoder_output, encoder_hidden = encoder_model(images, encoder_hidden)
             # decoder_hidden = encoder_hidden
 
@@ -174,12 +168,6 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                 images = Variable(images)
                 labels = Variable(labels)
                 if gpu_mode:
-                    encoder_hidden_1 = Variable(encoder_model.module.init_hidden(images.size(0))).cuda()
-                    encoder_hidden_2 = Variable(encoder_model.module.init_hidden(images.size(0))).cuda()
-                else:
-                    encoder_hidden_1 = Variable(encoder_model.init_hidden(images.size(0)))
-                    encoder_hidden_2 = Variable(encoder_model.init_hidden(images.size(0)))
-                if gpu_mode:
                     # encoder_hidden = encoder_hidden.cuda()
                     images = images.cuda()
                     labels = labels.cuda()
@@ -192,9 +180,7 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                 # decoder_input = Variable(torch.LongTensor(1, labels.size(0)).zero_())
                 # if gpu_mode:
                     # decoder_input = decoder_input.cuda()
-                print("Image IN TRAIN: ", images.size())
-                print("Hidden IN TRAIN: ", encoder_hidden_1.size(), encoder_hidden_2.size())
-                encoder_output = encoder_model(images, encoder_hidden_1, encoder_hidden_2)
+                encoder_output = encoder_model(images)
                 loss = criterion(encoder_output.contiguous().view(-1, num_classes), labels.contiguous().view(-1))
                 '''decoder_hidden = encoder_hidden
                 use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
