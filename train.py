@@ -69,8 +69,12 @@ def test(data_file, batch_size, gpu_mode, encoder_model, num_classes, num_worker
 
             images = Variable(images)
             labels = Variable(labels)
-            encoder_hidden_1 = Variable(encoder_model.init_hidden(images.size(0)))
-            encoder_hidden_2 = Variable(encoder_model.init_hidden(images.size(0)))
+            if gpu_mode == 1:
+                encoder_hidden_1 = Variable(encoder_model.module.init_hidden(images.size(0)))
+                encoder_hidden_2 = Variable(encoder_model.module.init_hidden(images.size(0)))
+            else:
+                encoder_hidden_1 = Variable(encoder_model.init_hidden(images.size(0)))
+                encoder_hidden_2 = Variable(encoder_model.init_hidden(images.size(0)))
             if gpu_mode:
                 # encoder_hidden = encoder_hidden.cuda()
                 images = images.cuda()
@@ -169,8 +173,12 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
 
                 images = Variable(images)
                 labels = Variable(labels)
-                encoder_hidden_1 = Variable(encoder_model.init_hidden(images.size(0)))
-                encoder_hidden_2 = Variable(encoder_model.init_hidden(images.size(0)))
+                if gpu_mode == 1:
+                    encoder_hidden_1 = Variable(encoder_model.module.init_hidden(images.size(0)))
+                    encoder_hidden_2 = Variable(encoder_model.module.init_hidden(images.size(0)))
+                else:
+                    encoder_hidden_1 = Variable(encoder_model.init_hidden(images.size(0)))
+                    encoder_hidden_2 = Variable(encoder_model.init_hidden(images.size(0)))
                 if gpu_mode:
                     # encoder_hidden = encoder_hidden.cuda()
                     images = images.cuda()
