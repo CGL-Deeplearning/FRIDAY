@@ -28,20 +28,32 @@ class EncoderCNN(nn.Module):
 class EncoderCRNN(nn.Module):
     def __init__(self, image_channels, hidden_size):
         super(EncoderCRNN, self).__init__()
-        self.cnn_encoder = EncoderCNN(image_channels, hidden_size)
+        # self.cnn_encoder = EncoderCNN(image_channels, hidden_size)
         self.hidden_size = hidden_size
-        self.linear = nn.Linear(hidden_size * 2, 6)
-        # self.gru = nn.GRU(hidden_size, hidden_size)
+        self.input_size = image_channels * 100
+        self.linear = nn.Linear(21 * hidden_size * 4, 512)
+        self.classify = nn.Linear(512, 6)
+        self.gru_alt1 = nn.GRU(self.input_size, hidden_size, num_layers=1, bidirectional=True)
+        self.gru_alt2 = nn.GRU(self.input_size, hidden_size, num_layers=1, bidirectional=True)
 
-    def forward(self, x):
-        features = self.cnn_encoder(x)
-        output = self.linear(features)
+    def forward(self, x, hidden_a, hidden_b):
+        # features = self.cnn_encoder(x)
+        # output = self.linear(features)
         # output = features.view(1, features.size(0), -1)
+        allele_1_image = x[:, 0:8, :, :].contiguous()
+        allele_1_image = allele_1_image.view(allele_1_image.size(0), allele_1_image.size(2), -1)
+        allele_2_image = torch.cat((x[:, 0:6, :, :], x[:, 7:9, :, :]), dim=1)
+        allele_2_image = allele_2_image.view(allele_2_image.size(0), allele_2_image.size(2), -1)
 
+        alt1_x, hidden_alt1 = self.gru_alt1(allele_1_image)
+        alt2_x, hidden_alt2 = self.gru_alt2(allele_2_image)
+        combined_logits = torch.cat((alt1_x, alt2_x), dim=2)
+        features = self.linear(combined_logits.view(x.size(0), -1))
+        logits = self.classify(features)
         # output, hidden = self.gru(output, hidden)
-        return output
+        return logits
 
-    def init_hidden(self, batch_size, num_layers=1, num_directions=1):
+    def init_hidden(self, batch_size, num_layers=3, num_directions=2):
         return torch.zeros(num_directions * num_layers, batch_size, self.hidden_size)
 
 

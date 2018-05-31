@@ -69,7 +69,8 @@ def test(data_file, batch_size, gpu_mode, encoder_model, num_classes, num_worker
 
             images = Variable(images)
             labels = Variable(labels)
-            # encoder_hidden = Variable(encoder_model.init_hidden(images.size(0)))
+            encoder_hidden_1 = Variable(encoder_model.init_hidden(images.size(0)))
+            encoder_hidden_2 = Variable(encoder_model.init_hidden(images.size(0)))
             if gpu_mode:
                 # encoder_hidden = encoder_hidden.cuda()
                 images = images.cuda()
@@ -82,7 +83,7 @@ def test(data_file, batch_size, gpu_mode, encoder_model, num_classes, num_worker
             # if gpu_mode:
             #     decoder_input = decoder_input.cuda()
 
-            encoder_output = encoder_model(images)
+            encoder_output = encoder_model(images, encoder_hidden_1, encoder_hidden_2)
             # encoder_output, encoder_hidden = encoder_model(images, encoder_hidden)
             # decoder_hidden = encoder_hidden
 
@@ -137,7 +138,7 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                               pin_memory=gpu_mode
                               )
 
-    encoder_model = EncoderCRNN(image_channels=8, hidden_size=512)
+    encoder_model = EncoderCRNN(image_channels=8, hidden_size=256)
     # decoder_model = AttnDecoderRNN(hidden_size=512, num_classes=6, max_length=1)
 
     encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.000217)
@@ -168,7 +169,8 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
 
                 images = Variable(images)
                 labels = Variable(labels)
-                # encoder_hidden = Variable(encoder_model.init_hidden(images.size(0)))
+                encoder_hidden_1 = Variable(encoder_model.init_hidden(images.size(0)))
+                encoder_hidden_2 = Variable(encoder_model.init_hidden(images.size(0)))
                 if gpu_mode:
                     # encoder_hidden = encoder_hidden.cuda()
                     images = images.cuda()
@@ -183,7 +185,7 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                 # if gpu_mode:
                     # decoder_input = decoder_input.cuda()
 
-                encoder_output = encoder_model(images)
+                encoder_output = encoder_model(images, encoder_hidden_1, encoder_hidden_2)
                 loss = criterion(encoder_output.contiguous().view(-1, num_classes), labels.contiguous().view(-1))
                 '''decoder_hidden = encoder_hidden
                 use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
