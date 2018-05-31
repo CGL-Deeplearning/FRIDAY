@@ -174,6 +174,7 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                 images = Variable(images)
                 labels = Variable(labels)
                 if gpu_mode == 1:
+                    print("Image sizes: ", images.size())
                     encoder_hidden_1 = Variable(encoder_model.module.init_hidden(images.size(0)))
                     encoder_hidden_2 = Variable(encoder_model.module.init_hidden(images.size(0)))
                 else:
