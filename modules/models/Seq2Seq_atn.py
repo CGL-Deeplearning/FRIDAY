@@ -33,22 +33,23 @@ class EncoderCRNN(nn.Module):
         self.input_size = image_channels * 100
         self.linear = nn.Linear(21 * hidden_size * 4, 512)
         self.classify = nn.Linear(512, 6)
-        self.gru_alt1 = nn.GRU(self.input_size, hidden_size, num_layers=1, bidirectional=True)
-        self.gru_alt2 = nn.GRU(self.input_size, hidden_size, num_layers=1, bidirectional=True)
+        self.gru_alt1 = nn.GRU(self.input_size, hidden_size, num_layers=1, bidirectional=True, batch_first=True)
+        self.gru_alt2 = nn.GRU(self.input_size, hidden_size, num_layers=1, bidirectional=True, batch_first=True)
 
     def forward(self, x, hidden_a, hidden_b):
         # features = self.cnn_encoder(x)
         # output = self.linear(features)
         # output = features.view(1, features.size(0), -1)
+        batch_size = x.size(0)
         allele_1_image = x[:, 0:8, :, :].contiguous()
-        allele_1_image = allele_1_image.view(allele_1_image.size(0), allele_1_image.size(2), -1)
+        allele_1_image = allele_1_image.view(batch_size, allele_1_image.size(2), -1)
         allele_2_image = torch.cat((x[:, 0:6, :, :], x[:, 7:9, :, :]), dim=1)
-        allele_2_image = allele_2_image.view(allele_2_image.size(0), allele_2_image.size(2), -1)
-
+        allele_2_image = allele_2_image.view(batch_size, allele_2_image.size(2), -1)
         alt1_x, hidden_alt1 = self.gru_alt1(allele_1_image)
         alt2_x, hidden_alt2 = self.gru_alt2(allele_2_image)
         combined_logits = torch.cat((alt1_x, alt2_x), dim=2)
-        features = self.linear(combined_logits.view(x.size(0), -1))
+
+        features = self.linear(combined_logits.view(batch_size, -1))
         logits = self.classify(features)
         # output, hidden = self.gru(output, hidden)
         return logits
