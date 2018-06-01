@@ -33,8 +33,8 @@ class EncoderCRNN(nn.Module):
         self.input_size = image_channels * 100
         self.linear = nn.Linear(21 * hidden_size * 4, 512)
         self.classify = nn.Linear(512, 6)
-        self.gru_alt1 = nn.GRU(self.input_size, hidden_size, num_layers=1, bidirectional=True, batch_first=True)
-        self.gru_alt2 = nn.GRU(self.input_size, hidden_size, num_layers=1, bidirectional=True, batch_first=True)
+        self.gru_alt1 = nn.GRU(self.input_size, hidden_size, num_layers=3, bidirectional=True, batch_first=True)
+        self.gru_alt2 = nn.GRU(self.input_size, hidden_size, num_layers=3, bidirectional=True, batch_first=True)
 
     def forward(self, x):
         batch_size = x.size(0)
@@ -49,7 +49,7 @@ class EncoderCRNN(nn.Module):
         logits = self.classify(features)
         return logits
 
-    def init_hidden(self, batch_size, num_layers=1, num_directions=2):
+    def init_hidden(self, batch_size, num_layers=3, num_directions=2):
         return torch.zeros(batch_size, num_directions * num_layers, self.hidden_size)
 
 
