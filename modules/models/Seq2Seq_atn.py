@@ -10,41 +10,40 @@ class EncoderCNN(nn.Module):
         super(EncoderCNN, self).__init__()
         self.inception_alt1 = Inception3(image_channels)
         self.inception_alt2 = Inception3(image_channels)
-        self.linear_alt1 = nn.Linear(self.inception_alt1.in_features, embed_size)
-        self.linear_alt2 = nn.Linear(self.inception_alt2.in_features, embed_size)
 
     def forward(self, images):
         """Extract feature vectors from input images."""
         allele_1_image = images[:, 0:8, :, :]
         allele_2_image = torch.cat((images[:, 0:6, :, :], images[:, 7:9, :, :]), dim=1)
         features_alt1 = self.inception_alt1(allele_1_image)
-        features_alt1 = self.linear_alt1(features_alt1)
         features_alt2 = self.inception_alt2(allele_2_image)
-        features_alt2 = self.linear_alt2(features_alt2)
-        features = torch.cat((features_alt1, features_alt2), dim=1)
-        return features
+
+        return features_alt1, features_alt2
 
 
 class EncoderCRNN(nn.Module):
     def __init__(self, image_channels, hidden_size):
         super(EncoderCRNN, self).__init__()
-        # self.cnn_encoder = EncoderCNN(image_channels, hidden_size)
+        self.cnn_encoder = EncoderCNN(image_channels, hidden_size)
         self.hidden_size = hidden_size
-        self.input_size = image_channels * 100
         self.linear = nn.Linear(21 * hidden_size * 4, 512)
         self.classify = nn.Linear(512, 6)
-        self.gru_alt1 = nn.GRU(self.input_size, hidden_size, num_layers=3, bidirectional=True, batch_first=True)
-        self.gru_alt2 = nn.GRU(self.input_size, hidden_size, num_layers=3, bidirectional=True, batch_first=True)
+        self.gru_alt1 = nn.GRU(1750, hidden_size, num_layers=1, bidirectional=True, batch_first=True)
+        self.gru_alt2 = nn.GRU(1750, hidden_size, num_layers=1, bidirectional=True, batch_first=True)
 
     def forward(self, x):
         batch_size = x.size(0)
-        allele_1_image = x[:, 0:8, :, :].contiguous()
-        allele_1_image = allele_1_image.view(batch_size, allele_1_image.size(2), -1)
-        allele_2_image = torch.cat((x[:, 0:6, :, :], x[:, 7:9, :, :]), dim=1)
-        allele_2_image = allele_2_image.view(batch_size, allele_2_image.size(2), -1)
-        alt1_x, hidden_alt1 = self.gru_alt1(allele_1_image)
-        alt2_x, hidden_alt2 = self.gru_alt2(allele_2_image)
+        seq_len = x.size(2)
+        features_alt1, features_alt2 = self.cnn_encoder(x)
+        features_alt1 = features_alt1.view(batch_size, seq_len, -1)
+        features_alt2 = features_alt2.view(batch_size, seq_len, -1)
+        self.gru_alt1.flatten_parameters()
+        self.gru_alt2.flatten_parameters()
+        alt1_x, hidden_alt1 = self.gru_alt1(features_alt1)
+        alt2_x, hidden_alt2 = self.gru_alt2(features_alt2)
+
         combined_logits = torch.cat((alt1_x, alt2_x), dim=2)
+
         features = self.linear(combined_logits.view(batch_size, -1))
         logits = self.classify(features)
         return logits
