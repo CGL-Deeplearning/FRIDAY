@@ -145,6 +145,7 @@ class AttnDecoderRNN(nn.Module):
         return logits, hidden, attn
 
     def forward(self, inputs, encoder_hidden, encoder_outputs):
+        print("In Forward: ", inputs.size(), encoder_hidden.size(), encoder_outputs.size())
         encoder_hidden = encoder_hidden.transpose(0, 1)
 
         decoder_input = inputs[:, 0].unsqueeze(1)

@@ -60,9 +60,6 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_clas
     total_images = 0
     with tqdm(total=len(test_loader), desc='Accuracy: ', leave=True, dynamic_ncols=True) as pbar:
         for i, (images, labels, positional_information) in enumerate(test_loader):
-            if gpu_mode is True and images.size(0) % 8 != 0:
-                continue
-
             images = Variable(images)
             labels = Variable(labels)
             if gpu_mode:
@@ -158,9 +155,6 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
         sys.stderr.write(TextColor.BLUE + 'Train epoch: ' + str(epoch + 1) + "\n")
         with tqdm(total=len(train_loader), desc='Loss', leave=True, dynamic_ncols=True) as progress_bar:
             for images, labels, positional_information in train_loader:
-                if gpu_mode is True and images.size(0) % 8 != 0:
-                    continue
-
                 images = Variable(images)
                 labels = Variable(labels)
                 if gpu_mode:
@@ -188,7 +182,7 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
 
                     encoder_output, encoder_hidden = encoder_model(x)
                     encoder_hidden = encoder_hidden.transpose(0, 1)
-
+                    print("In Train loop: ", decoder_input.size(), encoder_hidden.size(), encoder_output.size())
                     outputs, hidden = decoder_model(decoder_input, encoder_hidden, encoder_output)
                     # loss + optimize
                     loss = criterion(outputs, y)
