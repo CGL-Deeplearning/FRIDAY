@@ -80,7 +80,6 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_clas
                 y = labels[:, seq_index - index_start]
 
                 encoder_output, encoder_hidden = encoder_model(x)
-                encoder_hidden = encoder_hidden.transpose(0, 1)
 
                 outputs, hidden = decoder_model(decoder_input, encoder_hidden, encoder_output)
                 topv, topi = outputs.squeeze().topk(1)
@@ -181,7 +180,7 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                     y = labels[:, seq_index - index_start]
 
                     encoder_output, encoder_hidden = encoder_model(x)
-                    encoder_hidden = encoder_hidden.transpose(0, 1)
+
                     print("In Train loop: ", decoder_input.size(), encoder_hidden.size(), encoder_output.size())
                     outputs, hidden = decoder_model(decoder_input, encoder_hidden, encoder_output)
                     # loss + optimize

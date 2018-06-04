@@ -108,7 +108,7 @@ class EncoderCRNN(nn.Module):
             # hidden_alt2 = torch.cat([hidden_alt2[0:hidden_alt2.size(0):2], hidden_alt2[1:hidden_alt2.size(0):2]], 2)
 
         encoder_output = torch.cat((alt1_x, alt2_x), dim=2).contiguous()
-        encoder_hidden = torch.cat((hidden_alt1, hidden_alt2), dim=2).contiguous()
+        encoder_hidden = torch.cat((hidden_alt1, hidden_alt2), dim=2).contiguous().transpose(0, 1)
         return encoder_output, encoder_hidden
 
     def init_hidden(self, batch_size, num_layers=3, num_directions=2):
