@@ -80,7 +80,7 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_clas
                 y = labels[:, seq_index - index_start]
 
                 encoder_output, encoder_hidden = encoder_model(x)
-
+                print("IN TEST ENCODED: ", encoder_output.size(), encoder_hidden.size())
                 outputs, hidden = decoder_model(decoder_input, encoder_hidden, encoder_output)
                 topv, topi = outputs.squeeze().topk(1)
                 decoder_input = topi.detach()  # detach from history as input
@@ -201,6 +201,8 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                 progress_bar.set_description("Loss: " + str(avg_loss))
                 progress_bar.refresh()
                 progress_bar.update(1)
+                # DEBUG
+                test(validation_file, batch_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers)
             progress_bar.close()
 
         # After each epoch do validation
