@@ -150,4 +150,6 @@ class AttnDecoderRNN(nn.Module):
         decoder_input = inputs[:, 0].unsqueeze(1).contiguous()
         decoder_output, decoder_hidden, attn = self.forward_step(decoder_input, encoder_hidden, encoder_outputs)
 
+        decoder_hidden = decoder_hidden.transpose(0, 1).contiguous()
+
         return decoder_output, decoder_hidden
