@@ -26,7 +26,7 @@ WINDOW_SIZE = 1
 # flanking size is the amount add on each size
 WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety
-BOUNDARY_COLUMNS = 20
+BOUNDARY_COLUMNS = 50
 
 # Logging configuration
 LOG_LEVEL_HIGH = 1
@@ -550,10 +550,10 @@ class ImageGenerator:
             # if i > 0 and candidate_finder_positions[i] - candidate_finder_positions[i-1] < int(WINDOW_SIZE/2):
             #     continue
             pos = pos - int(WINDOW_SIZE / 2)
-            point_indx = self.positional_info_position_to_index[pos] - \
-                         self.positional_info_position_to_index[ref_start]
-            left_window_index = point_indx - WINDOW_FLANKING_SIZE
-            right_window_index = point_indx + WINDOW_SIZE + WINDOW_FLANKING_SIZE
+            start_index = self.positional_info_position_to_index[pos] - \
+                          self.positional_info_position_to_index[ref_start]
+            left_window_index = start_index - WINDOW_FLANKING_SIZE
+            right_window_index = start_index + WINDOW_SIZE + WINDOW_FLANKING_SIZE
 
             if left_window_index < img_started_in_indx:
                 continue
@@ -561,8 +561,10 @@ class ImageGenerator:
                 break
             img_left_indx = left_window_index - img_started_in_indx
             img_right_indx = right_window_index - img_started_in_indx
+            label_left_indx = start_index
+            label_right_indx = start_index + WINDOW_SIZE
             # sub_label_seq = label_seq[img_left_indx:img_right_indx]
-            sub_label_seq = label_seq[point_indx]
+            sub_label_seq = label_seq[label_left_indx:label_right_indx]
             sub_ref_seq = ref_seq[img_left_indx:img_right_indx]
             sliced_windows.append((pos, img_left_indx, img_right_indx, sub_label_seq, sub_ref_seq))
 

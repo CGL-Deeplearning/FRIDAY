@@ -160,8 +160,8 @@ class View:
 
             if len(positional_variants) < MIN_VARIANT_IN_WINDOW_THRESHOLD:
                 warn_msg = "REGION SKIPPED, INSUFFICIENT NUMBER OF VARIANTS " + self.chromosome_name + " "
-                warn_msg = warn_msg + str(interval_start) + " " + str(interval_end) + " VARIANT COUNT: " \
-                           + str(len(positional_variants)) + "\n"
+                warn_msg = warn_msg + str(interval_start) + " " + str(interval_end) + " VARIANT COUNT: " + \
+                           str(len(positional_variants)) + "\n"
                 if LOG_LEVEL == LOG_LEVEL_HIGH:
                     sys.stderr.write(TextColor.BLUE + "INFO: " + warn_msg + TextColor.END)
                 continue

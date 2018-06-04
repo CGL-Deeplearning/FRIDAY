@@ -11,7 +11,7 @@ model_urls = {
     # Inception v3 ported from TensorFlow
     'inception_v3_google': 'https://download.pytorch.org/models/inception_v3_google-1a9a5a14.pth',
 }
-
+FLANK_SIZE = 10
 
 def inception_v3(pretrained=False, **kwargs):
     r"""Inception v3 model architecture from
@@ -36,13 +36,15 @@ class Inception3(nn.Module):
         super(Inception3, self).__init__()
         self.aux_logits = aux_logits
         self.transform_input = transform_input
-        self.Conv2d_1a_3x3 = BasicConv2d(image_channels, 16, kernel_size=3, padding=(1, 0), stride=(1, 2))
-        self.Conv2d_2a_3x3 = BasicConv2d(16, 16, kernel_size=3, padding=(1, 0))
-        self.Conv2d_2b_3x3 = BasicConv2d(16, 32, kernel_size=3, padding=(1, 0))
-        self.Conv2d_3b_1x1 = BasicConv2d(32, 32, kernel_size=1)
-        self.Conv2d_4a_3x3 = BasicConv2d(32, 32, kernel_size=3, padding=1)
-        self.Mixed_4a = InceptionA(32, pool_features=32)
-        self.Mixed_5a = InceptionB(158)
+        kernel_for_base = 2 * FLANK_SIZE + 1
+        self.Conv2d_1a = BasicConv2d(image_channels, 32, kernel_size=(kernel_for_base, 3))
+        self.Conv2d_2a_3x3 = BasicConv2d(32, 32, kernel_size=3, stride=(1, 2), padding=(1, 0))
+        self.Conv2d_2b_3x3 = BasicConv2d(32, 64, kernel_size=3, padding=(1, 0))
+        self.Conv2d_3b_1x1 = BasicConv2d(64, 80, kernel_size=1)
+        self.Conv2d_4a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=1)
+        self.Mixed_4a = InceptionA(80, pool_features=32)
+        self.Mixed_5a = InceptionB(256)
+        self.in_features = 8096
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
@@ -57,26 +59,19 @@ class Inception3(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x):
-        # 8, seq_len, depth=100
-        x = self.Conv2d_1a_3x3(x)
+        x = self.Conv2d_1a(x)
         x = self.Conv2d_2a_3x3(x)
         x = self.Conv2d_2b_3x3(x)
         x = self.Conv2d_3b_1x1(x)
         x = self.Conv2d_4a_3x3(x)
 
         x = self.Mixed_4a(x)
-
         x = self.Mixed_5a(x)
         # 736, seq_len, 12
         x = F.dropout(x, training=self.training)
         # 736, seq_len, 12
         x = F.avg_pool2d(x, kernel_size=(1, 4))
-        # 736, seq_len, 3
-        # x = x.transpose(1, 2).contiguous()
-        # seq_len, 736, 3
-        # x = x.view(x.size(0), -1)
-        # exit()
-        # batch, seq_len, 2208
+        # 736, seq_len, 5
         return x
 
 
@@ -84,14 +79,14 @@ class InceptionA(nn.Module):
 
     def __init__(self, in_channels, pool_features):
         super(InceptionA, self).__init__()
-        self.branch1x1 = BasicConv2d(in_channels, 42, kernel_size=1)
+        self.branch1x1 = BasicConv2d(in_channels, 64, kernel_size=1)
 
-        self.branch5x5_1 = BasicConv2d(in_channels, 32, kernel_size=1)
-        self.branch5x5_2 = BasicConv2d(32, 42, kernel_size=5, padding=2)
+        self.branch5x5_1 = BasicConv2d(in_channels, 48, kernel_size=1)
+        self.branch5x5_2 = BasicConv2d(48, 64, kernel_size=5, padding=2)
 
-        self.branch3x3dbl_1 = BasicConv2d(in_channels, 32, kernel_size=1)
-        self.branch3x3dbl_2 = BasicConv2d(32, 42, kernel_size=3, padding=1)
-        self.branch3x3dbl_3 = BasicConv2d(42, 42, kernel_size=3, padding=1)
+        self.branch3x3dbl_1 = BasicConv2d(in_channels, 64, kernel_size=1)
+        self.branch3x3dbl_2 = BasicConv2d(64, 96, kernel_size=3, padding=1)
+        self.branch3x3dbl_3 = BasicConv2d(96, 96, kernel_size=3, padding=1)
 
         self.branch_pool = BasicConv2d(in_channels, pool_features, kernel_size=1)
 
@@ -116,11 +111,11 @@ class InceptionB(nn.Module):
 
     def __init__(self, in_channels):
         super(InceptionB, self).__init__()
-        self.branch3x3 = BasicConv2d(in_channels, 128, kernel_size=3, stride=(1, 2), padding=1)
+        self.branch3x3 = BasicConv2d(in_channels, 384, kernel_size=3, stride=(1, 2), padding=1)
 
-        self.branch3x3dbl_1 = BasicConv2d(in_channels, 32, kernel_size=1)
-        self.branch3x3dbl_2 = BasicConv2d(32, 64, kernel_size=3, padding=1)
-        self.branch3x3dbl_3 = BasicConv2d(64, 64, kernel_size=3, stride=(1, 2), padding=1)
+        self.branch3x3dbl_1 = BasicConv2d(in_channels, 64, kernel_size=1)
+        self.branch3x3dbl_2 = BasicConv2d(64, 96, kernel_size=3, padding=1)
+        self.branch3x3dbl_3 = BasicConv2d(96, 96, kernel_size=3, stride=(1, 2), padding=1)
 
     def forward(self, x):
         branch3x3 = self.branch3x3(x)

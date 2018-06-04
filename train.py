@@ -1,7 +1,3 @@
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 import argparse
 import os
 import sys
@@ -12,6 +8,7 @@ import torch
 import torch.nn.parallel
 import torchnet.meter as meter
 import torch.nn as nn
+from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torch.autograd import Variable
@@ -19,7 +16,6 @@ from modules.core.dataloader import SequenceDataset
 from modules.models.ModelHandler import ModelHandler
 from modules.models.Seq2Seq_atn import EncoderCRNN, AttnDecoderRNN
 from modules.handlers.TextColor import TextColor
-from tqdm import tqdm
 """
 Train a model and save the model that performs best.
 
@@ -34,7 +30,7 @@ FLANK_SIZE = 10
 WINDOW_SIZE = 1
 
 
-def test(data_file, batch_size, gpu_mode, encoder_model, num_classes, num_workers):
+def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers):
     transformations = transforms.Compose([transforms.ToTensor()])
 
     # data loader
@@ -48,10 +44,10 @@ def test(data_file, batch_size, gpu_mode, encoder_model, num_classes, num_worker
 
     # set the evaluation mode of the model
     encoder_model = encoder_model.eval()
-    # decoder_model = decoder_model.eval()
+    decoder_model = decoder_model.eval()
     if gpu_mode:
         encoder_model = encoder_model.cuda()
-        # decoder_model = decoder_model.cuda()
+        decoder_model = decoder_model.cuda()
 
     # Loss
     test_criterion = nn.CrossEntropyLoss()
@@ -62,7 +58,7 @@ def test(data_file, batch_size, gpu_mode, encoder_model, num_classes, num_worker
 
     total_loss = 0
     total_images = 0
-    with tqdm(total=len(test_loader), desc='Accuracy: ', leave=True) as pbar:
+    with tqdm(total=len(test_loader), desc='Accuracy: ', leave=True, dynamic_ncols=True) as pbar:
         for i, (images, labels, positional_information) in enumerate(test_loader):
             if gpu_mode is True and images.size(0) % 8 != 0:
                 continue
@@ -74,35 +70,35 @@ def test(data_file, batch_size, gpu_mode, encoder_model, num_classes, num_worker
                 images = images.cuda()
                 labels = labels.cuda()
 
-            # start_index = FLANK_SIZE
-            # end_index = start_index + WINDOW_SIZE
+            decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_())
+            if gpu_mode:
+                decoder_input = decoder_input.cuda()
 
-            # decoder_input = Variable(torch.LongTensor(1, labels.size(0)).zero_())
-            # if gpu_mode:
-            #     decoder_input = decoder_input.cuda()
+            window_size = images.size(2) - 2 * FLANK_SIZE
+            index_start = FLANK_SIZE
+            end_index = index_start + window_size
+            for seq_index in range(index_start, end_index):
+                # get the logits
+                x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
+                y = labels[:, seq_index - index_start]
 
-            encoder_output = encoder_model(images)
-            # encoder_output, encoder_hidden = encoder_model(images, encoder_hidden)
-            # decoder_hidden = encoder_hidden
+                encoder_output, encoder_hidden = encoder_model(x)
+                encoder_hidden = encoder_hidden.transpose(0, 1)
 
-            # for point_index in range(start_index, end_index):
-            #     decoder_output, decoder_hidden, decoder_attention = decoder_model(
-            #         decoder_input, decoder_hidden, encoder_output)
-            #     topv, topi = decoder_output.topk(1)
-            #     decoder_input = topi.squeeze().detach()  # detach from history as input
-            #     decoder_input = decoder_input.contiguous().view(1, -1)
-            #     loss += test_criterion(decoder_output, y[:, point_index])
-            loss = test_criterion(encoder_output.contiguous().view(-1, num_classes), labels.contiguous().view(-1))
-            confusion_matrix.add(encoder_output.data.contiguous().view(-1, num_classes), labels.data.contiguous().view(-1))
+                outputs, hidden = decoder_model(decoder_input, encoder_hidden, encoder_output)
+                topv, topi = outputs.squeeze().topk(1)
+                decoder_input = topi.detach()  # detach from history as input
 
-            total_loss += loss.data[0]
-            total_images += images.size(0)
+                # loss
+                loss = test_criterion(outputs, y)
+                total_loss += loss.data[0]
+                total_images += labels.size(0)
+                confusion_matrix.add(outputs.data.contiguous().view(-1, num_classes), y.data.contiguous().view(-1))
 
-            avg_loss = total_loss / total_images if total_images else 0
             pbar.update(1)
             cm_value = confusion_matrix.value()
             accuracy = 100.0 * (cm_value[1][1] + cm_value[2][2] + cm_value[3][3] + cm_value[4][4] +
-                               cm_value[5][5]) / (cm_value.sum() - cm_value[0][0])
+                                cm_value[5][5]) / (cm_value.sum() - cm_value[0][0])
             pbar.set_description("Accuracy: " + str(accuracy))
 
     avg_loss = total_loss / total_images if total_images else 0
@@ -137,14 +133,14 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                               )
 
     encoder_model = EncoderCRNN(image_channels=8, hidden_size=256)
-    # decoder_model = AttnDecoderRNN(hidden_size=512, num_classes=6, max_length=1)
+    decoder_model = AttnDecoderRNN(hidden_size=512, num_classes=6, max_length=1)
 
-    encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.000217)
-    # decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.01)
+    encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.000217) # 0.000217
+    decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.000217)
 
     if gpu_mode is True:
         encoder_model = encoder_model.cuda()
-        # decoder_model = decoder_model.cuda()
+        decoder_model = decoder_model.cuda()
 
     # Loss function
     criterion = nn.CrossEntropyLoss()
@@ -152,7 +148,7 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
 
     if gpu_mode:
         encoder_model = torch.nn.DataParallel(encoder_model).cuda()
-        # decoder_model = torch.nn.DataParallel(decoder_model).cuda()
+        decoder_model = torch.nn.DataParallel(decoder_model).cuda()
 
     # Train the Model
     sys.stderr.write(TextColor.PURPLE + 'Training starting\n' + TextColor.END)
@@ -160,7 +156,7 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
         total_loss = 0
         total_images = 0
         sys.stderr.write(TextColor.BLUE + 'Train epoch: ' + str(epoch + 1) + "\n")
-        with tqdm(total=len(train_loader), desc='Loss', leave=True) as pbar:
+        with tqdm(total=len(train_loader), desc='Loss', leave=True, dynamic_ncols=True) as progress_bar:
             for images, labels, positional_information in train_loader:
                 if gpu_mode is True and images.size(0) % 8 != 0:
                     continue
@@ -173,55 +169,52 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                     labels = labels.cuda()
 
                 encoder_optimizer.zero_grad()
-                # decoder_optimizer.zero_grad()
+                decoder_optimizer.zero_grad()
 
-                # teacher_forcing_ratio = 0.5
-                # end_index = start_index + WINDOW_SIZE
-                # decoder_input = Variable(torch.LongTensor(1, labels.size(0)).zero_())
-                # if gpu_mode:
-                    # decoder_input = decoder_input.cuda()
-                encoder_output = encoder_model(images)
-                loss = criterion(encoder_output.contiguous().view(-1, num_classes), labels.contiguous().view(-1))
-                '''decoder_hidden = encoder_hidden
+                teacher_forcing_ratio = 0.5
+                decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_())
                 use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
-    
-                for point_index in range(start_index, end_index):
+
+                if gpu_mode:
+                    decoder_input = decoder_input.cuda()
+
+                window_size = images.size(2) - 2 * FLANK_SIZE
+                index_start = FLANK_SIZE
+                end_index = index_start + window_size
+                for seq_index in range(index_start, end_index):
+
+                    x = images[:, :, seq_index-FLANK_SIZE:seq_index+FLANK_SIZE+1, :]
+                    y = labels[:, seq_index - index_start]
+
+                    encoder_output, encoder_hidden = encoder_model(x)
+                    encoder_hidden = encoder_hidden.transpose(0, 1)
+
+                    outputs, hidden = decoder_model(decoder_input, encoder_hidden, encoder_output)
+                    # loss + optimize
+                    loss = criterion(outputs, y)
+                    loss.backward()
+                    encoder_optimizer.step()
+                    decoder_optimizer.step()
+                    total_loss += loss.data[0]
+                    total_images += labels.size(0)
+
                     if use_teacher_forcing:
-                        # Teacher forcing
-                        decoder_output, decoder_hidden, decoder_attention = decoder_model(decoder_input, decoder_hidden,
-                                                                                          encoder_output)
-                        y = labels[:, point_index]
-                        # if y.data.sum() > 0 or type(loss) == int:
-                        loss = criterion(decoder_output, y)
-                        decoder_input = labels[:, point_index].contiguous().view(1, -1)  # Teacher forcing
+                        decoder_input = y.unsqueeze(1)
                     else:
-                        # Without teacher forcing
-                        decoder_output, decoder_hidden, decoder_attention = decoder_model(decoder_input, decoder_hidden,
-                                                                                          encoder_output)
-                        topv, topi = decoder_output.topk(1)
-                        decoder_input = topi.squeeze().detach()  # detach from history as input
-                        decoder_input = decoder_input.contiguous().view(1, -1)
-                        y = labels[:, point_index]
-                        # if y.data.sum() > 0 or type(loss) == int:
-                        loss = criterion(decoder_output, y)'''
-
-                loss.backward()
-                encoder_optimizer.step()
-                # decoder_optimizer.step()
-
-                total_loss += loss.data[0]
-                total_images += images.size(0)
+                        topv, topi = outputs.squeeze().topk(1)
+                        decoder_input = topi.detach()  # detach from history as input
 
                 # update the progress bar
                 avg_loss = (total_loss / total_images) if total_images else 0
-                pbar.set_description("Loss: " + str(avg_loss))
-                pbar.refresh()
-                pbar.update(1)
-                # start_time = time.time()
-            pbar.close()
+                progress_bar.set_description("Loss: " + str(avg_loss))
+                progress_bar.refresh()
+                progress_bar.update(1)
+            progress_bar.close()
 
         # After each epoch do validation
-        test(validation_file, batch_size, gpu_mode, encoder_model, num_classes, num_workers)
+        test(validation_file, batch_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers)
+        encoder_model = encoder_model.train()
+        decoder_model = decoder_model.train()
         save_best_model(encoder_model, encoder_optimizer, file_name+"_epoch_"+str(epoch+1))
 
     sys.stderr.write(TextColor.PURPLE + 'Finished training\n' + TextColor.END)
@@ -279,7 +272,6 @@ if __name__ == '__main__':
     Processes arguments and performs tasks.
     '''
     parser = argparse.ArgumentParser()
-    parser.register("type", "bool", lambda v: v.lower() == "true")
     parser.add_argument(
         "--train_file",
         type=str,
@@ -339,7 +331,7 @@ if __name__ == '__main__':
         default=40,
         help="Epoch size for training iteration."
     )
-    FLAGS, unparsed = parser.parse_known_args()
+    FLAGS, not_parsed = parser.parse_known_args()
     model_dir, stats_dir = handle_output_directory(FLAGS.model_out.rpartition('/')[0]+"/")
     model_out_dir = model_dir + "seq2seq_model_"
     sys.stderr.write(TextColor.BLUE + "THE MODEL AND STATS LOCATION: " + str(model_dir) + "\n" + TextColor.END)
