@@ -157,9 +157,10 @@ class AttnDecoderRNN(nn.Module):
 
     def forward(self, inputs, encoder_hidden, encoder_outputs):
         print("In Forward: ", inputs.size(), encoder_hidden.size(), encoder_outputs.size())
-        encoder_hidden = encoder_hidden.transpose(0, 1)
+        encoder_outputs = encoder_outputs.contiguous()
+        encoder_hidden = encoder_hidden.transpose(0, 1).contiguous()
 
-        decoder_input = inputs[:, 0].unsqueeze(1)
+        decoder_input = inputs[:, 0].unsqueeze(1).contiguous()
         decoder_output, decoder_hidden, attn = self.forward_step(decoder_input, encoder_hidden, encoder_outputs)
 
         return decoder_output, decoder_hidden
