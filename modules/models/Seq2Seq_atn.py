@@ -1,7 +1,4 @@
 import torch
-import random
-import numpy as np
-from torch.autograd import Variable
 import torch.nn.functional as F
 import torch.nn as nn
 from modules.models.inception import Inception3
@@ -130,33 +127,23 @@ class AttnDecoderRNN(nn.Module):
         self.out = nn.Linear(self.hidden_size, self.num_classes)
 
     def forward_step(self, x, hidden, encoder_outputs):
-        print("Embedding")
-        print(x.size(), hidden.size(), encoder_outputs.size())
+
         embedded = self.embedding(x)
         embedded = self.dropout(embedded)
 
         self.gru.flatten_parameters()
         output, hidden = self.gru(embedded, hidden)
-        print("GRU")
-        print(output.size(), hidden.size())
+
         if self.bidirectional:
             output = output.contiguous()
             output = output.view(output.size(0), output.size(1), 2, -1).sum(2).view(output.size(0), output.size(1), -1)
 
-        print("Attention")
-        print(output.size(), encoder_outputs.size())
         output, attn = self.attention(output, encoder_outputs)
-
-        print("After attention")
-        print(output.size(), attn.size())
         logits = self.out(output.contiguous().view(-1, self.hidden_size))
 
-        print("Logits")
-        print(logits.size())
         return logits, hidden, attn
 
     def forward(self, inputs, encoder_hidden, encoder_outputs):
-        print("In Forward: ", inputs.size(), encoder_hidden.size(), encoder_outputs.size())
         encoder_outputs = encoder_outputs.contiguous()
         encoder_hidden = encoder_hidden.transpose(0, 1).contiguous()
 

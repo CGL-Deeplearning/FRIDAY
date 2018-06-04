@@ -181,7 +181,6 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
 
                     encoder_output, encoder_hidden = encoder_model(x)
 
-                    print("In Train loop: ", decoder_input.size(), encoder_hidden.size(), encoder_output.size())
                     outputs, hidden = decoder_model(decoder_input, encoder_hidden, encoder_output)
                     # loss + optimize
                     loss = criterion(outputs, y)
