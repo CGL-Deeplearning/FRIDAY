@@ -108,7 +108,7 @@ class EncoderCRNN(nn.Module):
             # hidden_alt2 = torch.cat([hidden_alt2[0:hidden_alt2.size(0):2], hidden_alt2[1:hidden_alt2.size(0):2]], 2)
 
         encoder_output = torch.cat((alt1_x, alt2_x), dim=2).contiguous()
-        encoder_hidden = torch.cat((hidden_alt1, hidden_alt2), dim=2).contiguous().transpose(0, 1)
+        encoder_hidden = torch.cat((hidden_alt1, hidden_alt2), dim=2).transpose(0, 1).contiguous()
         return encoder_output, encoder_hidden
 
     def init_hidden(self, batch_size, num_layers=3, num_directions=2):
@@ -130,18 +130,29 @@ class AttnDecoderRNN(nn.Module):
         self.out = nn.Linear(self.hidden_size, self.num_classes)
 
     def forward_step(self, x, hidden, encoder_outputs):
+        print("Embedding")
+        print(x.size(), hidden.size(), encoder_outputs.size())
         embedded = self.embedding(x)
         embedded = self.dropout(embedded)
 
+        self.gru.flatten_parameters()
         output, hidden = self.gru(embedded, hidden)
+        print("GRU")
+        print(output.size(), hidden.size())
         if self.bidirectional:
             output = output.contiguous()
             output = output.view(output.size(0), output.size(1), 2, -1).sum(2).view(output.size(0), output.size(1), -1)
 
+        print("Attention")
+        print(output.size(), encoder_outputs.size())
         output, attn = self.attention(output, encoder_outputs)
 
+        print("After attention")
+        print(output.size(), attn.size())
         logits = self.out(output.contiguous().view(-1, self.hidden_size))
 
+        print("Logits")
+        print(logits.size())
         return logits, hidden, attn
 
     def forward(self, inputs, encoder_hidden, encoder_outputs):
