@@ -30,7 +30,7 @@ FLANK_SIZE = 10
 WINDOW_SIZE = 1
 
 
-def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers):
+def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers):
     transformations = transforms.Compose([transforms.ToTensor()])
 
     # data loader
@@ -67,6 +67,7 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_clas
                 images = images.cuda()
                 labels = labels.cuda()
 
+            encoder_input_hidden = Variable(torch.FloatTensor(labels.size(0), 2, 2 * hidden_size).zero_())
             decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_())
             if gpu_mode:
                 decoder_input = decoder_input.cuda()
@@ -74,14 +75,17 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_clas
             window_size = images.size(2) - 2 * FLANK_SIZE
             index_start = FLANK_SIZE
             end_index = index_start + window_size
+
             for seq_index in range(index_start, end_index):
                 # get the logits
                 x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
                 y = labels[:, seq_index - index_start]
 
-                encoder_output, encoder_hidden = encoder_model(x)
+                encoder_output, encoder_hidden = encoder_model(x, encoder_input_hidden)
 
-                outputs, hidden = decoder_model(decoder_input, encoder_hidden, encoder_output)
+                outputs, decoder_hidden = decoder_model(decoder_input, encoder_hidden, encoder_output)
+                encoder_input_hidden = decoder_hidden.detach()
+
                 topv, topi = outputs.squeeze().topk(1)
                 decoder_input = topi.detach()  # detach from history as input
 
@@ -128,7 +132,8 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                               pin_memory=gpu_mode
                               )
 
-    encoder_model = EncoderCRNN(image_channels=8, hidden_size=256)
+    hidden_size = 256
+    encoder_model = EncoderCRNN(image_channels=8, hidden_size=hidden_size)
     decoder_model = AttnDecoderRNN(hidden_size=512, num_classes=6, max_length=1)
 
     encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.000217) # 0.000217
@@ -166,6 +171,7 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
 
                 teacher_forcing_ratio = 0.5
                 decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_())
+                encoder_input_hidden = Variable(torch.FloatTensor(labels.size(0), 2, 2 * hidden_size).zero_())
                 use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
 
                 if gpu_mode:
@@ -174,14 +180,15 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                 window_size = images.size(2) - 2 * FLANK_SIZE
                 index_start = FLANK_SIZE
                 end_index = index_start + window_size
-                for seq_index in range(index_start, end_index):
 
+                for seq_index in range(index_start, end_index):
                     x = images[:, :, seq_index-FLANK_SIZE:seq_index+FLANK_SIZE+1, :]
                     y = labels[:, seq_index - index_start]
 
-                    encoder_output, encoder_hidden = encoder_model(x)
+                    encoder_output, encoder_output_hidden = encoder_model(x, encoder_input_hidden)
+                    outputs, decoder_hidden = decoder_model(decoder_input, encoder_output_hidden, encoder_output)
 
-                    outputs, hidden = decoder_model(decoder_input, encoder_hidden, encoder_output)
+                    encoder_input_hidden = decoder_hidden.detach()
                     # loss + optimize
                     loss = criterion(outputs, y)
                     loss.backward()
@@ -204,7 +211,7 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
             progress_bar.close()
 
         # After each epoch do validation
-        test(validation_file, batch_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers)
+        test(validation_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers)
         encoder_model = encoder_model.train()
         decoder_model = decoder_model.train()
         save_best_model(encoder_model, encoder_optimizer, file_name+"_epoch_"+str(epoch+1))

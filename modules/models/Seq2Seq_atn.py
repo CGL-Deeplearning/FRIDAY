@@ -60,7 +60,7 @@ class EncoderCNN(nn.Module):
         super(EncoderCNN, self).__init__()
         self.inception_alt1 = Inception3(image_channels)
         self.inception_alt2 = Inception3(image_channels)
-        self.bn = nn.BatchNorm2d(736, momentum=0.01)
+        self.bn = nn.BatchNorm2d(240, momentum=0.01)
 
     def forward(self, images):
         """Extract feature vectors from input images."""
@@ -72,18 +72,20 @@ class EncoderCNN(nn.Module):
 
 
 class EncoderCRNN(nn.Module):
-    def __init__(self, image_channels, hidden_size, seq_len=1, bidirectional=True):
+    def __init__(self, image_channels, hidden_size, bidirectional=True):
         super(EncoderCRNN, self).__init__()
         self.cnn_encoder = EncoderCNN(image_channels)
         self.hidden_size = hidden_size
         self.bidirectional = bidirectional
         self.num_layers = 1
-        self.gru_alt1 = nn.GRU(736 * 5, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional,
+        self.gru_alt1 = nn.GRU(240 * 10, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional,
                                batch_first=True)
-        self.gru_alt2 = nn.GRU(736 * 5, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional,
+        self.gru_alt2 = nn.GRU(240 * 10, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional,
                                batch_first=True)
 
-    def forward(self, x):
+    def forward(self, x, hidden):
+        alt1_hidden = hidden[:, :, 0:self.hidden_size].transpose(0, 1).contiguous()
+        alt2_hidden = hidden[:, :, self.hidden_size:].transpose(0, 1).contiguous()
         features_alt1, features_alt2 = self.cnn_encoder(x)
         batch_size = features_alt1.size(0)
         seq_len = features_alt1.size(2)
@@ -92,8 +94,8 @@ class EncoderCRNN(nn.Module):
 
         self.gru_alt1.flatten_parameters()
         self.gru_alt2.flatten_parameters()
-        alt1_x, hidden_alt1 = self.gru_alt1(features_alt1)
-        alt2_x, hidden_alt2 = self.gru_alt2(features_alt2)
+        alt1_x, hidden_alt1 = self.gru_alt1(features_alt1, alt1_hidden)
+        alt2_x, hidden_alt2 = self.gru_alt2(features_alt2, alt2_hidden)
 
         if self.bidirectional:
             alt1_x = alt1_x.contiguous()
@@ -106,6 +108,7 @@ class EncoderCRNN(nn.Module):
 
         encoder_output = torch.cat((alt1_x, alt2_x), dim=2).contiguous()
         encoder_hidden = torch.cat((hidden_alt1, hidden_alt2), dim=2).transpose(0, 1).contiguous()
+
         return encoder_output, encoder_hidden
 
     def init_hidden(self, batch_size, num_layers=3, num_directions=2):

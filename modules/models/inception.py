@@ -13,6 +13,7 @@ model_urls = {
 }
 FLANK_SIZE = 10
 
+
 def inception_v3(pretrained=False, **kwargs):
     r"""Inception v3 model architecture from
     `"Rethinking the Inception Architecture for Computer Vision" <http://arxiv.org/abs/1512.00567>`_.
@@ -36,15 +37,14 @@ class Inception3(nn.Module):
         super(Inception3, self).__init__()
         self.aux_logits = aux_logits
         self.transform_input = transform_input
-        kernel_for_base = 2 * FLANK_SIZE + 1
-        self.Conv2d_1a = BasicConv2d(image_channels, 32, kernel_size=(kernel_for_base, 3))
-        self.Conv2d_2a_3x3 = BasicConv2d(32, 32, kernel_size=3, stride=(1, 2), padding=(1, 0))
-        self.Conv2d_2b_3x3 = BasicConv2d(32, 64, kernel_size=3, padding=(1, 0))
+        self.Conv2d_1a = BasicConv2d(image_channels, 32, kernel_size=3)
+        self.Conv2d_2a_3x3 = BasicConv2d(32, 32, kernel_size=3, stride=(1, 2))
+        self.Conv2d_2b_3x3 = BasicConv2d(32, 64, kernel_size=5)
         self.Conv2d_3b_1x1 = BasicConv2d(64, 80, kernel_size=1)
-        self.Conv2d_4a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=1)
-        self.Mixed_4a = InceptionA(80, pool_features=32)
-        self.Mixed_5a = InceptionB(256)
-        self.in_features = 8096
+        self.Conv2d_4a_3x3 = BasicConv2d(80, 80, kernel_size=3)
+        self.Mixed_4a = InceptionA(80, pool_features=16)
+        # self.Mixed_5a = InceptionB(256)
+        # self.in_features = 8096
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
@@ -64,11 +64,10 @@ class Inception3(nn.Module):
         x = self.Conv2d_2b_3x3(x)
         x = self.Conv2d_3b_1x1(x)
         x = self.Conv2d_4a_3x3(x)
-
         x = self.Mixed_4a(x)
-        x = self.Mixed_5a(x)
+        # x = self.Mixed_5a(x)
         # 736, seq_len, 12
-        x = F.dropout(x, training=self.training)
+        # x = F.dropout(x, training=self.training)
         # 736, seq_len, 12
         x = F.avg_pool2d(x, kernel_size=(1, 4))
         # 736, seq_len, 5
