@@ -2,12 +2,12 @@ import argparse
 import sys
 import torch
 import torch.nn as nn
+import numpy as np
 from torch.utils.data import DataLoader
 from torchvision import transforms
 import multiprocessing
 from torch.autograd import Variable
-from modules.models.Seq2Seq_CNN import SeqResNet
-from pysam import VariantFile
+from modules.models.Seq2Seq_atn import EncoderCRNN, AttnDecoderRNN
 from modules.core.dataloader import SequenceDataset
 from modules.handlers.TextColor import TextColor
 from collections import defaultdict
@@ -31,8 +31,7 @@ INPUT:
 Output:
 - A VCF file containing all the variants.
 """
-FLANK_SIZE = 5
-WINDOW_SIZE = 300
+FLANK_SIZE = 10
 
 SNP = 1
 IN = 2
@@ -41,8 +40,8 @@ HOM = 0
 HET = 1
 HOM_ALT = 2
 
-prediction_dict = defaultdict(lambda: defaultdict(list))
-reference_dict = defaultdict(lambda: defaultdict(tuple))
+prediction_dict = defaultdict(list)
+reference_dict = defaultdict(tuple)
 
 
 def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
@@ -70,93 +69,118 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                             )
 
     sys.stderr.write(TextColor.PURPLE + 'Data loading finished\n' + TextColor.END)
-    ### FROM HERE
-    '''
     # load the model
     if gpu_mode is False:
         checkpoint = torch.load(model_path, map_location='cpu')
-        state_dict = checkpoint['state_dict']
-
-        # In state dict keys there is an extra word inserted by model parallel: "module.". We remove it here
+        encoder_state_dict = checkpoint['encoder_state_dict']
+        decoder_state_dict = checkpoint['decoder_state_dict']
         from collections import OrderedDict
-        new_state_dict = OrderedDict()
-
-        for k, v in state_dict.items():
-            if k[:7] == 'module.':
+        new_encoder_state_dict = OrderedDict()
+        new_decoder_state_dict = OrderedDict()
+        for k, v in encoder_state_dict.items():
+            name = k
+            if k[0:6] == 'module.':
                 name = k[7:]  # remove `module.`
-            else:
-                name = k
-            new_state_dict[name] = v
+            new_encoder_state_dict[name] = v
 
-        model = SeqResNet(image_channels=6, seq_length=20, num_classes=21)
-        model.load_state_dict(new_state_dict)
-        model.cpu()
+        for k, v in decoder_state_dict.items():
+            name = k
+            if k[0:6] == 'module.':
+                name = k[7:]  # remove `module.`
+            new_decoder_state_dict[name] = v
+
+        hidden_size = 256
+        encoder_model = EncoderCRNN(image_channels=8, hidden_size=hidden_size)
+        decoder_model = AttnDecoderRNN(hidden_size=hidden_size, num_classes=6, max_length=1)
+        encoder_model.load_state_dict(new_encoder_state_dict)
+        decoder_model.load_state_dict(new_decoder_state_dict)
+        encoder_model.cpu()
+        decoder_model.cpu()
     else:
         checkpoint = torch.load(model_path, map_location='cpu')
-        state_dict = checkpoint['state_dict']
+        encoder_state_dict = checkpoint['encoder_state_dict']
+        decoder_state_dict = checkpoint['decoder_state_dict']
         from collections import OrderedDict
-        new_state_dict = OrderedDict()
-
-        for k, v in state_dict.items():
+        new_encoder_state_dict = OrderedDict()
+        new_decoder_state_dict = OrderedDict()
+        for k, v in encoder_state_dict.items():
             name = k[7:]  # remove `module.`
-            new_state_dict[name] = v
+            new_encoder_state_dict[name] = v
 
-        model = SeqResNet(image_channels=6, seq_length=20, num_classes=21)
-        model.load_state_dict(new_state_dict)
-        model = model.cuda()
-        model = torch.nn.DataParallel(model).cuda()
-    
+        for k, v in decoder_state_dict.items():
+            name = k[7:]  # remove `module.`
+            new_decoder_state_dict[name] = v
+
+        hidden_size = 256
+        encoder_model = EncoderCRNN(image_channels=8, hidden_size=hidden_size)
+        decoder_model = AttnDecoderRNN(hidden_size=hidden_size, num_classes=6, max_length=1)
+        encoder_model.load_state_dict(new_encoder_state_dict)
+        decoder_model.load_state_dict(new_decoder_state_dict)
+        encoder_model = encoder_model.cuda()
+        encoder_model = torch.nn.DataParallel(encoder_model).cuda()
+        decoder_model = decoder_model.cuda()
+        decoder_model = torch.nn.DataParallel(decoder_model).cuda()
 
     # Change model to 'eval' mode (BN uses moving mean/var).
-    model.eval()'''
+    encoder_model.eval()
+    decoder_model.eval()
     # TO HERE
 
     for images, labels, positional_info in tqdm(testloader, file=sys.stdout, dynamic_ncols=True):
-        ### FROM HERE
-        '''
-        images = Variable(images, volatile=True)
-
+        images = Variable(images)
+        labels = Variable(labels)
         if gpu_mode:
+            # encoder_hidden = encoder_hidden.cuda()
             images = images.cuda()
+            labels = labels.cuda()
 
-        output_preds = model(images)
-        # One dimensional softmax is used to convert the logits to probability distribution
-        m = nn.Softmax(dim=2)
-        soft_probs = m(output_preds)
-        output_preds = soft_probs.cpu()'''
+        decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_())
+        encoder_hidden_alt1 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_())
+        encoder_hidden_alt2 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_())
+        if gpu_mode:
+            decoder_input = decoder_input.cuda()
+            encoder_hidden_alt1 = encoder_hidden_alt1.cuda()
+            encoder_hidden_alt2 = encoder_hidden_alt2.cuda()
 
-        # record each of the predictions from a batch prediction
-        batches = labels.size(0)
-        seqs = labels.size(1)
         chr_name, start_positions, reference_seqs, allele_dict_paths = positional_info
 
-        for batch in range(batches):
-            allele_dict_path = allele_dict_paths[batch]
-            chromosome_name = chr_name[batch]
-            reference_seq = reference_seqs[batch]
-            current_genomic_position = int(start_positions[batch])
-            insert_index = 0
-            for seq in range(FLANK_SIZE, seqs-FLANK_SIZE+1):
+        window_size = images.size(2) - 2 * FLANK_SIZE
+        index_start = FLANK_SIZE
+        end_index = index_start + window_size
+        unrolling_genomic_position = np.zeros((images.size(0)), dtype=np.int64)
+        for seq_index in range(index_start, end_index):
+            # get the logits
+            x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
 
-                ref_base = reference_seq[seq]
+            output_alt1, output_alt2, hidden_alt1, hidden_alt2 = \
+                encoder_model(x, encoder_hidden_alt1, encoder_hidden_alt2)
+            outputs, hidden_alt1, hidden_alt2, attn_alt1, attn_alt2 = \
+                decoder_model(decoder_input, output_alt1, output_alt2, hidden_alt1, hidden_alt2)
 
-                '''
-                preds = output_preds[batch, seq, :].data
+            encoder_hidden_alt1 = hidden_alt1.detach()
+            encoder_hidden_alt2 = hidden_alt2.detach()
+            # One dimensional softmax is used to convert the logits to probability distribution
+            m = nn.Softmax(dim=1)
+            soft_probs = m(outputs)
+            output_preds = soft_probs.cpu()
+            # record each of the predictions from a batch prediction
+            batches = images.size(0)
+
+            for batch in range(batches):
+                allele_dict_path = allele_dict_paths[batch]
+                chromosome_name = chr_name[batch]
+                reference_seq = reference_seqs[batch]
+                current_genomic_position = int(start_positions[batch]) + unrolling_genomic_position[batch]
+
+                ref_base = reference_seq[seq_index]
+                preds = output_preds[batch, :].data
                 top_n, top_i = preds.topk(1)
                 predicted_label = top_i[0]
-                '''
+                reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
+                prediction_dict[current_genomic_position].append((predicted_label, preds))
 
-                true_label = labels[batch, seq]
-                fake_probs = [0.0] * 6
-                fake_probs[true_label] = 1.0
-                reference_dict[current_genomic_position][insert_index] = (ref_base, allele_dict_path)
-                prediction_dict[current_genomic_position][insert_index].append((true_label, fake_probs))
-
-                if reference_seq[seq+1] != '*':
-                    insert_index = 0
-                    current_genomic_position += 1
-                else:
-                    insert_index += 1
+                if reference_seq != '*':
+                    unrolling_genomic_position[batch] += 1
 
     return chromosome_name
 
@@ -190,8 +214,7 @@ def produce_vcf_records(chromosome_name, output_dir, thread_no, pos_list):
     allele_dict = {}
     record_file = open(output_dir + chromosome_name + "_" + str(thread_no) + ".tsv", 'w')
     for pos in pos_list:
-        allele_dict_path = reference_dict[pos][0][1]
-
+        allele_dict_path = reference_dict[pos][1]
         if allele_dict_path != current_allele_dict:
             allele_dict = pickle.load(open(allele_dict_path, 'rb'))
             current_allele_dict = allele_dict_path

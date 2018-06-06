@@ -22,7 +22,7 @@ VCF_INDEX_BUFFER = -1
 # jump window size so the last 50 bases will be overlapping
 WINDOW_OVERLAP_JUMP = 1
 # image size
-WINDOW_SIZE = 5
+WINDOW_SIZE = 1
 # flanking size is the amount add on each size
 WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety

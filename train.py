@@ -67,10 +67,13 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
                 images = images.cuda()
                 labels = labels.cuda()
 
-            encoder_input_hidden = Variable(torch.FloatTensor(labels.size(0), 2, 2 * hidden_size).zero_())
             decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_())
+            encoder_hidden_alt1 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_())
+            encoder_hidden_alt2 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_())
             if gpu_mode:
                 decoder_input = decoder_input.cuda()
+                encoder_hidden_alt1 = encoder_hidden_alt1.cuda()
+                encoder_hidden_alt2 = encoder_hidden_alt2.cuda()
 
             window_size = images.size(2) - 2 * FLANK_SIZE
             index_start = FLANK_SIZE
@@ -81,10 +84,13 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
                 x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
                 y = labels[:, seq_index - index_start]
 
-                encoder_output, encoder_hidden = encoder_model(x, encoder_input_hidden)
+                output_alt1, output_alt2, hidden_alt1, hidden_alt2 = \
+                    encoder_model(x, encoder_hidden_alt1, encoder_hidden_alt2)
+                outputs, hidden_alt1, hidden_alt2, attn_alt1, attn_alt2 = \
+                    decoder_model(decoder_input, output_alt1, output_alt2, hidden_alt1, hidden_alt2)
 
-                outputs, decoder_hidden = decoder_model(decoder_input, encoder_hidden, encoder_output)
-                encoder_input_hidden = decoder_hidden.detach()
+                encoder_hidden_alt1 = hidden_alt1.detach()
+                encoder_hidden_alt2 = hidden_alt2.detach()
 
                 topv, topi = outputs.squeeze().topk(1)
                 decoder_input = topi.detach()  # detach from history as input
@@ -134,7 +140,7 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
 
     hidden_size = 256
     encoder_model = EncoderCRNN(image_channels=8, hidden_size=hidden_size)
-    decoder_model = AttnDecoderRNN(hidden_size=512, num_classes=6, max_length=1)
+    decoder_model = AttnDecoderRNN(hidden_size=hidden_size, num_classes=6, max_length=1)
 
     encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.000217) # 0.000217
     decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.000217)
@@ -171,11 +177,14 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
 
                 teacher_forcing_ratio = 0.5
                 decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_())
-                encoder_input_hidden = Variable(torch.FloatTensor(labels.size(0), 2, 2 * hidden_size).zero_())
+                encoder_hidden_alt1 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_())
+                encoder_hidden_alt2 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_())
                 use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
 
                 if gpu_mode:
                     decoder_input = decoder_input.cuda()
+                    encoder_hidden_alt1 = encoder_hidden_alt1.cuda()
+                    encoder_hidden_alt2 = encoder_hidden_alt2.cuda()
 
                 window_size = images.size(2) - 2 * FLANK_SIZE
                 index_start = FLANK_SIZE
@@ -185,10 +194,14 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                     x = images[:, :, seq_index-FLANK_SIZE:seq_index+FLANK_SIZE+1, :]
                     y = labels[:, seq_index - index_start]
 
-                    encoder_output, encoder_output_hidden = encoder_model(x, encoder_input_hidden)
-                    outputs, decoder_hidden = decoder_model(decoder_input, encoder_output_hidden, encoder_output)
+                    output_alt1, output_alt2, hidden_alt1, hidden_alt2 = \
+                        encoder_model(x, encoder_hidden_alt1, encoder_hidden_alt2)
+                    outputs, hidden_alt1, hidden_alt2, attn_alt1, attn_alt2 = \
+                        decoder_model(decoder_input, output_alt1, output_alt2, hidden_alt1, hidden_alt2)
 
-                    encoder_input_hidden = decoder_hidden.detach()
+                    encoder_hidden_alt1 = hidden_alt1.detach()
+                    encoder_hidden_alt2 = hidden_alt2.detach()
+
                     # loss + optimize
                     loss = criterion(outputs, y)
                     loss.backward()
@@ -210,32 +223,34 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                 progress_bar.update(1)
             progress_bar.close()
 
+        # save the model after each epoch
+        save_best_model(encoder_model, decoder_model, encoder_optimizer, decoder_optimizer,
+                        file_name+"_epoch_"+str(epoch+1))
         # After each epoch do validation
         test(validation_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers)
         encoder_model = encoder_model.train()
         decoder_model = decoder_model.train()
-        save_best_model(encoder_model, encoder_optimizer, file_name+"_epoch_"+str(epoch+1))
 
     sys.stderr.write(TextColor.PURPLE + 'Finished training\n' + TextColor.END)
 
 
-def save_best_model(best_model, optimizer, file_name):
+def save_best_model(encoder_model, decoder_model, encoder_optimizer, decoder_optimizer, file_name):
     """
     Save the best model
-    :param best_model: A trained model
-    :param optimizer: Optimizer
+    :param encoder_model: A trained encoder model
+    :param decoder_model: A trained decoder model
+    :param encoder_optimizer: Encoder optimizer
+    :param decoder_optimizer: Decoder optimizer
     :param file_name: Output file name
     :return:
     """
-    # sys.stderr.write(TextColor.BLUE + "SAVING MODEL.\n" + TextColor.END)
-    if os.path.isfile(file_name + '_model.pkl'):
-        os.remove(file_name + '_model.pkl')
     if os.path.isfile(file_name + '_checkpoint.pkl'):
         os.remove(file_name + '_checkpoint.pkl')
-    torch.save(best_model, file_name + '_model.pkl')
     ModelHandler.save_checkpoint({
-        'state_dict': best_model.state_dict(),
-        'optimizer': optimizer.state_dict(),
+        'encoder_state_dict': encoder_model.state_dict(),
+        'decoder_state_dict': decoder_model.state_dict(),
+        'encoder_optimizer': encoder_optimizer.state_dict(),
+        'decoder_optimizer': decoder_optimizer.state_dict(),
     }, file_name + '_checkpoint.pkl')
     sys.stderr.write(TextColor.RED + "MODEL SAVED SUCCESSFULLY.\n" + TextColor.END)
 

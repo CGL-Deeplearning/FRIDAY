@@ -90,8 +90,9 @@ class VCFWriter:
 
     @staticmethod
     def process_prediction(pos, predictions):
+        print(predictions)
         # get the list of prediction labels
-        list_prediction_labels = [label for label, probs in predictions[0]]
+        list_prediction_labels = [label for label, probs in predictions]
         predicted_class = max(set(list_prediction_labels), key=list_prediction_labels.count)
 
         # get alts from label
@@ -99,7 +100,7 @@ class VCFWriter:
         genotype = genotype[0] + '/' + genotype[1]
 
         # get the probabilities
-        list_prediction_probabilities = [probs for label, probs in predictions[0]]
+        list_prediction_probabilities = [probs for label, probs in predictions]
         num_classes = len(list_prediction_probabilities[0])
         min_probs_for_each_class = [min(l[i] for l in list_prediction_probabilities) for i in range(num_classes)]
 
