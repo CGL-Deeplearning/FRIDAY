@@ -166,6 +166,7 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
             for images, labels, positional_information in train_loader:
                 images = Variable(images)
                 labels = Variable(labels)
+
                 if gpu_mode:
                     # encoder_hidden = encoder_hidden.cuda()
                     images = images.cuda()

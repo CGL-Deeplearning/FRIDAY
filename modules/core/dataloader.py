@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
-from PIL import Image
+import h5py
 import torch
 import pickle
 
@@ -15,7 +15,7 @@ class SequenceDataset(Dataset):
 
     def __init__(self, csv_path, transform=None):
         data_frame = pd.read_csv(csv_path, header=None, dtype=str)
-        assert data_frame[0].apply(lambda x: os.path.isfile(x.split(' ')[0]+'.png')).all(), \
+        assert data_frame[0].apply(lambda x: os.path.isfile(x.split(' ')[0])).all(), \
             "Some images referenced in the CSV file were not found"
         self.transform = transform
 
@@ -34,16 +34,11 @@ class SequenceDataset(Dataset):
 
     def __getitem__(self, index):
         # load the image
-        file_name, allele_dict_path, shape_y, shape_x, shape_z = self.file_info[index].split(' ')
-        index_start, index_end = self.index_info[index].split(' ')
-        img = Image.open(file_name + '.png')
-        np_array_of_img = np.array(img.getdata())
-        img.close()
-        img_shape = (int(shape_y), int(shape_x), int(shape_z))
-        img = np.reshape(np_array_of_img, img_shape)
-        img = np.transpose(img, (1, 0, 2))
-        img = img[int(index_start):int(index_end), :, :]
-
+        hdf5_file_path, allele_dict_path = self.file_info[index].split(' ')
+        hdf5_index = int(self.index_info[index])
+        hdf5_file = h5py.File(hdf5_file_path, 'r')
+        image_dataset = hdf5_file['images']
+        img = image_dataset[hdf5_index]
         # load positional information
         chromosome_name, genomic_start_position = self.position_info[index].split(' ')
 
@@ -54,10 +49,11 @@ class SequenceDataset(Dataset):
         # load genomic position information
         reference_sequence = self.reference_seq[index]
 
-        # type fix and convert to tensor
         img = img.astype(dtype=np.uint8)
+        # type fix and convert to tensor
         if self.transform is not None:
             img = self.transform(img)
+            img = img.transpose(1, 2)
 
         label = torch.from_numpy(label)
 

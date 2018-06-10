@@ -516,13 +516,15 @@ class ImageGenerator:
 
             self.vcf_positional_dict[indx] = self.get_site_label_from_allele_tuple(pos, alts_with_genotype)
 
-    def get_segmented_image_sequences(self, interval_start, interval_end, positional_variants, read_id_list):
+    def get_segmented_image_sequences(self, interval_start, interval_end, positional_variants, read_id_list,
+                                      file_info):
         """
         Generates segmented image sequences for training
         :param interval_start: Genomic interval start
         :param interval_end: Genomic interval stop
         :param positional_variants: VCF positional variants
         :param read_id_list: List of reads ids that fall in this region
+        :param file_info: File names of hdf5 file and allele dict to save in summary
         :return:
         """
         # post process reference and read and label
@@ -533,7 +535,8 @@ class ImageGenerator:
         image = self.create_image(interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS, read_id_list)
         label_seq, ref_seq = self.get_label_sequence(interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS)
 
-        sliced_windows = []
+        summary_strings = ''
+        sliced_images = []
         ref_row, ref_start, ref_end = self.image_row_for_ref
         img_started_in_indx = self.positional_info_position_to_index[interval_start - BOUNDARY_COLUMNS] - \
                               self.positional_info_position_to_index[ref_start]
@@ -541,6 +544,8 @@ class ImageGenerator:
         img_ended_in_indx = self.positional_info_position_to_index[interval_end + BOUNDARY_COLUMNS] - \
                             self.positional_info_position_to_index[ref_start]
 
+        image_index = 0
+        img_w, img_h, img_c = 0, 0, 0
         # segment based image generation
         for pos in range(interval_start, interval_end, WINDOW_OVERLAP_JUMP):
             if pos < interval_start or pos > interval_end:
@@ -569,7 +574,14 @@ class ImageGenerator:
                 include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
                 if not include_this:
                     continue
+            sliced_image = image[:, img_left_indx:img_right_indx, :]
+            img_h, img_w, img_c = sliced_image.shape
+            sliced_images.append(np.array(sliced_image, dtype=np.int8))
+            sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(sub_label_seq)
+            sequence_info = sequence_info + "," + str(sub_ref_seq)
+            index_info = str(image_index)
+            summary_string = file_info + "," + index_info + "," + sequence_info + "\n"
+            summary_strings = summary_strings + summary_string
+            image_index += 1
 
-            sliced_windows.append((pos, img_left_indx, img_right_indx, sub_label_seq, sub_ref_seq))
-
-        return image, sliced_windows
+        return sliced_images, summary_strings, img_h, img_w, img_c

@@ -4,6 +4,8 @@ import os
 import sys
 import multiprocessing
 import pickle
+import h5py
+import numpy as np
 from tqdm import tqdm
 
 from modules.core.CandidateFinder import CandidateFinder
@@ -139,9 +141,9 @@ class View:
         Generate labeled images of a given region of the genome
         :param start_index: Start index of the confident interval
         :param end_index: End index of the confident interval
+        :param thread_no: Unique thread id for file name
         :return:
         """
-
         for i in range(start_index, end_index):
             interval_start, interval_end = self.confidence_intervals[i][0]+BED_INDEX_BUFFER, \
                                            self.confidence_intervals[i][1]+BED_INDEX_BUFFER
@@ -153,6 +155,16 @@ class View:
                 if LOG_LEVEL == LOG_LEVEL_HIGH:
                     sys.stderr.write(TextColor.BLUE + "INFO: " + warn_msg + TextColor.END)
                 continue
+
+            # create a h5py file where the images are stored
+            hdf5_filename = os.path.abspath(self.output_dir) + '/' + str(self.chromosome_name) + '_' \
+                            + str(interval_start) + ".h5"
+            hdf5_file = h5py.File(hdf5_filename, mode='w')
+
+            allele_dict_filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
+            allele_dict_filename = os.path.abspath(self.output_dir) + "/candidate_dictionaries/" \
+                                   + allele_dict_filename + '.pkl'
+            file_info = hdf5_filename + " " + allele_dict_filename
 
             # get positional variants
             positional_variants = self.get_vcf_record_of_region(interval_start - SAFE_BOUNDARY_BASES,
@@ -172,39 +184,19 @@ class View:
 
             image_generator = ImageGenerator(self.candidate_finder)
             # get trainable sequences
-            img, sequences = image_generator.get_segmented_image_sequences(interval_start, interval_end,
-                                                                           positional_variants, read_id_list)
-            # save the entire image
-            # file location and information
-            filename = self.chromosome_name + '_' + str(interval_start)
-            image_generator.save_image_as_png(img, self.output_dir, filename)
-
+            sliced_images, summary_strings, img_h, img_w, img_c = \
+                image_generator.get_segmented_image_sequences(interval_start, interval_end, positional_variants,
+                                                              read_id_list, file_info)
             # save allele dictionary
             allele_dictionary = image_generator.top_alleles
-            allele_dict_filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
-            allele_dict_filename = os.path.abspath(self.output_dir) + "/candidate_dictionaries/" \
-                                 + allele_dict_filename + '.pkl'
             self.save_dictionary(allele_dictionary, allele_dict_filename)
 
-            # gather all information about the saved image
-            img_shape_string = ' '.join([str(x) for x in img.shape])
-            file_location = os.path.abspath(self.output_dir) + "/" + filename
-            file_info = file_location + " " + allele_dict_filename + " " + img_shape_string
-
-            for counter, training_sequence in enumerate(sequences):
-                pos, left_index, right_index, label_seq, sub_ref_seq = training_sequence
-                # the sequence information
-                sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(label_seq)
-                sequence_info = sequence_info + "," + str(sub_ref_seq)
-                index_info = str(left_index) + " " + str(right_index)
-                summary_string = file_info + "," + index_info + "," + sequence_info + "\n"
-
-                self.summary_file.write(summary_string)
-
-                # from analysis.analyze_png_img import analyze_it
-                # print(" " * 10 + label_seq)
-                # analyze_it(self.output_dir+filename+'.png', sub_img.shape)
-                # exit()
+            self.summary_file.write(summary_strings)
+            # the image dataset we save. The index name in h5py is "images".
+            img_dset = hdf5_file.create_dataset("images", (len(sliced_images),) + (img_h, img_w, img_c), np.int8,
+                                                compression='gzip')
+            # save the images and labels to the h5py file
+            img_dset[...] = sliced_images
 
 
 def test(view_object):
