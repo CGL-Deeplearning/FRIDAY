@@ -20,9 +20,10 @@ class SequenceDataset(Dataset):
         self.transform = transform
 
         self.file_info = data_frame[0]
-        self.position_info = data_frame[1]
-        self.label = data_frame[2]
-        self.reference_seq = data_frame[3]
+        self.index_info = data_frame[1]
+        self.position_info = data_frame[2]
+        self.label = data_frame[3]
+        self.reference_seq = data_frame[4]
 
     @staticmethod
     def load_dictionary(dictionary_location):
@@ -34,11 +35,14 @@ class SequenceDataset(Dataset):
     def __getitem__(self, index):
         # load the image
         file_name, allele_dict_path, shape_y, shape_x, shape_z = self.file_info[index].split(' ')
+        index_start, index_end = self.index_info[index].split(' ')
         img = Image.open(file_name + '.png')
         np_array_of_img = np.array(img.getdata())
+        img.close()
         img_shape = (int(shape_y), int(shape_x), int(shape_z))
         img = np.reshape(np_array_of_img, img_shape)
         img = np.transpose(img, (1, 0, 2))
+        img = img[int(index_start):int(index_end), :, :]
 
         # load positional information
         chromosome_name, genomic_start_position = self.position_info[index].split(' ')

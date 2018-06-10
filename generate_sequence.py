@@ -174,6 +174,10 @@ class View:
             # get trainable sequences
             img, sequences = image_generator.get_segmented_image_sequences(interval_start, interval_end,
                                                                            positional_variants, read_id_list)
+            # save the entire image
+            # file location and information
+            filename = self.chromosome_name + '_' + str(interval_start)
+            image_generator.save_image_as_png(img, self.output_dir, filename)
 
             # save allele dictionary
             allele_dictionary = image_generator.top_alleles
@@ -183,27 +187,17 @@ class View:
             self.save_dictionary(allele_dictionary, allele_dict_filename)
 
             # gather all information about the saved image
-            # img_shape_string = ' '.join([str(x) for x in img.shape])
-            # file_location = os.path.abspath(self.output_dir) + "/" + filename
-            # file_info = file_location + " " + img_shape_string
+            img_shape_string = ' '.join([str(x) for x in img.shape])
+            file_location = os.path.abspath(self.output_dir) + "/" + filename
+            file_info = file_location + " " + allele_dict_filename + " " + img_shape_string
 
             for counter, training_sequence in enumerate(sequences):
                 pos, left_index, right_index, label_seq, sub_ref_seq = training_sequence
-
                 # the sequence information
                 sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(label_seq)
                 sequence_info = sequence_info + "," + str(sub_ref_seq)
-                # file location and information
-                filename = self.chromosome_name + '_' + str(pos)
-                file_location = os.path.abspath(self.output_dir) + "/" + filename
-
-                sub_img = img[:, left_index:right_index, :]
-                img_shape_string = ' '.join([str(x) for x in sub_img.shape])
-                file_info = file_location + " " + allele_dict_filename + " " + img_shape_string
-
-                image_generator.save_image_as_png(sub_img, self.output_dir, filename)
-
-                summary_string = file_info + "," + sequence_info + "\n"
+                index_info = str(left_index) + " " + str(right_index)
+                summary_string = file_info + "," + index_info + "," + sequence_info + "\n"
 
                 self.summary_file.write(summary_string)
 
@@ -345,11 +339,11 @@ def genome_level_parallelization(bam_file, ref_file, vcf_file, output_dir_path, 
     # --- NEED WORK HERE --- GET THE CHROMOSOME NAMES FROM THE BAM FILE
     # chr_list = ["chr1", "chr2", "chr3", "chr4", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11",
     #             "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21", "chr22"]
-    chr_list = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"]
+    # chr_list = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"]
 
     program_start_time = time.time()
 
-    # chr_list = ["19"]
+    chr_list = ["19"]
 
     # each chromosome in list
     for chr_name in chr_list:
