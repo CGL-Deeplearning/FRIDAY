@@ -279,7 +279,7 @@ def chromosome_level_parallelization(chr_name, bam_file, ref_file, vcf_file, out
     total_segments = len(c_intervals)
 
     # .5MB segments at once
-    each_chunk_size = 100
+    each_chunk_size = 500
 
     if DEBUG_TEST_PARALLEL:
         each_chunk_size = 100
