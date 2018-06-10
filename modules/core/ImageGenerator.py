@@ -2,6 +2,8 @@ from collections import defaultdict
 from modules.handlers.ImageChannels import ImageChannels
 from scipy import misc
 import sys
+import random
+import collections
 import numpy as np
 from modules.handlers.TextColor import TextColor
 import operator
@@ -20,13 +22,14 @@ VCF_INDEX_BUFFER = -1
 
 # Per sequence threshold
 # jump window size so the last 50 bases will be overlapping
-WINDOW_OVERLAP_JUMP = 1
+WINDOW_OVERLAP_JUMP = 15
 # image size
-WINDOW_SIZE = 1
+WINDOW_SIZE = 20
 # flanking size is the amount add on each size
 WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
+ALL_HOM_BASE_RATIO = 0.05
 
 # Logging configuration
 LOG_LEVEL_HIGH = 1
@@ -538,18 +541,10 @@ class ImageGenerator:
         img_ended_in_indx = self.positional_info_position_to_index[interval_end + BOUNDARY_COLUMNS] - \
                             self.positional_info_position_to_index[ref_start]
 
-        candidate_finder_positions = sorted(self.top_alleles.keys())
-        # print(label_seq)
-        # from analysis.analyze_png_img import analyze_array
-        # analyze_array(image)
-        # exit()
-
-        for i, pos in enumerate(candidate_finder_positions):
+        # segment based image generation
+        for pos in range(interval_start, interval_end, WINDOW_OVERLAP_JUMP):
             if pos < interval_start or pos > interval_end:
                 continue
-            # if i > 0 and candidate_finder_positions[i] - candidate_finder_positions[i-1] < int(WINDOW_SIZE/2):
-            #     continue
-            pos = pos - int(WINDOW_SIZE / 2)
             start_index = self.positional_info_position_to_index[pos] - \
                           self.positional_info_position_to_index[ref_start]
             left_window_index = start_index - WINDOW_FLANKING_SIZE
@@ -566,6 +561,15 @@ class ImageGenerator:
             # sub_label_seq = label_seq[img_left_indx:img_right_indx]
             sub_label_seq = label_seq[label_left_indx:label_right_indx]
             sub_ref_seq = ref_seq[img_left_indx:img_right_indx]
+
+            hom_bases_count = collections.Counter(sub_label_seq)
+            other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
+
+            if other_bases <= 0:
+                include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
+                if not include_this:
+                    continue
+
             sliced_windows.append((pos, img_left_indx, img_right_indx, sub_label_seq, sub_ref_seq))
 
         return image, sliced_windows

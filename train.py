@@ -27,7 +27,6 @@ Output:
 - A trained model
 """
 FLANK_SIZE = 10
-WINDOW_SIZE = 1
 
 
 def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers):
@@ -79,7 +78,7 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
             index_start = FLANK_SIZE
             end_index = index_start + window_size
 
-            for seq_index in range(index_start, end_index):
+            for seq_index in tqdm(range(index_start, end_index), dynamic_ncols=True, desc='Batch progress'):
                 # get the logits
                 x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
                 y = labels[:, seq_index - index_start]
@@ -111,7 +110,7 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
     # print('Test Loss: ' + str(avg_loss))
     # print('Confusion Matrix: \n', confusion_matrix.conf)
 
-    sys.stderr.write(TextColor.YELLOW+'Test Loss: ' + str(avg_loss) + "\n"+TextColor.END)
+    sys.stderr.write(TextColor.YELLOW+'\nTest Loss: ' + str(avg_loss) + "\n"+TextColor.END)
     sys.stderr.write("Confusion Matrix: \n" + str(confusion_matrix.conf) + "\n" + TextColor.END)
 
 
@@ -190,7 +189,7 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                 index_start = FLANK_SIZE
                 end_index = index_start + window_size
 
-                for seq_index in range(index_start, end_index):
+                for seq_index in tqdm(range(index_start, end_index), dynamic_ncols=True, desc='Batch progress'):
                     x = images[:, :, seq_index-FLANK_SIZE:seq_index+FLANK_SIZE+1, :]
                     y = labels[:, seq_index - index_start]
 
@@ -252,7 +251,7 @@ def save_best_model(encoder_model, decoder_model, encoder_optimizer, decoder_opt
         'encoder_optimizer': encoder_optimizer.state_dict(),
         'decoder_optimizer': decoder_optimizer.state_dict(),
     }, file_name + '_checkpoint.pkl')
-    sys.stderr.write(TextColor.RED + "MODEL SAVED SUCCESSFULLY.\n" + TextColor.END)
+    sys.stderr.write(TextColor.RED + "\nMODEL SAVED SUCCESSFULLY.\n" + TextColor.END)
 
 
 def handle_output_directory(output_dir):
