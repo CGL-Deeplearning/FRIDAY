@@ -42,11 +42,8 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
     sys.stderr.write(TextColor.CYAN + 'Test data loaded\n')
 
     # set the evaluation mode of the model
-    encoder_model = encoder_model.eval()
-    decoder_model = decoder_model.eval()
-    if gpu_mode:
-        encoder_model = encoder_model.cuda()
-        decoder_model = decoder_model.cuda()
+    encoder_model.eval()
+    decoder_model.eval()
 
     # Loss
     test_criterion = nn.CrossEntropyLoss()
@@ -59,16 +56,16 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
     total_images = 0
     with tqdm(total=len(test_loader), desc='Accuracy: ', leave=True, dynamic_ncols=True) as pbar:
         for i, (images, labels, positional_information) in enumerate(test_loader):
-            images = Variable(images)
-            labels = Variable(labels)
+            images = Variable(images, volatile=True)
+            labels = Variable(labels, volatile=True)
             if gpu_mode:
                 # encoder_hidden = encoder_hidden.cuda()
                 images = images.cuda()
                 labels = labels.cuda()
 
-            decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_())
-            encoder_hidden_alt1 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_())
-            encoder_hidden_alt2 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_())
+            decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_(), volatile=True)
+            encoder_hidden_alt1 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_(), volatile=True)
+            encoder_hidden_alt2 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_(), volatile=True)
             if gpu_mode:
                 decoder_input = decoder_input.cuda()
                 encoder_hidden_alt1 = encoder_hidden_alt1.cuda()
@@ -163,6 +160,10 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
         total_images = 0
         sys.stderr.write(TextColor.BLUE + 'Train epoch: ' + str(epoch + 1) + "\n")
         with tqdm(total=len(train_loader), desc='Loss', leave=True, dynamic_ncols=True) as progress_bar:
+            # make sure the model is in train mode. BN is different in train and eval.
+            encoder_model.train()
+            decoder_model.train()
+
             for images, labels, positional_information in train_loader:
                 images = Variable(images)
                 labels = Variable(labels)
@@ -221,6 +222,8 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                 progress_bar.set_description("Loss: " + str(avg_loss))
                 progress_bar.refresh()
                 progress_bar.update(1)
+
+                del decoder_input, encoder_hidden_alt1, encoder_hidden_alt2
             progress_bar.close()
 
         # save the model after each epoch
@@ -228,8 +231,6 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
                         file_name+"_epoch_"+str(epoch+1))
         # After each epoch do validation
         test(validation_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers)
-        encoder_model = encoder_model.train()
-        decoder_model = decoder_model.train()
 
     sys.stderr.write(TextColor.PURPLE + 'Finished training\n' + TextColor.END)
 
