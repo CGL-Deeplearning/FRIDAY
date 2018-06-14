@@ -138,8 +138,8 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
     encoder_model = EncoderCRNN(image_channels=8, hidden_size=hidden_size)
     decoder_model = AttnDecoderRNN(hidden_size=hidden_size, num_classes=6, max_length=1)
 
-    encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.000217) # 0.000217
-    decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.000217)
+    encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.0000217) # 0.000217
+    decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.0000217)
 
     if gpu_mode is True:
         encoder_model = encoder_model.cuda()
@@ -159,11 +159,10 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
         total_loss = 0
         total_images = 0
         sys.stderr.write(TextColor.BLUE + 'Train epoch: ' + str(epoch + 1) + "\n")
+        # make sure the model is in train mode. BN is different in train and eval.
+        encoder_model.train()
+        decoder_model.train()
         with tqdm(total=len(train_loader), desc='Loss', leave=True, dynamic_ncols=True) as progress_bar:
-            # make sure the model is in train mode. BN is different in train and eval.
-            encoder_model.train()
-            decoder_model.train()
-
             for images, labels, positional_information in train_loader:
                 images = Variable(images)
                 labels = Variable(labels)
