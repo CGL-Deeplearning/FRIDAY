@@ -90,7 +90,6 @@ class VCFWriter:
 
     @staticmethod
     def process_prediction(pos, predictions):
-        print(predictions)
         # get the list of prediction labels
         list_prediction_labels = [label for label, probs in predictions]
         predicted_class = max(set(list_prediction_labels), key=list_prediction_labels.count)
