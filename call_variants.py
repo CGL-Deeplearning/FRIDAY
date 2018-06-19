@@ -127,16 +127,16 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     # TO HERE
 
     for images, labels, positional_info in tqdm(testloader, file=sys.stdout, dynamic_ncols=True):
-        images = Variable(images)
-        labels = Variable(labels)
+        images = Variable(images, volatile=True)
+        labels = Variable(labels, volatile=True)
         if gpu_mode:
             # encoder_hidden = encoder_hidden.cuda()
             images = images.cuda()
             labels = labels.cuda()
 
-        decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_())
-        encoder_hidden_alt1 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_())
-        encoder_hidden_alt2 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_())
+        decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_(), volatile=True)
+        encoder_hidden_alt1 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_(), volatile=True)
+        encoder_hidden_alt2 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_(), volatile=True)
         if gpu_mode:
             decoder_input = decoder_input.cuda()
             encoder_hidden_alt1 = encoder_hidden_alt1.cuda()
