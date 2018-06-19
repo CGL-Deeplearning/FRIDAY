@@ -120,12 +120,22 @@ class VCFWriter:
 
         gts = genotype.split('/')
         refined_alt = []
-        if gts[0] == '1' or gts[1] == '1':
-            refined_alt.append(alt_field[0])
-        if gts[0] == '2' or gts[1] == '2' and len(alt_field) > 1:
-            refined_alt.append(alt_field[1])
+
         if gts[0] == '0' and gts[1] == '0':
             refined_alt.append('.')
+        if gts[0] == '1' or gts[1] == '1':
+            refined_alt.append(alt_field[0])
+        if gts[0] == '2' or gts[1] == '2':
+            if len(alt_field) > 1:
+                refined_alt.append(alt_field[1])
+            elif genotype == '0/2':
+                refined_alt.append(alt_field[0])
+                genotype = '0/1'
+            elif genotype == '2/2':
+                refined_alt.append(alt_field[0])
+                genotype = '1/1'
+            elif genotype == '1/2':
+                genotype = '0/1'
 
         if len(refined_alt) == 1:
             ref, alt1, alt2 = VCFWriter.solve_single_alt(refined_alt, ref)
