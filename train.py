@@ -138,8 +138,8 @@ def train(train_file, validation_file, batch_size, epoch_limit, gpu_mode, num_wo
     encoder_model = EncoderCRNN(image_channels=8, hidden_size=hidden_size)
     decoder_model = AttnDecoderRNN(hidden_size=hidden_size, num_classes=6, max_length=1)
 
-    encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.000117, weight_decay=0.00000117)
-    decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.000117, weight_decay=0.00000117)
+    encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.00021723010296152584, weight_decay=1.4433597247180705e-06)
+    decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.00021723010296152584, weight_decay=1.4433597247180705e-06)
 
     if gpu_mode is True:
         encoder_model = encoder_model.cuda()

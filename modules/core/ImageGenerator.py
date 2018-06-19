@@ -24,7 +24,7 @@ VCF_INDEX_BUFFER = -1
 # jump window size so the last 50 bases will be overlapping
 WINDOW_OVERLAP_JUMP = 15
 # image size
-WINDOW_SIZE = 20
+WINDOW_SIZE = 1
 # flanking size is the amount add on each size
 WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety
@@ -546,6 +546,42 @@ class ImageGenerator:
 
         image_index = 0
         img_w, img_h, img_c = 0, 0, 0
+        positions = self.top_alleles.keys()
+
+        # position based image generation
+        for pos in positions:
+            if pos < interval_start or pos > interval_end:
+                continue
+            start_index = self.positional_info_position_to_index[pos] - \
+                          self.positional_info_position_to_index[ref_start]
+            left_window_index = start_index - WINDOW_FLANKING_SIZE
+            right_window_index = start_index + WINDOW_SIZE + WINDOW_FLANKING_SIZE
+
+            if left_window_index < img_started_in_indx:
+                continue
+            if right_window_index > img_ended_in_indx:
+                break
+            img_left_indx = left_window_index - img_started_in_indx
+            img_right_indx = right_window_index - img_started_in_indx
+            label_left_indx = start_index
+            label_right_indx = start_index + WINDOW_SIZE
+
+            sub_label_seq = label_seq[label_left_indx:label_right_indx]
+            sub_ref_seq = ref_seq[img_left_indx:img_right_indx]
+
+            sliced_image = image[:, img_left_indx:img_right_indx, :]
+            img_h, img_w, img_c = sliced_image.shape
+            sliced_images.append(np.array(sliced_image, dtype=np.int8))
+            sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(sub_label_seq)
+            sequence_info = sequence_info + "," + str(sub_ref_seq)
+            index_info = str(image_index)
+            summary_string = file_info + "," + index_info + "," + sequence_info + "\n"
+            summary_strings = summary_strings + summary_string
+            image_index += 1
+
+        ''' # this is sliding window based approach
+        image_index = 0
+        img_w, img_h, img_c = 0, 0, 0
         # segment based image generation
         for pos in range(interval_start, interval_end, WINDOW_OVERLAP_JUMP):
             if pos < interval_start or pos > interval_end:
@@ -582,6 +618,6 @@ class ImageGenerator:
             index_info = str(image_index)
             summary_string = file_info + "," + index_info + "," + sequence_info + "\n"
             summary_strings = summary_strings + summary_string
-            image_index += 1
+            image_index += 1'''
 
         return sliced_images, summary_strings, img_h, img_w, img_c

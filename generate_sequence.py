@@ -44,7 +44,7 @@ LOG_LEVEL = LOG_LEVEL_LOW
 
 # only select STRATIFICATION_RATE% of the total homozygous cases if they are dominant
 STRATIFICATION_RATE = 1.0
-MIN_SEQUENCE_BASE_LENGTH_THRESHOLD = 20
+MIN_SEQUENCE_BASE_LENGTH_THRESHOLD = 0
 MIN_VARIANT_IN_WINDOW_THRESHOLD = 1
 BED_INDEX_BUFFER = -1
 SAFE_BOUNDARY_BASES = 50
@@ -144,8 +144,8 @@ class View:
         :return:
         """
         for i in range(start_index, end_index):
-            interval_start, interval_end = self.confidence_intervals[i][0] - 50 + BED_INDEX_BUFFER, \
-                                           self.confidence_intervals[i][1] + 50 + BED_INDEX_BUFFER
+            interval_start, interval_end = self.confidence_intervals[i][0] + BED_INDEX_BUFFER, \
+                                           self.confidence_intervals[i][1] + BED_INDEX_BUFFER
 
             interval_length = interval_end - interval_start
             if interval_length < MIN_SEQUENCE_BASE_LENGTH_THRESHOLD:
