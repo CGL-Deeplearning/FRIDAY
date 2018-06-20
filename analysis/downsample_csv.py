@@ -6,6 +6,7 @@ file_name = sys.argv[1]
 
 with open(file_name, "r") as ins:
     for line in ins:
+        line_for_print = line
         line = line.rstrip()
         if not line:
             continue
@@ -13,6 +14,6 @@ with open(file_name, "r") as ins:
         gt = line[3]
         if gt == '0':
             if random.random() < 0.05:
-                print(line)
+                print(line_for_print)
         else:
-            print(line)
+            print(line_for_print)
