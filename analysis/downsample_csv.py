@@ -6,7 +6,7 @@ file_name = sys.argv[1]
 
 with open(file_name, "r") as ins:
     for line in ins:
-        line_for_print = line
+        line_for_print = line.rstrip()
         line = line.rstrip()
         if not line:
             continue
