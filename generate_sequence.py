@@ -44,7 +44,7 @@ LOG_LEVEL = LOG_LEVEL_LOW
 
 # only select STRATIFICATION_RATE% of the total homozygous cases if they are dominant
 STRATIFICATION_RATE = 1.0
-MIN_SEQUENCE_BASE_LENGTH_THRESHOLD = 0
+MIN_SEQUENCE_BASE_LENGTH_THRESHOLD = 20
 MIN_VARIANT_IN_WINDOW_THRESHOLD = 1
 BED_INDEX_BUFFER = -1
 SAFE_BOUNDARY_BASES = 50
@@ -158,7 +158,6 @@ class View:
             # create a h5py file where the images are stored
             hdf5_filename = os.path.abspath(self.output_dir) + '/' + str(self.chromosome_name) + '_' \
                             + str(interval_start) + ".h5"
-            hdf5_file = h5py.File(hdf5_filename, mode='w')
 
             allele_dict_filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
             allele_dict_filename = os.path.abspath(self.output_dir) + "/candidate_dictionaries/" \
@@ -186,16 +185,20 @@ class View:
             sliced_images, summary_strings, img_h, img_w, img_c = \
                 image_generator.get_segmented_image_sequences(interval_start, interval_end, positional_variants,
                                                               read_id_list, file_info)
-            # save allele dictionary
-            allele_dictionary = image_generator.top_alleles
-            self.save_dictionary(allele_dictionary, allele_dict_filename)
 
-            self.summary_file.write(summary_strings)
-            # the image dataset we save. The index name in h5py is "images".
-            img_dset = hdf5_file.create_dataset("images", (len(sliced_images),) + (img_h, img_w, img_c), np.int8,
-                                                compression='gzip')
-            # save the images and labels to the h5py file
-            img_dset[...] = sliced_images
+            if len(sliced_images) > 0:
+                # save allele dictionary
+                allele_dictionary = image_generator.top_alleles
+                self.save_dictionary(allele_dictionary, allele_dict_filename)
+
+                self.summary_file.write(summary_strings)
+
+                hdf5_file = h5py.File(hdf5_filename, mode='w')
+                # the image dataset we save. The index name in h5py is "images".
+                img_dset = hdf5_file.create_dataset("images", (len(sliced_images),) + (img_h, img_w, img_c), np.int8,
+                                                    compression='gzip')
+                # save the images and labels to the h5py file
+                img_dset[...] = sliced_images
 
 
 def test(view_object):
