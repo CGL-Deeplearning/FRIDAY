@@ -68,7 +68,10 @@ class EncoderCNN(nn.Module):
         allele_2_image = torch.cat((images[:, 0:6, :, :], images[:, 7:9, :, :]), dim=1)
         features_alt1 = self.bn(self.inception_alt1(allele_1_image))
         features_alt2 = self.bn(self.inception_alt2(allele_2_image))
-        return features_alt1, features_alt2
+
+        features = torch.cat((features_alt1, features_alt2), dim=1)
+
+        return features
 
 
 class EncoderCRNN(nn.Module):
@@ -78,36 +81,28 @@ class EncoderCRNN(nn.Module):
         self.hidden_size = hidden_size
         self.bidirectional = bidirectional
         self.num_layers = 1
-        self.gru_alt1 = nn.GRU(240 * 10, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional,
-                               batch_first=True)
-        self.gru_alt2 = nn.GRU(240 * 10, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional,
-                               batch_first=True)
+        self.gru = nn.GRU(480 * 10, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional,
+                          batch_first=True)
 
-    def forward(self, x, hidden_alt1, hidden_alt2):
-        hidden_alt1 = hidden_alt1.transpose(0, 1).contiguous()
-        hidden_alt2 = hidden_alt2.transpose(0, 1).contiguous()
+    def forward(self, x, hidden):
+        hidden = hidden.transpose(0, 1).contiguous()
 
-        features_alt1, features_alt2 = self.cnn_encoder(x)
-        batch_size = features_alt1.size(0)
-        seq_len = features_alt1.size(2)
-        features_alt1 = features_alt1.view(batch_size, seq_len, -1)
-        features_alt2 = features_alt2.view(batch_size, seq_len, -1)
+        features_cnn = self.cnn_encoder(x)
+        batch_size = features_cnn.size(0)
+        seq_len = features_cnn.size(2)
+        features_cnn = features_cnn.view(batch_size, seq_len, -1)
 
-        self.gru_alt1.flatten_parameters()
-        output_alt1, hidden_alt1 = self.gru_alt1(features_alt1, hidden_alt1)
-        self.gru_alt2.flatten_parameters()
-        output_alt2, hidden_alt2 = self.gru_alt2(features_alt2, hidden_alt2)
+        self.gru.flatten_parameters()
+        output_rnn, hidden_rnn = self.gru(features_cnn, hidden)
 
         if self.bidirectional:
-            alt1_x = output_alt1.contiguous()
-            alt2_x = output_alt2.contiguous()
-            output_alt1 = alt1_x.view(alt1_x.size(0), alt1_x.size(1), 2, -1).sum(2).view(alt1_x.size(0), alt1_x.size(1), -1)
-            output_alt2 = alt2_x.view(alt2_x.size(0), alt2_x.size(1), 2, -1).sum(2).view(alt2_x.size(0), alt2_x.size(1), -1)
+            output_rnn = output_rnn.contiguous()
+            output_rnn = output_rnn.view(output_rnn.size(0), output_rnn.size(1), 2, -1)\
+                .sum(2).view(output_rnn.size(0), output_rnn.size(1), -1)
 
-        hidden_alt1 = hidden_alt1.transpose(0, 1).contiguous()
-        hidden_alt2 = hidden_alt2.transpose(0, 1).contiguous()
+        hidden_rnn = hidden_rnn.transpose(0, 1).contiguous()
 
-        return output_alt1, output_alt2, hidden_alt1, hidden_alt2
+        return output_rnn, hidden_rnn
 
     def init_hidden(self, batch_size, num_layers=3, num_directions=2):
         return torch.zeros(batch_size, num_directions * num_layers, self.hidden_size)
@@ -122,47 +117,34 @@ class AttnDecoderRNN(nn.Module):
         self.max_length = max_length
         self.bidirectional = bidirectional
         self.embedding = nn.Embedding(self.num_classes, self.hidden_size)
-        self.attention_alt1 = Attention(self.hidden_size)
-        self.attention_alt2 = Attention(self.hidden_size)
+        self.attention = Attention(self.hidden_size)
         self.dropout = nn.Dropout(self.dropout_p)
-        self.gru_alt1 = nn.GRU(self.hidden_size, self.hidden_size, batch_first=True, bidirectional=True)
-        self.gru_alt2 = nn.GRU(self.hidden_size, self.hidden_size, batch_first=True, bidirectional=True)
-        self.out = nn.Linear(2 * self.hidden_size, self.num_classes)
+        self.gru = nn.GRU(self.hidden_size, self.hidden_size, batch_first=True, bidirectional=True)
+        self.out = nn.Linear(self.hidden_size, self.num_classes)
 
-    def forward_step(self, x, encoder_output_alt1, encoder_output_alt2, encoder_hidden_alt1, encoder_hidden_alt2):
+    def forward_step(self, x, encoder_output, encoder_hidden):
         embedded = self.embedding(x)
         embedded = self.dropout(embedded)
-        self.gru_alt1.flatten_parameters()
-        output_alt1, hidden_alt1 = self.gru_alt1(embedded, encoder_hidden_alt1)
-        self.gru_alt2.flatten_parameters()
-        output_alt2, hidden_alt2 = self.gru_alt2(embedded, encoder_hidden_alt2)
+        self.gru.flatten_parameters()
+        output_gru, hidden_gru = self.gru(embedded, encoder_hidden)
 
         if self.bidirectional:
-            output_alt1 = output_alt1.contiguous()
-            output_alt1 = output_alt1.view(output_alt1.size(0), output_alt1.size(1), 2, -1).sum(2)\
-                .view(output_alt1.size(0), output_alt1.size(1), -1)
-            output_alt2 = output_alt2.contiguous()
-            output_alt2 = output_alt2.view(output_alt2.size(0), output_alt2.size(1), 2, -1).sum(2) \
-                .view(output_alt2.size(0), output_alt2.size(1), -1)
-        output_alt1, attn_alt1 = self.attention_alt1(output_alt1, encoder_output_alt1)
-        output_alt2, attn_alt2 = self.attention_alt1(output_alt2, encoder_output_alt2)
+            output_gru = output_gru.contiguous()
+            output_gru = output_gru.view(output_gru.size(0), output_gru.size(1), 2, -1).sum(2)\
+                .view(output_gru.size(0), output_gru.size(1), -1)
 
-        output = torch.cat((output_alt1, output_alt2), dim=2)
+        output, attn = self.attention(output_gru, encoder_output)
 
-        class_probabilities = self.out(output.contiguous().view(-1, 2 * self.hidden_size))
+        class_probabilities = self.out(output.contiguous().view(-1, self.hidden_size))
 
-        return class_probabilities, hidden_alt1, hidden_alt2, attn_alt1, attn_alt2
+        return class_probabilities, hidden_gru, attn
 
-    def forward(self, inputs, encoder_output_alt1, encoder_output_alt2, encoder_hidden_alt1, encoder_hidden_alt2):
-        encoder_hidden_alt1 = encoder_hidden_alt1.transpose(0, 1).contiguous()
-        encoder_hidden_alt2 = encoder_hidden_alt2.transpose(0, 1).contiguous()
+    def forward(self, inputs, encoder_output, encoder_hidden):
+        encoder_hidden = encoder_hidden.transpose(0, 1).contiguous()
 
         decoder_input = inputs[:, 0].unsqueeze(1).contiguous()
-        class_probabilities, hidden_alt1, hidden_alt2, attn_alt1, attn_alt2 = \
-            self.forward_step(decoder_input, encoder_output_alt1, encoder_output_alt2, encoder_hidden_alt1,
-                              encoder_hidden_alt2)
+        class_probabilities, hidden, attn = self.forward_step(decoder_input, encoder_output, encoder_hidden)
 
-        hidden_alt1 = hidden_alt1.transpose(0, 1).contiguous()
-        hidden_alt2 = hidden_alt2.transpose(0, 1).contiguous()
+        hidden = hidden.transpose(0, 1).contiguous()
 
-        return class_probabilities, hidden_alt1, hidden_alt2, attn_alt1, attn_alt2
+        return class_probabilities, hidden, attn

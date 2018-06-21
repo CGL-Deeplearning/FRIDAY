@@ -24,8 +24,9 @@ with open(file_name, "r") as ins:
         if not line:
             continue
         line = line.split(',')
-        gt = line[3]
-        dictionary[gt] += 1
+        gts = line[3]
+        for gt in gts:
+            dictionary[gt] += 1
 
 print('0/0', dictionary['0'])
 print('0/1', dictionary['1'])
