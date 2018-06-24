@@ -146,8 +146,8 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
         encoder_model = torch.nn.DataParallel(encoder_model).cuda()
         decoder_model = torch.nn.DataParallel(decoder_model).cuda()
 
-    encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.01)
-    decoder_optimizer = torch.optim.SGD(decoder_model.parameters(), lr=0.01)
+    encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.001)
+    decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.001)
 
     class_weights = torch.FloatTensor(CLASS_WEIGHTS)
     # Loss
