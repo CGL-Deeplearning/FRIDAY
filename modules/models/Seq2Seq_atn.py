@@ -60,14 +60,13 @@ class EncoderCNN(nn.Module):
         super(EncoderCNN, self).__init__()
         self.inception_alt1 = Inception3(image_channels)
         self.inception_alt2 = Inception3(image_channels)
-        self.bn = nn.BatchNorm2d(240, momentum=0.01)
 
     def forward(self, images):
         """Extract feature vectors from input images."""
         allele_1_image = images[:, 0:8, :, :]
         allele_2_image = torch.cat((images[:, 0:6, :, :], images[:, 7:9, :, :]), dim=1)
-        features_alt1 = self.bn(self.inception_alt1(allele_1_image))
-        features_alt2 = self.bn(self.inception_alt2(allele_2_image))
+        features_alt1 = self.inception_alt1(allele_1_image)
+        features_alt2 = self.inception_alt2(allele_2_image)
 
         features = torch.cat((features_alt1, features_alt2), dim=1)
 
@@ -81,13 +80,14 @@ class EncoderCRNN(nn.Module):
         self.hidden_size = hidden_size
         self.bidirectional = bidirectional
         self.num_layers = 1
-        self.gru = nn.GRU(480 * 10, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional,
+        self.gru = nn.GRU(2048 * 2, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional,
                           batch_first=True)
 
     def forward(self, x, hidden):
         hidden = hidden.transpose(0, 1).contiguous()
 
         features_cnn = self.cnn_encoder(x)
+
         batch_size = features_cnn.size(0)
         seq_len = features_cnn.size(2)
         features_cnn = features_cnn.view(batch_size, seq_len, -1)
@@ -123,8 +123,9 @@ class AttnDecoderRNN(nn.Module):
         self.out = nn.Linear(self.hidden_size, self.num_classes)
 
     def forward_step(self, x, encoder_output, encoder_hidden):
-        embedded = self.embedding(x)
+        embedded = self.embedding(x).view(x.size(0), 1, -1)
         embedded = self.dropout(embedded)
+
         self.gru.flatten_parameters()
         output_gru, hidden_gru = self.gru(embedded, encoder_hidden)
 
@@ -139,10 +140,8 @@ class AttnDecoderRNN(nn.Module):
 
         return class_probabilities, hidden_gru, attn
 
-    def forward(self, inputs, encoder_output, encoder_hidden):
+    def forward(self, decoder_input, encoder_output, encoder_hidden):
         encoder_hidden = encoder_hidden.transpose(0, 1).contiguous()
-
-        decoder_input = inputs[:, 0].unsqueeze(1).contiguous()
         class_probabilities, hidden, attn = self.forward_step(decoder_input, encoder_output, encoder_hidden)
 
         hidden = hidden.transpose(0, 1).contiguous()

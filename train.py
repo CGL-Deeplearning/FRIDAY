@@ -27,7 +27,7 @@ Output:
 - A trained model
 """
 FLANK_SIZE = 10
-CLASS_WEIGHTS = [0.5, 1.0, 1.0, 1.0, 1.0, 1.0]
+CLASS_WEIGHTS = [0.05, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
 def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers):
@@ -80,25 +80,21 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
             index_start = FLANK_SIZE
             end_index = index_start + window_size
 
+            output_enc, hidden_dec = encoder_model(images, encoder_hidden)
+            loss = 0
             for seq_index in range(index_start, end_index):
-                # get the logits
-                x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
+                output_dec, hidden_dec, attn = decoder_model(decoder_input, output_enc, hidden_dec)
                 y = labels[:, seq_index - index_start]
 
-                output_enc, hidden_enc = encoder_model(x, encoder_hidden)
-
-                output_dec, hidden_dec, attn = decoder_model(decoder_input, output_enc, hidden_enc)
-
-                encoder_hidden = hidden_dec.detach()
-
-                topv, topi = output_dec.squeeze().topk(1)
-                decoder_input = topi.detach()  # detach from history as input
+                topv, topi = output_dec.topk(1)
+                decoder_input = topi.squeeze().detach()  # detach from history as input
 
                 # loss
-                loss = test_criterion(output_dec, y)
-                total_loss += loss.data[0]
-                total_images += labels.size(0)
+                loss += test_criterion(output_dec, y)
                 confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes), y.data.contiguous().view(-1))
+
+            total_loss += loss.data[0]
+            total_images += labels.size(0)
 
             pbar.update(1)
             cm_value = confusion_matrix.value()
@@ -150,10 +146,8 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
         encoder_model = torch.nn.DataParallel(encoder_model).cuda()
         decoder_model = torch.nn.DataParallel(decoder_model).cuda()
 
-    encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.001,
-                                        weight_decay=0.00001)
-    decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.001,
-                                        weight_decay=0.00001)
+    encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.01)
+    decoder_optimizer = torch.optim.SGD(decoder_model.parameters(), lr=0.01)
 
     class_weights = torch.FloatTensor(CLASS_WEIGHTS)
     # Loss
@@ -201,29 +195,27 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 index_start = FLANK_SIZE
                 end_index = index_start + window_size
 
-                for seq_index in tqdm(range(index_start, end_index)):
-                    x = images[:, :, seq_index-FLANK_SIZE:seq_index+FLANK_SIZE+1, :]
+                output_enc, hidden_dec = encoder_model(images, encoder_hidden)
+
+                loss = 0
+                for seq_index in range(index_start, end_index):
+                    output_dec, hidden_dec, attn = decoder_model(decoder_input, output_enc, hidden_dec)
                     y = labels[:, seq_index - index_start]
-
-                    output_enc, hidden_enc = encoder_model(x, encoder_hidden)
-
-                    output_dec, hidden_dec, attn = decoder_model(decoder_input, output_enc, hidden_enc)
-
-                    encoder_hidden = hidden_dec.detach()
-
                     # loss + optimize
-                    loss = criterion(output_dec, y)
-                    loss.backward()
-                    encoder_optimizer.step()
-                    decoder_optimizer.step()
-                    total_loss += loss.data[0]
-                    total_images += labels.size(0)
+                    loss += criterion(output_dec, y)
 
                     if use_teacher_forcing:
-                        decoder_input = y.unsqueeze(1)
+                        decoder_input = y
                     else:
-                        topv, topi = output_dec.squeeze().topk(1)
-                        decoder_input = topi.detach()  # detach from history as input
+                        topv, topi = output_dec.topk(1)
+                        decoder_input = topi.squeeze().detach()  # detach from history as input
+
+                loss.backward()
+                encoder_optimizer.step()
+                decoder_optimizer.step()
+
+                total_loss += loss.data[0]
+                total_images += labels.size(0)
 
                 # update the progress bar
                 avg_loss = (total_loss / total_images) if total_images else 0
