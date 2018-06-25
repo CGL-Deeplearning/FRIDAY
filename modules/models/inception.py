@@ -34,13 +34,13 @@ def inception_v3(pretrained=False, **kwargs):
 
 class Inception3(nn.Module):
 
-    def __init__(self, in_channels):
+    def __init__(self, in_):
         super(Inception3, self).__init__()
-        self.Context_Conv2d_0a = BasicConv2d(in_channels, 16, kernel_size=(CONTEXT_SIZE, 3))
-        self.Context_Conv2d_0b = BasicConv2d(16, 24, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1))
-        self.Context_Conv2d_0c = BasicConv2d(24, 28, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1))
-        self.Conv2d_1a_3x3 = BasicConv2d(28, 32, kernel_size=3, padding=(1, 0))
-        self.Mixed_5b = InceptionA(32, pool_features=32)
+        self.Context_Conv2d_0a = BasicConv2d(in_, 20, kernel_size=(CONTEXT_SIZE, 3), groups=in_)
+        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1), groups=20)
+        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1), groups=40)
+        self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0))
+        self.Mixed_5b = InceptionA(80, pool_features=32)
         self.Mixed_5c = InceptionA(256, pool_features=64)
         self.Mixed_5d = InceptionA(288, pool_features=64)
         self.Mixed_6a = InceptionB(288)
@@ -65,15 +65,15 @@ class Inception3(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x):
-        # 8 x 40 x 100
+        # 10 x 40 x 100
         x = self.Context_Conv2d_0a(x)
-        # 16 x 20 x 98
+        # 20 x 20 x 98
         x = self.Context_Conv2d_0b(x)
-        # 16 x 20 x 96
+        # 40 x 20 x 96
         x = self.Context_Conv2d_0c(x)
-        # 16 x 20 x 94
+        # 80 x 20 x 94
         x = self.Conv2d_1a_3x3(x)
-        # 32 x 20 x 92
+        # 80 x 20 x 92
         x = self.Mixed_5b(x)
         # 256 x 20 x 92
         x = self.Mixed_5c(x)

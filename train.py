@@ -27,7 +27,7 @@ Output:
 - A trained model
 """
 FLANK_SIZE = 10
-CLASS_WEIGHTS = [0.2, 1.0, 1.0, 1.0, 1.0, 1.0]
+CLASS_WEIGHTS = [0.8, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
 def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers):
@@ -98,8 +98,9 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
 
             pbar.update(1)
             cm_value = confusion_matrix.value()
+            denom = (cm_value.sum() - cm_value[0][0]) if (cm_value.sum() - cm_value[0][0]) > 0 else 1.0
             accuracy = 100.0 * (cm_value[1][1] + cm_value[2][2] + cm_value[3][3] + cm_value[4][4] +
-                                cm_value[5][5]) / (cm_value.sum() - cm_value[0][0])
+                                cm_value[5][5]) / denom
             pbar.set_description("Accuracy: " + str(accuracy))
 
     avg_loss = total_loss / total_images if total_images else 0
@@ -139,15 +140,15 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                               )
 
     hidden_size = 256
-    encoder_model = EncoderCRNN(image_channels=8, hidden_size=hidden_size)
+    encoder_model = EncoderCRNN(image_channels=10, hidden_size=hidden_size)
     decoder_model = AttnDecoderRNN(hidden_size=hidden_size, num_classes=6, max_length=1)
 
     if gpu_mode:
         encoder_model = torch.nn.DataParallel(encoder_model).cuda()
         decoder_model = torch.nn.DataParallel(decoder_model).cuda()
 
-    encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.001)
-    decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.001)
+    encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.0001)
+    decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.0001)
 
     class_weights = torch.FloatTensor(CLASS_WEIGHTS)
     # Loss

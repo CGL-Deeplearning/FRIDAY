@@ -24,12 +24,12 @@ VCF_INDEX_BUFFER = -1
 # jump window size so the last 50 bases will be overlapping
 WINDOW_OVERLAP_JUMP = 15
 # image size
-WINDOW_SIZE = 20
+WINDOW_SIZE = 1
 # flanking size is the amount add on each size
 WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
-ALL_HOM_BASE_RATIO = 0.005
+ALL_HOM_BASE_RATIO = 0.5
 
 # Logging configuration
 LOG_LEVEL_HIGH = 1
@@ -548,8 +548,10 @@ class ImageGenerator:
         image_index = 0
         img_w, img_h, img_c = 0, 0, 0
 
+        allele_positions = self.top_alleles.keys()
+
         # segment based image generation
-        for pos in range(interval_start, interval_end, WINDOW_OVERLAP_JUMP):
+        for pos in allele_positions:
             if pos < interval_start or pos > interval_end:
                 continue
             start_index = self.positional_info_position_to_index[pos] - \

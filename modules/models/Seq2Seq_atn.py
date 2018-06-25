@@ -58,17 +58,11 @@ class EncoderCNN(nn.Module):
     def __init__(self, image_channels):
         """Load the pretrained ResNet-152 and replace top fc layer."""
         super(EncoderCNN, self).__init__()
-        self.inception_alt1 = Inception3(image_channels)
-        self.inception_alt2 = Inception3(image_channels)
+        self.inception = Inception3(image_channels)
 
     def forward(self, images):
         """Extract feature vectors from input images."""
-        allele_1_image = images[:, 0:8, :, :]
-        allele_2_image = torch.cat((images[:, 0:6, :, :], images[:, 7:9, :, :]), dim=1)
-        features_alt1 = self.inception_alt1(allele_1_image)
-        features_alt2 = self.inception_alt2(allele_2_image)
-
-        features = torch.cat((features_alt1, features_alt2), dim=1)
+        features = self.inception(images)
 
         return features
 
@@ -80,8 +74,7 @@ class EncoderCRNN(nn.Module):
         self.hidden_size = hidden_size
         self.bidirectional = bidirectional
         self.num_layers = 1
-        self.gru = nn.GRU(2048 * 2, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional,
-                          batch_first=True)
+        self.gru = nn.GRU(2048, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional, batch_first=True)
 
     def forward(self, x, hidden):
         hidden = hidden.transpose(0, 1).contiguous()
