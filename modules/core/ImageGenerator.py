@@ -24,12 +24,12 @@ VCF_INDEX_BUFFER = -1
 # jump window size so the last 50 bases will be overlapping
 WINDOW_OVERLAP_JUMP = 15
 # image size
-WINDOW_SIZE = 1
+WINDOW_SIZE = 4
 # flanking size is the amount add on each size
 WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
-ALL_HOM_BASE_RATIO = 0.5
+ALL_HOM_BASE_RATIO = 0.05
 
 # Logging configuration
 LOG_LEVEL_HIGH = 1
@@ -556,8 +556,8 @@ class ImageGenerator:
                 continue
             start_index = self.positional_info_position_to_index[pos] - \
                           self.positional_info_position_to_index[ref_start]
-            left_window_index = start_index - WINDOW_FLANKING_SIZE
-            right_window_index = start_index + WINDOW_SIZE + WINDOW_FLANKING_SIZE
+            left_window_index = start_index - WINDOW_FLANKING_SIZE - int(WINDOW_SIZE / 2)
+            right_window_index = start_index + int(WINDOW_SIZE / 2) + WINDOW_FLANKING_SIZE + 1
 
             if left_window_index < img_started_in_indx:
                 continue
@@ -565,8 +565,8 @@ class ImageGenerator:
                 break
             img_left_indx = left_window_index - img_started_in_indx
             img_right_indx = right_window_index - img_started_in_indx
-            label_left_indx = start_index
-            label_right_indx = start_index + WINDOW_SIZE
+            label_left_indx = start_index - int(WINDOW_SIZE / 2)
+            label_right_indx = start_index + int(WINDOW_SIZE / 2) + 1
 
             sub_label_seq = label_seq[label_left_indx:label_right_indx]
             sub_ref_seq = ref_seq[img_left_indx:img_right_indx]
