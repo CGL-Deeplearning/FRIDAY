@@ -127,20 +127,22 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     # TO HERE
 
     for images, labels, positional_info in tqdm(testloader, file=sys.stdout, dynamic_ncols=True):
-        images = Variable(images, volatile=True)
-        labels = Variable(labels, volatile=True)
+        with torch.no_grad():
+            images = Variable(images)
+            labels = Variable(labels)
+
         if gpu_mode:
             # encoder_hidden = encoder_hidden.cuda()
             images = images.cuda()
             labels = labels.cuda()
 
-        decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_(), volatile=True)
-        encoder_hidden_alt1 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_(), volatile=True)
-        encoder_hidden_alt2 = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_(), volatile=True)
+        with torch.no_grad():
+            decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_(), volatile=True)
+            encoder_hidden = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_(), volatile=True)
+
         if gpu_mode:
             decoder_input = decoder_input.cuda()
-            encoder_hidden_alt1 = encoder_hidden_alt1.cuda()
-            encoder_hidden_alt2 = encoder_hidden_alt2.cuda()
+            encoder_hidden = encoder_hidden.cuda()
 
         chr_name, start_positions, reference_seqs, allele_dict_paths = positional_info
 
@@ -148,20 +150,18 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
         index_start = FLANK_SIZE
         end_index = index_start + window_size
         unrolling_genomic_position = np.zeros((images.size(0)), dtype=np.int64)
+
+        output_enc, hidden_dec = encoder_model(images, encoder_hidden)
+
         for seq_index in range(index_start, end_index):
-            # get the logits
-            x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
+            output_dec, hidden_dec, attn = decoder_model(decoder_input, output_enc, hidden_dec)
 
-            output_alt1, output_alt2, hidden_alt1, hidden_alt2 = \
-                encoder_model(x, encoder_hidden_alt1, encoder_hidden_alt2)
-            outputs, hidden_alt1, hidden_alt2, attn_alt1, attn_alt2 = \
-                decoder_model(decoder_input, output_alt1, output_alt2, hidden_alt1, hidden_alt2)
+            topv, topi = output_dec.topk(1)
+            decoder_input = topi.squeeze().detach()  # detach from history as input
 
-            encoder_hidden_alt1 = hidden_alt1.detach()
-            encoder_hidden_alt2 = hidden_alt2.detach()
             # One dimensional softmax is used to convert the logits to probability distribution
             m = nn.Softmax(dim=1)
-            soft_probs = m(outputs)
+            soft_probs = m(output_dec)
             output_preds = soft_probs.cpu()
             # record each of the predictions from a batch prediction
             batches = images.size(0)
