@@ -124,65 +124,66 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     # Change model to 'eval' mode (BN uses moving mean/var).
     encoder_model.eval()
     decoder_model.eval()
+
+    sys.stderr.write(TextColor.PURPLE + 'MODEL LOADED\n' + TextColor.END)
     # TO HERE
-    torch.no_grad()
+    with torch.no_grad():
+        for images, labels, positional_info in tqdm(testloader, file=sys.stdout, dynamic_ncols=True):
 
-    for images, labels, positional_info in tqdm(testloader, file=sys.stdout, dynamic_ncols=True):
+            images = Variable(images)
+            labels = Variable(labels)
 
-        images = Variable(images, requires_grad=False)
-        labels = Variable(labels, requires_grad=False)
+            if gpu_mode:
+                # encoder_hidden = encoder_hidden.cuda()
+                images = images.cuda()
+                labels = labels.cuda()
 
-        if gpu_mode:
-            # encoder_hidden = encoder_hidden.cuda()
-            images = images.cuda()
-            labels = labels.cuda()
+            decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_(), requires_grad=False)
+            encoder_hidden = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_(), requires_grad=False)
 
-        decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_(), requires_grad=False)
-        encoder_hidden = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_(), requires_grad=False)
+            if gpu_mode:
+                decoder_input = decoder_input.cuda()
+                encoder_hidden = encoder_hidden.cuda()
 
-        if gpu_mode:
-            decoder_input = decoder_input.cuda()
-            encoder_hidden = encoder_hidden.cuda()
+            chr_name, start_positions, reference_seqs, allele_dict_paths = positional_info
 
-        chr_name, start_positions, reference_seqs, allele_dict_paths = positional_info
+            window_size = images.size(2) - 2 * FLANK_SIZE
+            index_start = FLANK_SIZE
+            end_index = index_start + window_size
+            unrolling_genomic_position = np.zeros((images.size(0)), dtype=np.int64)
 
-        window_size = images.size(2) - 2 * FLANK_SIZE
-        index_start = FLANK_SIZE
-        end_index = index_start + window_size
-        unrolling_genomic_position = np.zeros((images.size(0)), dtype=np.int64)
+            output_enc, hidden_dec = encoder_model(images, encoder_hidden)
 
-        output_enc, hidden_dec = encoder_model(images, encoder_hidden)
+            for seq_index in range(index_start, end_index):
+                output_dec, hidden_dec, attn = decoder_model(decoder_input, output_enc, hidden_dec)
 
-        for seq_index in range(index_start, end_index):
-            output_dec, hidden_dec, attn = decoder_model(decoder_input, output_enc, hidden_dec)
+                topv, topi = output_dec.topk(1)
+                decoder_input = topi.squeeze().detach()  # detach from history as input
 
-            topv, topi = output_dec.topk(1)
-            decoder_input = topi.squeeze().detach()  # detach from history as input
+                # One dimensional softmax is used to convert the logits to probability distribution
+                m = nn.Softmax(dim=1)
+                soft_probs = m(output_dec)
+                output_preds = soft_probs.cpu()
+                # record each of the predictions from a batch prediction
+                batches = images.size(0)
 
-            # One dimensional softmax is used to convert the logits to probability distribution
-            m = nn.Softmax(dim=1)
-            soft_probs = m(output_dec)
-            output_preds = soft_probs.cpu()
-            # record each of the predictions from a batch prediction
-            batches = images.size(0)
+                if seq_index - index_start == 2:
+                    for batch in range(batches):
+                        allele_dict_path = allele_dict_paths[batch]
+                        chromosome_name = chr_name[batch]
+                        reference_seq = reference_seqs[batch]
+                        current_genomic_position = int(start_positions[batch])
+                        # current_genomic_position = int(start_positions[batch]) + unrolling_genomic_position[batch]
 
-            if seq_index - index_start == 2:
-                for batch in range(batches):
-                    allele_dict_path = allele_dict_paths[batch]
-                    chromosome_name = chr_name[batch]
-                    reference_seq = reference_seqs[batch]
-                    current_genomic_position = int(start_positions[batch])
-                    # current_genomic_position = int(start_positions[batch]) + unrolling_genomic_position[batch]
+                        ref_base = reference_seq[seq_index]
+                        preds = output_preds[batch, :].data
+                        top_n, top_i = preds.topk(1)
+                        predicted_label = top_i[0].item()
+                        reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
+                        prediction_dict[current_genomic_position].append((predicted_label, preds))
 
-                    ref_base = reference_seq[seq_index]
-                    preds = output_preds[batch, :].data
-                    top_n, top_i = preds.topk(1)
-                    predicted_label = top_i[0].item()
-                    reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
-                    prediction_dict[current_genomic_position].append((predicted_label, preds))
-
-                    if reference_seq != '*':
-                        unrolling_genomic_position[batch] += 1
+                        if reference_seq != '*':
+                            unrolling_genomic_position[batch] += 1
 
     return chromosome_name
 
