@@ -90,7 +90,7 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
             new_decoder_state_dict[name] = v
 
         hidden_size = 256
-        encoder_model = EncoderCRNN(image_channels=8, hidden_size=hidden_size)
+        encoder_model = EncoderCRNN(image_channels=10, hidden_size=hidden_size)
         decoder_model = AttnDecoderRNN(hidden_size=hidden_size, num_classes=6, max_length=1)
         encoder_model.load_state_dict(new_encoder_state_dict)
         decoder_model.load_state_dict(new_decoder_state_dict)
@@ -137,8 +137,8 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
             labels = labels.cuda()
 
         with torch.no_grad():
-            decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_(), volatile=True)
-            encoder_hidden = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_(), volatile=True)
+            decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_())
+            encoder_hidden = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_())
 
         if gpu_mode:
             decoder_input = decoder_input.cuda()
@@ -177,7 +177,7 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                     ref_base = reference_seq[seq_index]
                     preds = output_preds[batch, :].data
                     top_n, top_i = preds.topk(1)
-                    predicted_label = top_i[0]
+                    predicted_label = top_i[0].item()
                     reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
                     prediction_dict[current_genomic_position].append((predicted_label, preds))
 
