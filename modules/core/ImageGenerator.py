@@ -29,7 +29,7 @@ WINDOW_SIZE = 4
 WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
-ALL_HOM_BASE_RATIO = 0.05
+ALL_HOM_BASE_RATIO = 1
 
 # Logging configuration
 LOG_LEVEL_HIGH = 1
