@@ -85,7 +85,7 @@ class EncoderCRNN(nn.Module):
         seq_len = features_cnn.size(2)
         features_cnn = features_cnn.view(batch_size, seq_len, -1)
 
-        self.gru.flatten_parameters()
+        # self.gru.flatten_parameters()
         output_rnn, hidden_rnn = self.gru(features_cnn, hidden)
 
         if self.bidirectional:
@@ -119,7 +119,7 @@ class AttnDecoderRNN(nn.Module):
         embedded = self.embedding(x).view(x.size(0), 1, -1)
         embedded = self.dropout(embedded)
 
-        self.gru.flatten_parameters()
+        # self.gru.flatten_parameters()
         output_gru, hidden_gru = self.gru(embedded, encoder_hidden)
 
         if self.bidirectional:

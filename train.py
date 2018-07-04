@@ -62,15 +62,17 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
     accuracy = 0
     with tqdm(total=len(test_loader), desc='Accuracy: ', leave=True, dynamic_ncols=True) as pbar:
         for i, (images, labels, positional_information) in enumerate(test_loader):
-            images = Variable(images, volatile=True)
-            labels = Variable(labels, volatile=True)
+            with torch.no_grad():
+                images = Variable(images)
+                labels = Variable(labels)
             if gpu_mode:
                 # encoder_hidden = encoder_hidden.cuda()
                 images = images.cuda()
                 labels = labels.cuda()
 
-            decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_(), volatile=True)
-            encoder_hidden = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_(), volatile=True)
+            with torch.no_grad():
+                decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_())
+                encoder_hidden = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_())
 
             if gpu_mode:
                 decoder_input = decoder_input.cuda()
@@ -94,7 +96,7 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
                     loss += test_criterion(output_dec, y)
                     confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes), y.data.contiguous().view(-1))
 
-            total_loss += loss.data[0]
+            total_loss += loss.item()
             total_images += labels.size(0)
 
             pbar.update(1)
@@ -218,7 +220,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 encoder_optimizer.step()
                 decoder_optimizer.step()
 
-                total_loss += loss.data[0]
+                total_loss += loss.item()
                 total_images += labels.size(0)
 
                 # update the progress bar
