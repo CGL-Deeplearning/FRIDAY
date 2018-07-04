@@ -125,20 +125,20 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     encoder_model.eval()
     decoder_model.eval()
     # TO HERE
+    torch.no_grad()
 
     for images, labels, positional_info in tqdm(testloader, file=sys.stdout, dynamic_ncols=True):
-        with torch.no_grad():
-            images = Variable(images)
-            labels = Variable(labels)
+
+        images = Variable(images, requires_grad=False)
+        labels = Variable(labels, requires_grad=False)
 
         if gpu_mode:
             # encoder_hidden = encoder_hidden.cuda()
             images = images.cuda()
             labels = labels.cuda()
 
-        with torch.no_grad():
-            decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_())
-            encoder_hidden = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_())
+        decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_(), requires_grad=False)
+        encoder_hidden = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_(), requires_grad=False)
 
         if gpu_mode:
             decoder_input = decoder_input.cuda()
