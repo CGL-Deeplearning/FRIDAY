@@ -276,12 +276,12 @@ def visualize_base_channel(img):
 
 
 def analyze_array(img):
-    visualize_base_channel(img)
-    visualize_match_channel(img)
-    visualize_map_quality_channel(img)
-    visualize_allele_channel(img)
-    visualize_allele_rgb(img)
-    return
+    # visualize_base_channel(img)
+    # visualize_match_channel(img)
+    # visualize_map_quality_channel(img)
+    # visualize_allele_channel(img)
+    # visualize_allele_rgb(img)
+    # return
 
     img_h, img_w, img_c = img.shape
     for i in range(img_h):

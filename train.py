@@ -27,7 +27,7 @@ Output:
 - A trained model
 """
 FLANK_SIZE = 10
-CLASS_WEIGHTS = [0.8, 1.0, 1.0, 1.0, 1.0, 1.0]
+CLASS_WEIGHTS = [0.1, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
 def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers):
@@ -60,51 +60,47 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
     total_loss = 0
     total_images = 0
     accuracy = 0
-    with tqdm(total=len(test_loader), desc='Accuracy: ', leave=True, dynamic_ncols=True) as pbar:
-        for i, (images, labels, positional_information) in enumerate(test_loader):
-            with torch.no_grad():
-                images = Variable(images)
-                labels = Variable(labels)
-            if gpu_mode:
-                # encoder_hidden = encoder_hidden.cuda()
-                images = images.cuda()
-                labels = labels.cuda()
+    with torch.no_grad():
+        with tqdm(total=len(test_loader), desc='Accuracy: ', leave=True, dynamic_ncols=True) as pbar:
+            for i, (images, labels, positional_information) in enumerate(test_loader):
+                if gpu_mode:
+                    # encoder_hidden = encoder_hidden.cuda()
+                    images = images.cuda()
+                    labels = labels.cuda()
 
-            with torch.no_grad():
-                decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_())
-                encoder_hidden = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_())
+                decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
+                encoder_hidden = torch.FloatTensor(labels.size(0), 2, hidden_size).zero_()
 
-            if gpu_mode:
-                decoder_input = decoder_input.cuda()
-                encoder_hidden = encoder_hidden.cuda()
+                if gpu_mode:
+                    decoder_input = decoder_input.cuda()
+                    encoder_hidden = encoder_hidden.cuda()
 
-            window_size = images.size(2) - 2 * FLANK_SIZE
-            index_start = FLANK_SIZE
-            end_index = index_start + window_size
+                window_size = images.size(2) - 2 * FLANK_SIZE
+                index_start = FLANK_SIZE
+                end_index = index_start + window_size
 
-            output_enc, hidden_dec = encoder_model(images, encoder_hidden)
-            loss = 0
-            for seq_index in range(index_start, end_index):
-                output_dec, hidden_dec, attn = decoder_model(decoder_input, output_enc, hidden_dec)
-                y = labels[:, seq_index - index_start]
+                output_enc, hidden_dec = encoder_model(images, encoder_hidden)
+                loss = 0
+                for seq_index in range(index_start, end_index):
+                    output_dec, hidden_dec, attn = decoder_model(decoder_input, output_enc, hidden_dec)
+                    y = labels[:, seq_index - index_start]
 
-                topv, topi = output_dec.topk(1)
-                decoder_input = topi.squeeze().detach()  # detach from history as input
+                    topv, topi = output_dec.topk(1)
+                    decoder_input = topi.squeeze().detach()  # detach from history as input
 
-                # loss
-                if seq_index - index_start == 2:
+                    # loss
                     loss += test_criterion(output_dec, y)
                     confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes), y.data.contiguous().view(-1))
 
-            total_loss += loss.item()
-            total_images += labels.size(0)
+                total_loss += loss.item()
+                total_images += labels.size(0)
 
-            pbar.update(1)
-            cm_value = confusion_matrix.value()
-            denom = (cm_value.sum() - cm_value[0][0]) if (cm_value.sum() - cm_value[0][0]) > 0 else 1.0
-            accuracy = 100.0 * (cm_value[1][1] + cm_value[2][2] + cm_value[3][3] + cm_value[4][4] +
-                                cm_value[5][5]) / denom
-            pbar.set_description("Accuracy: " + str(accuracy))
+                pbar.update(1)
+                cm_value = confusion_matrix.value()
+                denom = (cm_value.sum() - cm_value[0][0]) if (cm_value.sum() - cm_value[0][0]) > 0 else 1.0
+                accuracy = 100.0 * (cm_value[1][1] + cm_value[2][2] + cm_value[3][3] + cm_value[4][4] +
+                                    cm_value[5][5]) / denom
+                pbar.set_description("Accuracy: " + str(accuracy))
 
     avg_loss = total_loss / total_images if total_images else 0
     # print('Test Loss: ' + str(avg_loss))
@@ -176,9 +172,6 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
         batch_no = 1
         with tqdm(total=len(train_loader), desc='Loss', leave=True, dynamic_ncols=True) as progress_bar:
             for images, labels, positional_information in train_loader:
-                images = Variable(images)
-                labels = Variable(labels)
-
                 if gpu_mode:
                     # encoder_hidden = encoder_hidden.cuda()
                     images = images.cuda()
@@ -188,8 +181,8 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 decoder_optimizer.zero_grad()
 
                 teacher_forcing_ratio = 0.5
-                decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_())
-                encoder_hidden = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_())
+                decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
+                encoder_hidden = torch.FloatTensor(labels.size(0), 2, hidden_size).zero_()
 
                 use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
 
