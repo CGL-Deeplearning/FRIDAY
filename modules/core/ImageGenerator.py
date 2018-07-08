@@ -554,6 +554,9 @@ class ImageGenerator:
             allele_interval_end = int(allele_position + (WINDOW_SIZE / 2))
             # segment based image generation
             pos = allele_interval_start
+            if pos < interval_start or pos > interval_end:
+                continue
+
             while pos <= allele_interval_end:
                 start_index = self.positional_info_position_to_index[pos] - \
                               self.positional_info_position_to_index[ref_start]
