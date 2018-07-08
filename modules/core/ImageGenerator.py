@@ -22,7 +22,7 @@ VCF_INDEX_BUFFER = -1
 
 # Per sequence threshold
 # jump window size so the last 50 bases will be overlapping
-WINDOW_OVERLAP_JUMP = 5
+WINDOW_OVERLAP_JUMP = 9
 # image size
 WINDOW_SIZE = 10
 # flanking size is the amount add on each size
@@ -30,7 +30,7 @@ WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
 # ALL_HOM_BASE_RATIO = 0.005 (this worked great)
-ALL_HOM_BASE_RATIO = 1
+ALL_HOM_BASE_RATIO = 0.005
 
 # Logging configuration
 LOG_LEVEL_HIGH = 1
@@ -550,21 +550,14 @@ class ImageGenerator:
         img_w, img_h, img_c = 0, 0, 0
 
         # segment based image generation
-        allele_positions = sorted(list(self.top_alleles.keys()), reverse=True)
-        last_processed = -1
-        for i, pos in enumerate(allele_positions):
-            if pos < interval_start or pos > interval_end:
-                continue
-            if i > 0 and last_processed > 0 and pos + int(WINDOW_SIZE/4) < last_processed:
-                continue
-
+        pos = interval_start
+        while pos <= interval_end:
             start_index = self.positional_info_position_to_index[pos] - \
                           self.positional_info_position_to_index[ref_start]
             left_window_index = start_index - WINDOW_FLANKING_SIZE
             right_window_index = start_index + WINDOW_SIZE + WINDOW_FLANKING_SIZE
 
-            end_pos = self.positional_info_index_to_position[start_index + WINDOW_SIZE][0]
-            last_processed = end_pos
+            end_pos = self.positional_info_index_to_position[start_index + WINDOW_SIZE][0] - 1
 
             if left_window_index < img_started_in_indx:
                 continue
@@ -597,7 +590,7 @@ class ImageGenerator:
             summary_strings = summary_strings + summary_string
             image_index += 1
 
-            total_bases_covered = end_pos - pos + 1
+            total_bases_covered = end_pos - pos
             if total_bases_covered >= WINDOW_OVERLAP_JUMP:
                 pos += WINDOW_OVERLAP_JUMP
             else:
