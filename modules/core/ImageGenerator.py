@@ -549,68 +549,71 @@ class ImageGenerator:
         image_index = 0
         img_w, img_h, img_c = 0, 0, 0
 
-        # segment based image generation
-        pos = interval_start
-        while pos <= interval_end:
-            start_index = self.positional_info_position_to_index[pos] - \
-                          self.positional_info_position_to_index[ref_start]
-            left_window_index = start_index - WINDOW_FLANKING_SIZE
-            right_window_index = start_index + WINDOW_SIZE + WINDOW_FLANKING_SIZE
+        for allele_position in self.top_alleles.keys():
+            allele_interval_start = int(allele_position - (WINDOW_SIZE / 2))
+            allele_interval_end = int(allele_position + (WINDOW_SIZE / 2))
+            # segment based image generation
+            pos = allele_interval_start
+            while pos <= allele_interval_end:
+                start_index = self.positional_info_position_to_index[pos] - \
+                              self.positional_info_position_to_index[ref_start]
+                left_window_index = start_index - WINDOW_FLANKING_SIZE
+                right_window_index = start_index + WINDOW_SIZE + WINDOW_FLANKING_SIZE
 
-            end_pos = self.positional_info_index_to_position[start_index + WINDOW_SIZE][0]
+                end_pos = self.positional_info_index_to_position[start_index + WINDOW_SIZE][0]
 
-            if pos < interval_start or pos > interval_end:
-                pos += 1
-                continue
-            if end_pos < interval_start or end_pos > interval_end:
-                pos += 1
-                continue
-
-            if left_window_index < img_started_in_indx:
-                pos += 1
-                continue
-            if right_window_index > img_ended_in_indx:
-                break
-
-            img_left_index = left_window_index - img_started_in_indx
-            img_right_index = right_window_index - img_started_in_indx
-            label_left_index = start_index
-            label_right_index = start_index + WINDOW_SIZE
-
-            sub_label_seq = label_seq[label_left_index:label_right_index]
-            sub_ref_seq = ref_seq[img_left_index:img_right_index]
-
-            hom_bases_count = collections.Counter(sub_label_seq)
-            other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
-
-            if other_bases <= 0:
-                include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
-                if not include_this:
-                    total_bases_covered = end_pos - pos + 1
-                    if total_bases_covered >= WINDOW_OVERLAP_JUMP:
-                        pos += WINDOW_OVERLAP_JUMP
-                    else:
-                        pos += total_bases_covered
+                if pos < interval_start or pos > interval_end:
+                    pos += 1
+                    continue
+                if end_pos < interval_start or end_pos > interval_end:
+                    pos += 1
                     continue
 
-            sliced_image = image[:, img_left_index:img_right_index, :]
-            img_h, img_w, img_c = sliced_image.shape
-            sliced_images.append(np.array(sliced_image, dtype=np.int8))
-            sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(sub_label_seq)
-            sequence_info = sequence_info + "," + str(sub_ref_seq)
-            index_info = str(image_index)
-            summary_string = file_info + "," + index_info + "," + sequence_info + "\n"
-            summary_strings = summary_strings + summary_string
-            image_index += 1
+                if left_window_index < img_started_in_indx:
+                    pos += 1
+                    continue
+                if right_window_index > img_ended_in_indx:
+                    break
 
-            total_bases_covered = end_pos - pos + 1
-            if total_bases_covered >= WINDOW_OVERLAP_JUMP:
-                pos += WINDOW_OVERLAP_JUMP
-            else:
-                pos += total_bases_covered
+                img_left_index = left_window_index - img_started_in_indx
+                img_right_index = right_window_index - img_started_in_indx
+                label_left_index = start_index
+                label_right_index = start_index + WINDOW_SIZE
 
-            # from analysis.analyze_png_img import analyze_array
-            # print(' ' * WINDOW_FLANKING_SIZE + sub_label_seq)
-            # analyze_array(np.array(sliced_image))
+                sub_label_seq = label_seq[label_left_index:label_right_index]
+                sub_ref_seq = ref_seq[img_left_index:img_right_index]
+
+                hom_bases_count = collections.Counter(sub_label_seq)
+                other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
+
+                if other_bases <= 0:
+                    include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
+                    if not include_this:
+                        total_bases_covered = end_pos - pos + 1
+                        if total_bases_covered >= WINDOW_OVERLAP_JUMP:
+                            pos += WINDOW_OVERLAP_JUMP
+                        else:
+                            pos += total_bases_covered
+                        continue
+
+                sliced_image = image[:, img_left_index:img_right_index, :]
+                img_h, img_w, img_c = sliced_image.shape
+                sliced_images.append(np.array(sliced_image, dtype=np.int8))
+                sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(sub_label_seq)
+                sequence_info = sequence_info + "," + str(sub_ref_seq)
+                index_info = str(image_index)
+                summary_string = file_info + "," + index_info + "," + sequence_info + "\n"
+                summary_strings = summary_strings + summary_string
+                image_index += 1
+
+                total_bases_covered = end_pos - pos + 1
+                if total_bases_covered >= WINDOW_OVERLAP_JUMP:
+                    pos += WINDOW_OVERLAP_JUMP
+                else:
+                    pos += total_bases_covered
+
+                # from analysis.analyze_png_img import analyze_array
+                # print(' ' * WINDOW_FLANKING_SIZE + sub_label_seq)
+                # analyze_array(np.array(sliced_image))
 
         return sliced_images, summary_strings, img_h, img_w, img_c
