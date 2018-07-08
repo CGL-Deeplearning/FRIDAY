@@ -572,13 +572,6 @@ class ImageGenerator:
             if right_window_index > img_ended_in_indx:
                 break
 
-            is_allele_present = 0
-            for p in range(pos, end_pos+1):
-                if p in self.top_alleles.keys():
-                    is_allele_present = 1
-            if is_allele_present == 0:
-                continue
-
             img_left_index = left_window_index - img_started_in_indx
             img_right_index = right_window_index - img_started_in_indx
             label_left_index = start_index
