@@ -550,24 +550,23 @@ class ImageGenerator:
         img_w, img_h, img_c = 0, 0, 0
 
         # segment based image generation
-        pos = interval_start
-        while pos <= interval_end:
+        allele_positions = sorted(list(self.top_alleles.keys()), reverse=True)
+        last_processed = -1
+        for i, pos in enumerate(allele_positions):
+            if pos < interval_start or pos > interval_end:
+                continue
+            if i > 0 and last_processed > 0 and pos + int(WINDOW_SIZE/4) < last_processed:
+                continue
+
             start_index = self.positional_info_position_to_index[pos] - \
                           self.positional_info_position_to_index[ref_start]
             left_window_index = start_index - WINDOW_FLANKING_SIZE
             right_window_index = start_index + WINDOW_SIZE + WINDOW_FLANKING_SIZE
 
             end_pos = self.positional_info_index_to_position[start_index + WINDOW_SIZE][0]
-
-            if pos < interval_start or pos > interval_end:
-                pos += 1
-                continue
-            if end_pos < interval_start or end_pos > interval_end:
-                pos += 1
-                continue
+            last_processed = end_pos
 
             if left_window_index < img_started_in_indx:
-                pos += 1
                 continue
             if right_window_index > img_ended_in_indx:
                 break
@@ -586,11 +585,6 @@ class ImageGenerator:
             if other_bases <= 0:
                 include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
                 if not include_this:
-                    total_bases_covered = end_pos - pos + 1
-                    if total_bases_covered >= WINDOW_OVERLAP_JUMP:
-                        pos += WINDOW_OVERLAP_JUMP
-                    else:
-                        pos += total_bases_covered
                     continue
 
             sliced_image = image[:, img_left_index:img_right_index, :]
