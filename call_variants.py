@@ -175,16 +175,14 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                     if reference_seq == '*':
                         continue
                     # current_genomic_position = int(start_positions[batch])
-                    allele_dict = pickle.load(open(allele_dict_path, 'rb'))
                     current_genomic_position = int(start_positions[batch]) + unrolling_genomic_position[batch]
 
-                    if current_genomic_position in allele_dict.keys():
-                        ref_base = reference_seq[seq_index]
-                        preds = output_preds[batch, :].data
-                        top_n, top_i = preds.topk(1)
-                        predicted_label = top_i[0].item()
-                        reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
-                        prediction_dict[current_genomic_position].append((predicted_label, preds))
+                    ref_base = reference_seq[seq_index]
+                    preds = output_preds[batch, :].data
+                    top_n, top_i = preds.topk(1)
+                    predicted_label = top_i[0].item()
+                    reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
+                    prediction_dict[current_genomic_position].append((predicted_label, preds))
 
                     if reference_seq != '*':
                         unrolling_genomic_position[batch] += 1
