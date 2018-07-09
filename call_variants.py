@@ -130,9 +130,6 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     with torch.no_grad():
         for images, labels, positional_info in tqdm(testloader, file=sys.stdout, dynamic_ncols=True):
 
-            images = Variable(images)
-            labels = Variable(labels)
-
             if gpu_mode:
                 # encoder_hidden = encoder_hidden.cuda()
                 images = images.cuda()
@@ -175,19 +172,23 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                     # current_genomic_position = int(start_positions[batch])
                     current_genomic_position = int(start_positions[batch]) + unrolling_genomic_position[batch]
 
-                    '''true_label = labels[batch, seq_index - index_start]
+                    true_label = labels[batch, seq_index - index_start]
+                    # print(true_label)
+                    # exit()
                     ref_base = reference_seq[seq_index]
                     fake_probs = [0.0] * 6
                     fake_probs[true_label] = 1.0
+                    top_n, top_i = torch.FloatTensor(fake_probs).topk(1)
+                    predicted_label = top_i[0].item()
                     reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
-                    prediction_dict[current_genomic_position].append((true_label, fake_probs))'''
+                    prediction_dict[current_genomic_position].append((predicted_label, fake_probs))
 
-                    ref_base = reference_seq[seq_index]
+                    '''ref_base = reference_seq[seq_index]
                     preds = output_preds[batch, :].data
                     top_n, top_i = preds.topk(1)
                     predicted_label = top_i[0].item()
                     reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
-                    prediction_dict[current_genomic_position].append((predicted_label, preds))
+                    prediction_dict[current_genomic_position].append((predicted_label, preds))'''
 
                     if reference_seq != '*':
                         unrolling_genomic_position[batch] += 1
