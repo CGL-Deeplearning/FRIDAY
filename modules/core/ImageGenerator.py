@@ -550,14 +550,14 @@ class ImageGenerator:
         img_w, img_h, img_c = 0, 0, 0
 
         # segment based image generation
-        pos = interval_start
-        while pos <= interval_end:
+        pos = interval_start - 5
+        while pos <= interval_end + 5:
             start_index = self.positional_info_position_to_index[pos] - \
                           self.positional_info_position_to_index[ref_start]
             left_window_index = start_index - WINDOW_FLANKING_SIZE
             right_window_index = start_index + WINDOW_SIZE + WINDOW_FLANKING_SIZE
 
-            end_pos = self.positional_info_index_to_position[start_index + WINDOW_SIZE][0] - 1
+            end_pos = max(pos, self.positional_info_index_to_position[start_index + WINDOW_SIZE][0])
 
             if left_window_index < img_started_in_indx:
                 continue
@@ -577,6 +577,12 @@ class ImageGenerator:
 
             if other_bases <= 0:
                 include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
+
+                total_bases_covered = end_pos - pos + 1
+                if total_bases_covered >= WINDOW_OVERLAP_JUMP:
+                    pos += WINDOW_OVERLAP_JUMP
+                else:
+                    pos += total_bases_covered
                 if not include_this:
                     continue
 
