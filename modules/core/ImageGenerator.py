@@ -30,7 +30,7 @@ WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
 # ALL_HOM_BASE_RATIO = 0.005 (this worked great)
-ALL_HOM_BASE_RATIO = 0.005
+ALL_HOM_BASE_RATIO = 1
 
 # Logging configuration
 LOG_LEVEL_HIGH = 1
