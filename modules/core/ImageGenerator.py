@@ -22,7 +22,7 @@ VCF_INDEX_BUFFER = -1
 
 # Per sequence threshold
 # jump window size so the last 50 bases will be overlapping
-WINDOW_OVERLAP_JUMP = 5
+WINDOW_OVERLAP_JUMP = 10
 # image size
 WINDOW_SIZE = 10
 # flanking size is the amount add on each size
@@ -550,7 +550,8 @@ class ImageGenerator:
         img_w, img_h, img_c = 0, 0, 0
 
         # segment based image generation
-        POS_BUFFER = 5
+        # this kind of works for sure
+        POS_BUFFER = 3
         pos = interval_start - POS_BUFFER
         while pos <= interval_end + POS_BUFFER:
             start_index = self.positional_info_position_to_index[pos] - \
