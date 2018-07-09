@@ -176,6 +176,10 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                     # print(true_label)
                     # exit()
                     ref_base = reference_seq[seq_index]
+
+                    if ref_base == '*':
+                        continue
+
                     fake_probs = [0.0] * 6
                     fake_probs[true_label] = 1.0
                     top_n, top_i = torch.FloatTensor(fake_probs).topk(1)
@@ -190,7 +194,7 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                     reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
                     prediction_dict[current_genomic_position].append((predicted_label, preds))'''
 
-                    if reference_seq != '*':
+                    if ref_base != '*':
                         unrolling_genomic_position[batch] += 1
     return chromosome_name
 
