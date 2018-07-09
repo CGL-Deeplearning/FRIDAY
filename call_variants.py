@@ -175,7 +175,7 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                     # current_genomic_position = int(start_positions[batch])
                     current_genomic_position = int(start_positions[batch]) + unrolling_genomic_position[batch]
 
-                    true_label = labels[batch, seq_index]
+                    true_label = labels[batch, seq_index - index_start]
                     ref_base = reference_seq[seq_index]
                     fake_probs = [0.0] * 6
                     fake_probs[true_label] = 1.0
