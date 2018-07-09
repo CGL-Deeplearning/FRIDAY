@@ -172,8 +172,6 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                     allele_dict_path = allele_dict_paths[batch]
                     chromosome_name = chr_name[batch]
                     reference_seq = reference_seqs[batch]
-                    if reference_seq == '*':
-                        continue
                     # current_genomic_position = int(start_positions[batch])
                     current_genomic_position = int(start_positions[batch]) + unrolling_genomic_position[batch]
 
