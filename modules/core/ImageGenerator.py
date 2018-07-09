@@ -22,7 +22,7 @@ VCF_INDEX_BUFFER = -1
 
 # Per sequence threshold
 # jump window size so the last 50 bases will be overlapping
-WINDOW_OVERLAP_JUMP = 9
+WINDOW_OVERLAP_JUMP = 5
 # image size
 WINDOW_SIZE = 10
 # flanking size is the amount add on each size
@@ -550,16 +550,25 @@ class ImageGenerator:
         img_w, img_h, img_c = 0, 0, 0
 
         # segment based image generation
-        pos = interval_start - 5
-        while pos <= interval_end + 5:
+        POS_BUFFER = 5
+        pos = interval_start - POS_BUFFER
+        while pos <= interval_end + POS_BUFFER:
             start_index = self.positional_info_position_to_index[pos] - \
                           self.positional_info_position_to_index[ref_start]
             left_window_index = start_index - WINDOW_FLANKING_SIZE
             right_window_index = start_index + WINDOW_SIZE + WINDOW_FLANKING_SIZE
 
-            end_pos = max(pos, self.positional_info_index_to_position[start_index + WINDOW_SIZE][0])
+            end_pos = self.positional_info_index_to_position[start_index + WINDOW_SIZE][0]
+
+            if pos < interval_start - POS_BUFFER or pos > interval_end + POS_BUFFER:
+                pos += 1
+                continue
+            if end_pos < interval_start - POS_BUFFER or end_pos > interval_end + POS_BUFFER:
+                pos += 1
+                continue
 
             if left_window_index < img_started_in_indx:
+                pos += 1
                 continue
             if right_window_index > img_ended_in_indx:
                 break
@@ -577,13 +586,12 @@ class ImageGenerator:
 
             if other_bases <= 0:
                 include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
-
-                total_bases_covered = end_pos - pos + 1
-                if total_bases_covered >= WINDOW_OVERLAP_JUMP:
-                    pos += WINDOW_OVERLAP_JUMP
-                else:
-                    pos += total_bases_covered
                 if not include_this:
+                    total_bases_covered = end_pos - pos + 1
+                    if total_bases_covered >= WINDOW_OVERLAP_JUMP:
+                        pos += WINDOW_OVERLAP_JUMP
+                    else:
+                        pos += total_bases_covered
                     continue
 
             sliced_image = image[:, img_left_index:img_right_index, :]
@@ -596,7 +604,7 @@ class ImageGenerator:
             summary_strings = summary_strings + summary_string
             image_index += 1
 
-            total_bases_covered = end_pos - pos
+            total_bases_covered = end_pos - pos + 1
             if total_bases_covered >= WINDOW_OVERLAP_JUMP:
                 pos += WINDOW_OVERLAP_JUMP
             else:
