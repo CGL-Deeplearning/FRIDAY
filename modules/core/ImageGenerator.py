@@ -30,7 +30,9 @@ WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
 # ALL_HOM_BASE_RATIO = 0.005 (this worked great)
-ALL_HOM_BASE_RATIO = 1
+ALL_HOM_BASE_RATIO = 0.3
+# buffer around boundary to make sure all the bases in the interval is included
+POS_BUFFER = 0
 
 # Logging configuration
 LOG_LEVEL_HIGH = 1
@@ -551,7 +553,7 @@ class ImageGenerator:
 
         # segment based image generation
         # this kind of works for sure
-        POS_BUFFER = 3
+
         pos = interval_start - POS_BUFFER
         while pos <= interval_end + POS_BUFFER:
             start_index = self.positional_info_position_to_index[pos] - \
