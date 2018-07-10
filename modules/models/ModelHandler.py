@@ -50,8 +50,8 @@ class ModelHandler:
             name = k
             if k[0:6] == 'module.':
                 name = k[7:]  # remove `module.`
-            print(k[0:6])
-            print(k)
+            print(k[0:7])
+            print(k[7:])
             print(name)
             print("---")
             new_encoder_state_dict[name] = v
