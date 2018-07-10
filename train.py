@@ -11,7 +11,6 @@ import torch.nn as nn
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from torch.autograd import Variable
 from modules.core.dataloader import SequenceDataset
 from modules.models.ModelHandler import ModelHandler
 from modules.models.Seq2Seq_atn import EncoderCRNN, AttnDecoderRNN
@@ -112,7 +111,8 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
     return str(confusion_matrix.conf), avg_loss, accuracy
 
 
-def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers, model_dir, stats_dir, num_classes=6):
+def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers, retrain_model, retrain_model_path,
+          model_dir, stats_dir, num_classes=6):
     """
     Train a model and save
     :param train_file: A CSV file containing train image information
@@ -121,6 +121,10 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
     :param epoch_limit: Number of epochs to train on
     :param gpu_mode: If true the model will be trained on GPU
     :param num_workers: Number of workers for data loading
+    :param retrain_model: If true then a trained model will be retrained
+    :param retrain_model_path: If retrain model is true then the model will be loaded from here
+    :param model_dir: Directory where model will be saved
+    :param stats_dir: Directory where stats of the training will be saved
     :param num_classes: Number of output classes
     :return:
     """
@@ -137,19 +141,31 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                               num_workers=num_workers,
                               pin_memory=gpu_mode
                               )
-
+    # this needs to change
     hidden_size = 256
-    encoder_model = EncoderCRNN(image_channels=10, hidden_size=hidden_size)
-    decoder_model = AttnDecoderRNN(hidden_size=hidden_size, num_classes=6, max_length=1)
-
-    if gpu_mode:
-        encoder_model = torch.nn.DataParallel(encoder_model).cuda()
-        decoder_model = torch.nn.DataParallel(decoder_model).cuda()
-
+    encoder_model, decoder_model = ModelHandler.get_new_model(input_channels=10,
+                                                              hidden_size=hidden_size,
+                                                              num_classes=6)
     encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.00021723010296152584,
                                          weight_decay=1.4433597247180705e-06)
     decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.00021723010296152584,
                                          weight_decay=1.4433597247180705e-06)
+    if retrain_model:
+        if os.path.isfile(retrain_model_path) is False:
+            sys.stderr.write(TextColor.RED + "ERROR: INVALID PATH TO RETRAIN PATH MODEL --retrain_model_path\n")
+            exit(1)
+        sys.stderr.write(TextColor.GREEN + "INFO: RETRAIN MODEL LOADING\n"+ TextColor.END)
+        encoder_model, decoder_model = ModelHandler.load_model_for_training(encoder_model,
+                                                                            decoder_model,
+                                                                            retrain_model_path)
+
+        encoder_optimizer, decoder_optimizer = ModelHandler.load_optimizer(encoder_optimizer, decoder_optimizer,
+                                                                           retrain_model_path, gpu_mode)
+        sys.stderr.write(TextColor.GREEN + "INFO: RETRAIN MODEL LOADED\n" + TextColor.END)
+
+    if gpu_mode:
+        encoder_model = torch.nn.DataParallel(encoder_model).cuda()
+        decoder_model = torch.nn.DataParallel(decoder_model).cuda()
 
     class_weights = torch.FloatTensor(CLASS_WEIGHTS)
     # Loss
@@ -185,7 +201,6 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 encoder_hidden = torch.FloatTensor(labels.size(0), 2, hidden_size).zero_()
 
                 use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
-
                 if gpu_mode:
                     decoder_input = decoder_input.cuda()
                     encoder_hidden = encoder_hidden.cuda()
@@ -207,7 +222,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                         decoder_input = y
                     else:
                         topv, topi = output_dec.topk(1)
-                        decoder_input = topi.squeeze().detach()  # detach from history as input
+                        decoder_input = topi.squeeze().detach()
 
                 loss.backward()
                 encoder_optimizer.step()
@@ -336,6 +351,12 @@ if __name__ == '__main__':
         help="If true then retrain a pre-trained mode."
     )
     parser.add_argument(
+        "--retrain_model_path",
+        type=str,
+        default=False,
+        help="Path to the model that will be retrained."
+    )
+    parser.add_argument(
         "--model_path",
         type=str,
         required=False,
@@ -356,9 +377,9 @@ if __name__ == '__main__':
         help="Epoch size for training iteration."
     )
     FLAGS, not_parsed = parser.parse_known_args()
-    model_dir, stats_dir = handle_output_directory(FLAGS.model_out.rpartition('/')[0]+"/")
-    model_out_dir = model_dir + "FRIDAY_model"
-    sys.stderr.write(TextColor.BLUE + "THE MODEL AND STATS LOCATION: " + str(model_dir) + "\n" + TextColor.END)
+    model_out_dir, stats_out_dir = handle_output_directory(FLAGS.model_out.rpartition('/')[0]+"/")
+    model_out_dir = model_out_dir + "FRIDAY_model"
+    sys.stderr.write(TextColor.BLUE + "THE MODEL AND STATS LOCATION: " + str(model_out_dir) + "\n" + TextColor.END)
 
     train(FLAGS.train_file, FLAGS.test_file, FLAGS.batch_size, FLAGS.epoch_size, FLAGS.gpu_mode, FLAGS.num_workers,
-          model_out_dir, stats_dir)
+          FLAGS.retrain_model, FLAGS.retrain_model_path, model_out_dir, stats_out_dir)

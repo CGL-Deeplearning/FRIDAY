@@ -26,6 +26,8 @@ class BamHandler:
         :param pos: Position [ex 100001]
         :return: pysam.AlignmentFile.pileup object
         """
+        if start < 0:
+            start = 0
         # get pileup columns
         pileup_columns = self.bamFile.pileup(chromosome_name, start, end, truncate=True)
         # return pileup columns
