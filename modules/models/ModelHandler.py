@@ -48,20 +48,15 @@ class ModelHandler:
 
         for k, v in encoder_state_dict.items():
             name = k
-            if k[0:6] == 'module.':
+            if k[0:7] == 'module.':
                 name = k[7:]  # remove `module.`
-            print(k[0:7])
-            print(k[7:])
-            print(name)
-            print("---")
             new_encoder_state_dict[name] = v
 
         for k, v in decoder_state_dict.items():
             name = k
-            if k[0:6] == 'module.':
+            if k[0:7] == 'module.':
                 name = k[7:]  # remove `module.`
             new_decoder_state_dict[name] = v
-
 
         encoder_model = EncoderCRNN(image_channels=input_channels, hidden_size=hidden_size)
         decoder_model = AttnDecoderRNN(hidden_size=hidden_size, num_classes=num_classes, max_length=1)

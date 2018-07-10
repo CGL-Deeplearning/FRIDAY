@@ -155,7 +155,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
         if os.path.isfile(retrain_model_path) is False:
             sys.stderr.write(TextColor.RED + "ERROR: INVALID PATH TO RETRAIN PATH MODEL --retrain_model_path\n")
             exit(1)
-        sys.stderr.write(TextColor.GREEN + "INFO: RETRAIN MODEL LOADING\n"+ TextColor.END)
+        sys.stderr.write(TextColor.GREEN + "INFO: RETRAIN MODEL LOADING\n" + TextColor.END)
         encoder_model, decoder_model = ModelHandler.load_model_for_training(model_path=retrain_model_path,
                                                                             input_channels=10,
                                                                             hidden_size=hidden_size)
