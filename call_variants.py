@@ -69,53 +69,37 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                             )
 
     sys.stderr.write(TextColor.PURPLE + 'Data loading finished\n' + TextColor.END)
+
     # load the model
-    if gpu_mode is False:
-        checkpoint = torch.load(model_path, map_location='cpu')
-        encoder_state_dict = checkpoint['encoder_state_dict']
-        decoder_state_dict = checkpoint['decoder_state_dict']
-        from collections import OrderedDict
-        new_encoder_state_dict = OrderedDict()
-        new_decoder_state_dict = OrderedDict()
-        for k, v in encoder_state_dict.items():
-            name = k
-            if k[0:6] == 'module.':
-                name = k[7:]  # remove `module.`
-            new_encoder_state_dict[name] = v
+    checkpoint = torch.load(model_path, map_location='cpu')
+    encoder_state_dict = checkpoint['encoder_state_dict']
+    decoder_state_dict = checkpoint['decoder_state_dict']
 
-        for k, v in decoder_state_dict.items():
-            name = k
-            if k[0:6] == 'module.':
-                name = k[7:]  # remove `module.`
-            new_decoder_state_dict[name] = v
+    from collections import OrderedDict
+    new_encoder_state_dict = OrderedDict()
+    new_decoder_state_dict = OrderedDict()
 
-        hidden_size = 256
-        encoder_model = EncoderCRNN(image_channels=10, hidden_size=hidden_size)
-        decoder_model = AttnDecoderRNN(hidden_size=hidden_size, num_classes=6, max_length=1)
-        encoder_model.load_state_dict(new_encoder_state_dict)
-        decoder_model.load_state_dict(new_decoder_state_dict)
-        encoder_model.cpu()
-        decoder_model.cpu()
-    else:
-        checkpoint = torch.load(model_path, map_location='cpu')
-        encoder_state_dict = checkpoint['encoder_state_dict']
-        decoder_state_dict = checkpoint['decoder_state_dict']
-        from collections import OrderedDict
-        new_encoder_state_dict = OrderedDict()
-        new_decoder_state_dict = OrderedDict()
-        for k, v in encoder_state_dict.items():
+    for k, v in encoder_state_dict.items():
+        name = k
+        if k[0:7] == 'module.':
             name = k[7:]  # remove `module.`
-            new_encoder_state_dict[name] = v
+        new_encoder_state_dict[name] = v
 
-        for k, v in decoder_state_dict.items():
+    for k, v in decoder_state_dict.items():
+        name = k
+        if k[0:7] == 'module.':
             name = k[7:]  # remove `module.`
-            new_decoder_state_dict[name] = v
+        new_decoder_state_dict[name] = v
 
-        hidden_size = 256
-        encoder_model = EncoderCRNN(image_channels=10, hidden_size=hidden_size)
-        decoder_model = AttnDecoderRNN(hidden_size=hidden_size, num_classes=6, max_length=1)
-        encoder_model.load_state_dict(new_encoder_state_dict)
-        decoder_model.load_state_dict(new_decoder_state_dict)
+    hidden_size = 256
+    encoder_model = EncoderCRNN(image_channels=10, hidden_size=hidden_size)
+    decoder_model = AttnDecoderRNN(hidden_size=hidden_size, num_classes=6, max_length=1)
+    encoder_model.load_state_dict(new_encoder_state_dict)
+    decoder_model.load_state_dict(new_decoder_state_dict)
+    encoder_model.cpu()
+    decoder_model.cpu()
+
+    if gpu_mode:
         encoder_model = encoder_model.cuda()
         encoder_model = torch.nn.DataParallel(encoder_model).cuda()
         decoder_model = decoder_model.cuda()
