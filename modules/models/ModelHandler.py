@@ -37,7 +37,7 @@ class ModelHandler:
         return encoder_optimizer, decoder_optimizer
 
     @staticmethod
-    def load_model_for_training(model_path, input_channels, hidden_size, num_classes=6):
+    def load_model_for_training(encoder_model, decoder_model, model_path):
         checkpoint = torch.load(model_path, map_location='cpu')
         encoder_state_dict = checkpoint['encoder_state_dict']
         decoder_state_dict = checkpoint['decoder_state_dict']
@@ -57,9 +57,6 @@ class ModelHandler:
             if k[0:7] == 'module.':
                 name = k[7:]  # remove `module.`
             new_decoder_state_dict[name] = v
-
-        encoder_model = EncoderCRNN(image_channels=input_channels, hidden_size=hidden_size)
-        decoder_model = AttnDecoderRNN(hidden_size=hidden_size, num_classes=num_classes, max_length=1)
 
         encoder_model.load_state_dict(new_encoder_state_dict)
         decoder_model.load_state_dict(new_decoder_state_dict)

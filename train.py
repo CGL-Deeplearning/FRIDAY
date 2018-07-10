@@ -143,30 +143,26 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                               )
     # this needs to change
     hidden_size = 256
-    if retrain_model is False:
-        encoder_model, decoder_model = ModelHandler.get_new_model(input_channels=10,
-                                                                  hidden_size=hidden_size,
-                                                                  num_classes=6)
-        encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.00021723010296152584,
-                                             weight_decay=1.4433597247180705e-06)
-        decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.00021723010296152584,
-                                             weight_decay=1.4433597247180705e-06)
-    else:
+    encoder_model, decoder_model = ModelHandler.get_new_model(input_channels=10,
+                                                              hidden_size=hidden_size,
+                                                              num_classes=6)
+    encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.00021723010296152584,
+                                         weight_decay=1.4433597247180705e-06)
+    decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.00021723010296152584,
+                                         weight_decay=1.4433597247180705e-06)
+    if retrain_model is True:
         if os.path.isfile(retrain_model_path) is False:
             sys.stderr.write(TextColor.RED + "ERROR: INVALID PATH TO RETRAIN PATH MODEL --retrain_model_path\n")
             exit(1)
         sys.stderr.write(TextColor.GREEN + "INFO: RETRAIN MODEL LOADING\n" + TextColor.END)
-        encoder_model, decoder_model = ModelHandler.load_model_for_training(model_path=retrain_model_path,
-                                                                            input_channels=10,
-                                                                            hidden_size=hidden_size)
-        encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.00021723010296152584,
-                                             weight_decay=1.4433597247180705e-06)
+        encoder_model, decoder_model = ModelHandler.load_model_for_training(encoder_model,
+                                                                            decoder_model,
+                                                                            retrain_model_path)
 
-        decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.00021723010296152584,
-                                             weight_decay=1.4433597247180705e-06)
-
-        encoder_optimizer, decoder_optimizer = ModelHandler.load_optimizer(encoder_optimizer, decoder_optimizer,
-                                                                           retrain_model_path, gpu_mode)
+        encoder_optimizer, decoder_optimizer = ModelHandler.load_optimizer(encoder_optimizer,
+                                                                           decoder_optimizer,
+                                                                           retrain_model_path,
+                                                                           gpu_mode)
         sys.stderr.write(TextColor.GREEN + "INFO: RETRAIN MODEL LOADED\n" + TextColor.END)
 
     if gpu_mode:
