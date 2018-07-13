@@ -13,7 +13,6 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from modules.core.dataloader import SequenceDataset
 from modules.models.ModelHandler import ModelHandler
-from modules.models.Seq2Seq_atn import EncoderCRNN, AttnDecoderRNN
 from modules.handlers.TextColor import TextColor
 """
 Train a model and save the model that performs best.
