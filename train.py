@@ -26,7 +26,7 @@ Output:
 - A trained model
 """
 FLANK_SIZE = 10
-CLASS_WEIGHTS = [0.1, 1.0, 1.0, 1.0, 1.0, 1.0]
+CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
 def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers):
@@ -218,7 +218,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                     output_dec, hidden_dec, attn = decoder_model(decoder_input, output_enc, hidden_dec)
                     y = labels[:, seq_index - index_start]
                     # loss + optimize
-                    loss += criterion(output_dec, y)
+                    loss = criterion(output_dec, y)
 
                     if use_teacher_forcing:
                         decoder_input = y
@@ -226,12 +226,12 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                         topv, topi = output_dec.topk(1)
                         decoder_input = topi.squeeze().detach()
 
-                loss.backward()
-                encoder_optimizer.step()
-                decoder_optimizer.step()
+                    loss.backward(retain_graph=True)
+                    encoder_optimizer.step()
+                    decoder_optimizer.step()
 
-                total_loss += loss.item()
-                total_images += labels.size(0)
+                    total_loss += loss.item()
+                    total_images += labels.size(0)
 
                 # update the progress bar
                 avg_loss = (total_loss / total_images) if total_images else 0
@@ -241,7 +241,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 progress_bar.update(1)
                 batch_no += 1
 
-                del decoder_input, encoder_hidden
+                del decoder_input, encoder_hidden, loss
             progress_bar.close()
 
         # save the model after each epoch

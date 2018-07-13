@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
-from modules.models.inception import Inception3
+from modules.models.resnet import resnet18_custom
 
 
 class Attention(nn.Module):
@@ -58,11 +58,11 @@ class EncoderCNN(nn.Module):
     def __init__(self, image_channels):
         """Load the pretrained ResNet-152 and replace top fc layer."""
         super(EncoderCNN, self).__init__()
-        self.inception = Inception3(image_channels)
+        self.resnet = resnet18_custom(image_channels)
 
     def forward(self, images):
         """Extract feature vectors from input images."""
-        features = self.inception(images)
+        features = self.resnet(images)
 
         return features
 
@@ -74,7 +74,7 @@ class EncoderCRNN(nn.Module):
         self.hidden_size = hidden_size
         self.bidirectional = bidirectional
         self.num_layers = 1
-        self.gru = nn.GRU(2048, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional, batch_first=True)
+        self.gru = nn.GRU(1280, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional, batch_first=True)
 
     def forward(self, x, hidden):
         hidden = hidden.transpose(0, 1).contiguous()
