@@ -26,7 +26,7 @@ Output:
 - A trained model
 """
 FLANK_SIZE = 10
-CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+CLASS_WEIGHTS = [0.8, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
 def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers):
@@ -78,21 +78,23 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
                 index_start = FLANK_SIZE
                 end_index = index_start + window_size
 
-                output_enc, hidden_dec = encoder_model(images, encoder_hidden)
-                loss = 0
                 for seq_index in range(index_start, end_index):
-                    output_dec, hidden_dec, attn = decoder_model(decoder_input, output_enc, hidden_dec)
+                    x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
                     y = labels[:, seq_index - index_start]
 
+                    output_enc, hidden_dec = encoder_model(x, encoder_hidden)
+                    output_dec, decoder_hidden, attn = decoder_model(decoder_input, output_enc, hidden_dec)
+
+                    encoder_hidden = decoder_hidden.detach()
                     topv, topi = output_dec.topk(1)
                     decoder_input = topi.squeeze().detach()  # detach from history as input
 
                     # loss
-                    loss += test_criterion(output_dec, y)
+                    loss = test_criterion(output_dec, y)
                     confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes), y.data.contiguous().view(-1))
 
-                total_loss += loss.item()
-                total_images += labels.size(0)
+                    total_loss += loss.item()
+                    total_images += labels.size(0)
 
                 pbar.update(1)
                 cm_value = confusion_matrix.value()
@@ -195,9 +197,6 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                     images = images.cuda()
                     labels = labels.cuda()
 
-                encoder_optimizer.zero_grad()
-                decoder_optimizer.zero_grad()
-
                 teacher_forcing_ratio = 0.5
                 decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
                 encoder_hidden = torch.FloatTensor(labels.size(0), 2, hidden_size).zero_()
@@ -211,24 +210,28 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 index_start = FLANK_SIZE
                 end_index = index_start + window_size
 
-                output_enc, hidden_dec = encoder_model(images, encoder_hidden)
-
-                loss = 0
                 for seq_index in range(index_start, end_index):
-                    output_dec, hidden_dec, attn = decoder_model(decoder_input, output_enc, hidden_dec)
+                    encoder_optimizer.zero_grad()
+                    decoder_optimizer.zero_grad()
+
+                    x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
                     y = labels[:, seq_index - index_start]
+
+                    output_enc, hidden_dec = encoder_model(x, encoder_hidden)
+                    output_dec, decoder_hidden, attn = decoder_model(decoder_input, output_enc, hidden_dec)
+
+                    encoder_hidden = decoder_hidden.detach()
                     # loss + optimize
                     loss = criterion(output_dec, y)
+                    loss.backward()
+                    encoder_optimizer.step()
+                    decoder_optimizer.step()
 
                     if use_teacher_forcing:
                         decoder_input = y
                     else:
                         topv, topi = output_dec.topk(1)
                         decoder_input = topi.squeeze().detach()
-
-                    loss.backward(retain_graph=True)
-                    encoder_optimizer.step()
-                    decoder_optimizer.step()
 
                     total_loss += loss.item()
                     total_images += labels.size(0)
@@ -241,7 +244,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 progress_bar.update(1)
                 batch_no += 1
 
-                del decoder_input, encoder_hidden, loss
+                del decoder_input, encoder_hidden
             progress_bar.close()
 
         # save the model after each epoch

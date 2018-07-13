@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch.nn.functional as F
 
 FLANK_SIZE = 10
 CONTEXT_SIZE = FLANK_SIZE * 2 + 1
@@ -7,7 +8,20 @@ CONTEXT_SIZE = FLANK_SIZE * 2 + 1
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=1, bias=False, groups=in_planes)
+                     padding=1, bias=False)
+
+
+class BasicConv2d(nn.Module):
+
+    def __init__(self, in_channels, out_channels, **kwargs):
+        super(BasicConv2d, self).__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)
+        self.bn = nn.BatchNorm2d(out_channels, eps=0.001)
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.bn(x)
+        return F.relu(x, inplace=True)
 
 
 class BasicBlock(nn.Module):
@@ -84,16 +98,18 @@ class Bottleneck(nn.Module):
 class ResNet(nn.Module):
 
     def __init__(self, in_channels, block, layers):
-        self.inplanes = 20
+        self.inplanes = 80
         super(ResNet, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels, 20, kernel_size=(CONTEXT_SIZE, 5), groups=in_channels)
-        self.bn1 = nn.BatchNorm2d(20)
-        self.relu = nn.ReLU(inplace=True)
-        self.layer1 = self._make_layer(block, 40, layers[0])
-        self.layer2 = self._make_layer(block, 80, layers[1], stride=(1, 2))
-        self.layer3 = self._make_layer(block, 160, layers[2], stride=(1, 2))
-        self.layer4 = self._make_layer(block, 320, layers[3], stride=(1, 2))
-        self.avgpool = nn.AvgPool2d((1, 6), stride=(1, 2))
+        self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=(CONTEXT_SIZE, 3), groups=in_channels)
+        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1), groups=20)
+        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1), groups=40)
+        self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0))
+
+        self.layer1 = self._make_layer(block, 128, layers[0])
+        self.layer2 = self._make_layer(block, 256, layers[1], stride=(1, 2))
+        self.layer3 = self._make_layer(block, 512, layers[2], stride=(1, 2))
+        self.layer4 = self._make_layer(block, 1024, layers[3], stride=(1, 2))
+        self.avgpool = nn.AvgPool2d(kernel_size=(1, 6))
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -120,9 +136,10 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
+        x = self.Context_Conv2d_0a(x)
+        x = self.Context_Conv2d_0b(x)
+        x = self.Context_Conv2d_0c(x)
+        x = self.Conv2d_1a_3x3(x)
 
         x = self.layer1(x)
         x = self.layer2(x)
