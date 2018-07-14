@@ -37,7 +37,7 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
                              batch_size=batch_size,
                              shuffle=False,
                              num_workers=num_workers,
-                             pin_memory=False)
+                             pin_memory=gpu_mode)
     sys.stderr.write(TextColor.CYAN + 'Test data loaded\n')
 
     # set the evaluation mode of the model
@@ -140,7 +140,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                               batch_size=batch_size,
                               shuffle=True,
                               num_workers=num_workers,
-                              pin_memory=False
+                              pin_memory=gpu_mode
                               )
     # this needs to change
     hidden_size = 256
