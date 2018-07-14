@@ -13,7 +13,7 @@ with open(file_name, "r") as ins:
         line = line.split(',')
         gt = line[3]
         if gt[2] == '0':
-            if random.random() < 0.1:
+            if random.random() < 0.3:
                 print(line_for_print)
         else:
             print(line_for_print)
