@@ -20,10 +20,9 @@ class SequenceDataset(Dataset):
         self.transform = transform
 
         self.file_info = data_frame[0]
-        self.index_info = data_frame[1]
-        self.position_info = data_frame[2]
-        self.label = data_frame[3]
-        self.reference_seq = data_frame[4]
+        self.position_info = data_frame[1]
+        self.label = data_frame[2]
+        self.reference_seq = data_frame[3]
 
     @staticmethod
     def load_dictionary(dictionary_location):
@@ -35,10 +34,8 @@ class SequenceDataset(Dataset):
     def __getitem__(self, index):
         # load the image
         hdf5_file_path, allele_dict_path = self.file_info[index].split(' ')
-        hdf5_index = int(self.index_info[index])
         hdf5_file = h5py.File(hdf5_file_path, 'r')
-        image_dataset = hdf5_file['images']
-        img = image_dataset[hdf5_index]
+        img = np.array(hdf5_file['image'], dtype=np.int8)
         hdf5_file.close()
 
         # load positional information
