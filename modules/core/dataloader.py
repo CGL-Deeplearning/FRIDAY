@@ -36,10 +36,11 @@ class SequenceDataset(Dataset):
         # load the image
         hdf5_file_path, allele_dict_path = self.file_info[index].split(' ')
         hdf5_index = int(self.index_info[index])
-        hdf5_file = h5py.File(hdf5_file_path, 'r')
+        hdf5_file = h5py.File(hdf5_file_path, 'r', swmr=True)
         image_dataset = hdf5_file['images']
-        hdf5_file.close()
         img = image_dataset[hdf5_index]
+        hdf5_file.close()
+
         # load positional information
         chromosome_name, genomic_start_position = self.position_info[index].split(' ')
 
