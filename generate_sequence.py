@@ -158,12 +158,11 @@ class View:
 
             # create a h5py file where the images are stored
             hdf5_filename = os.path.abspath(self.output_dir) + '/' + str(self.chromosome_name) + '_' \
-                            + str(interval_start) + ".h5"
+                            + str(interval_start)
 
             allele_dict_filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
             allele_dict_filename = os.path.abspath(self.output_dir) + "/candidate_dictionaries/" \
                                    + allele_dict_filename + '.pkl'
-            file_info = hdf5_filename + " " + allele_dict_filename
 
             # get positional variants
             positional_variants = self.get_vcf_record_of_region(interval_start - SAFE_BOUNDARY_BASES,
@@ -183,23 +182,23 @@ class View:
 
             image_generator = ImageGenerator(self.candidate_finder)
             # get trainable sequences
-            sliced_images, summary_strings, img_h, img_w, img_c = \
+            summary_strings = \
                 image_generator.get_segmented_image_sequences(interval_start, interval_end, positional_variants,
-                                                              read_id_list, file_info)
+                                                              read_id_list, allele_dict_filename, hdf5_filename)
 
-            if len(sliced_images) > 0:
+            if len(summary_strings) > 0:
                 # save allele dictionary
                 allele_dictionary = image_generator.top_alleles
                 self.save_dictionary(allele_dictionary, allele_dict_filename)
 
                 self.summary_file.write(summary_strings)
 
-                hdf5_file = h5py.File(hdf5_filename, mode='w')
-                # the image dataset we save. The index name in h5py is "images".
-                img_dset = hdf5_file.create_dataset("images", (len(sliced_images),) + (img_h, img_w, img_c), np.int8,
-                                                    compression='gzip')
-                # save the images and labels to the h5py file
-                img_dset[...] = sliced_images
+                # hdf5_file = h5py.File(hdf5_filename, mode='w')
+                # # the image dataset we save. The index name in h5py is "images".
+                # img_dset = hdf5_file.create_dataset("images", (len(sliced_images),) + (img_h, img_w, img_c), np.int8,
+                #                                     compression='gzip')
+                # # save the images and labels to the h5py file
+                # img_dset[...] = sliced_images
 
 
 def test(view_object):
