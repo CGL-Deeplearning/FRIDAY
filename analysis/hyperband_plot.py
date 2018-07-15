@@ -11,31 +11,39 @@ def plot_hyperband(pkl_file_path):
     result_reverse_hash = defaultdict(list)
     param_id = 1
     results_xy = defaultdict(list)
+    min_loss = np.inf
+    max_loss = -np.inf
     for result in hyperband_results:
         params = tuple(result['params'].values())
         if params not in result_dict_hash.keys():
             result_dict_hash[params] = param_id
             result_reverse_hash[param_id] = params
             param_id += 1
-        results_xy[result_dict_hash[params]].append((result['iterations'], result['loss']))
+        results_xy[result_dict_hash[params]].append((int(result['iterations']), result['loss']))
 
     labels = []
     import operator
     results_xy = sorted(results_xy.items(), key=operator.itemgetter(1))
-
+    # print(len(results_xy))
     for i in range(len(results_xy)):
-        print(results_xy[i][1])
-        plt.plot(*zip(*results_xy[i][1]))
+        print(*zip(*results_xy[i][1]))
+        plt.plot(*zip(*results_xy[i][1]), 'o--')
         indx = results_xy[i][0]
-        print(result_reverse_hash[indx])
-        labels.append(r'$(%f ,%f)$' % (result_reverse_hash[indx][0], result_reverse_hash[indx][1]))
+        # labels.append(r'$(%f ,%f)$' % (result_reverse_hash[indx][0], result_reverse_hash[indx][1]))
     x1, x2, y1, y2 = plt.axis()
-    plt.axis((x1, x2, 0.00002, 0.00016))
-    plt.legend(labels, ncol=4, loc='upper center',
-               bbox_to_anchor=[0.5, 1.1],
-               columnspacing=1.0, labelspacing=0.0,
-               handletextpad=0.0, handlelength=1.5,
-               fancybox=True, shadow=True)
+    plt.axis((x1, x2, y1, 0.00005))
+    # print(min_loss, max_loss)
+    # plt.legend(labels, ncol=4, loc='upper center',
+    #            bbox_to_anchor=[0.5, 1.1],
+    #            columnspacing=1.0, labelspacing=0.0,
+    #            handletextpad=0.0, handlelength=1.5,
+    #            fancybox=True, shadow=True)
+    plt.text(3.5, 0.00004, 'Parameters tuned:\n1) Encoder learning rate\n2) Encoder weight decay\n'
+                           '3) Decoder learning rate\n4) Decoder weight decay', verticalalignment='center',
+             bbox=dict(facecolor='white', alpha=0.5))
+    plt.xlabel('Iterations')
+    plt.ylabel('Test loss')
+    plt.title('Hyper-parameter tuning with hyperband algorithm')
         # labels.append(r'$y = %ix + %i$' % (i, 5 * i))
     plt.show()
 
