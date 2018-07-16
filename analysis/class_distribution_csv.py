@@ -24,7 +24,7 @@ with open(file_name, "r") as ins:
         if not line:
             continue
         line = line.split(',')
-        gts = line[3]
+        gts = line[2]
         for gt in gts:
             dictionary[gt] += 1
 
