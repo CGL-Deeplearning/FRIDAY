@@ -11,15 +11,16 @@ def plot_hyperband(pkl_file_path):
     result_reverse_hash = defaultdict(list)
     param_id = 1
     results_xy = defaultdict(list)
-    min_loss = np.inf
-    max_loss = -np.inf
+
     for result in hyperband_results:
         params = tuple(result['params'].values())
         if params not in result_dict_hash.keys():
             result_dict_hash[params] = param_id
             result_reverse_hash[param_id] = params
             param_id += 1
-        results_xy[result_dict_hash[params]].append((int(result['iterations']), result['loss']))
+        losses = result['loss_epoch']
+        for iterations, loss in losses:
+            results_xy[result_dict_hash[params]].append((int(iterations + 1), loss))
 
     labels = []
     import operator
@@ -30,8 +31,8 @@ def plot_hyperband(pkl_file_path):
         plt.plot(*zip(*results_xy[i][1]), 'o--')
         indx = results_xy[i][0]
         # labels.append(r'$(%f ,%f)$' % (result_reverse_hash[indx][0], result_reverse_hash[indx][1]))
-    x1, x2, y1, y2 = plt.axis()
-    plt.axis((x1, x2, y1, 0.00005))
+    # x1, x2, y1, y2 = plt.axis()
+    # plt.axis((x1, x2, y1, 0.00005))
     # print(min_loss, max_loss)
     # plt.legend(labels, ncol=4, loc='upper center',
     #            bbox_to_anchor=[0.5, 1.1],

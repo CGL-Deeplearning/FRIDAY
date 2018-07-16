@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader
 from modules.core.dataloader import SequenceDataset
 from modules.handlers.TextColor import TextColor
 from modules.models.ModelHandler import ModelHandler
+from modules.hyperband.test import test
 """
 Train a model and return the model and optimizer trained.
 
@@ -25,8 +26,8 @@ FLANK_SIZE = 10
 CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
-def train(train_file, batch_size, epoch_limit, prev_ite, gpu_mode, num_workers, retrain_model, retrain_model_path,
-          hidden_size, encoder_lr, encoder_decay, decoder_lr, decoder_decay):
+def train(train_file, test_file, batch_size, epoch_limit, prev_ite, gpu_mode, num_workers, retrain_model,
+          retrain_model_path, hidden_size, encoder_lr, encoder_decay, decoder_lr, decoder_decay):
     """
     Train a model and save
     :param train_file: A CSV file containing train image information
@@ -91,6 +92,10 @@ def train(train_file, batch_size, epoch_limit, prev_ite, gpu_mode, num_workers, 
 
     # Train the Model
     sys.stderr.write(TextColor.PURPLE + 'Training starting\n' + TextColor.END)
+    stats = dict()
+    stats['loss_epoch'] = []
+    stats['accuracy_epoch'] = []
+
     for epoch in range(start_epoch, epoch_limit, 1):
         total_loss = 0
         total_images = 0
@@ -155,7 +160,14 @@ def train(train_file, batch_size, epoch_limit, prev_ite, gpu_mode, num_workers, 
                 del decoder_input, encoder_hidden
             progress_bar.close()
 
+        stats_dictioanry = test(test_file, batch_size, gpu_mode, encoder_model, decoder_model, num_workers,
+                                hidden_size, num_classes=6)
+        stats['loss'] = stats_dictioanry['loss']
+        stats['accuracy'] = stats_dictioanry['accuracy']
+        stats['loss_epoch'].append((epoch, stats_dictioanry['loss']))
+        stats['accuracy_epoch'].append((epoch, stats_dictioanry['accuracy']))
+
     sys.stderr.write(TextColor.PURPLE + 'Finished training\n' + TextColor.END)
 
-    return encoder_model, decoder_model, encoder_optimizer, decoder_optimizer
+    return encoder_model, decoder_model, encoder_optimizer, decoder_optimizer, stats
 

@@ -42,10 +42,10 @@ class WrapHyperband:
         self.space = {
             # hp.loguniform returns a value drawn according to exp(uniform(low, high)) so that the logarithm of the
             # return value is uniformly distributed.
-            'encoder_lr': hp.loguniform('enc_lr', -12, -4),
-            'encoder_l2': hp.loguniform('enc_l2', -12, -4),
-            'decoder_lr': hp.loguniform('dec_lr', -12, -4),
-            'decoder_l2': hp.loguniform('dec_l2', -12, -4),
+            'encoder_lr': hp.loguniform('enc_lr', -9, -4),
+            'decoder_lr': hp.loguniform('dec_lr', -9, -4),
+            'encoder_l2': hp.loguniform('enc_l2', -12, -5),
+            'decoder_l2': hp.loguniform('dec_l2', -12, -5),
         }
         self.train_file = train_file
         self.test_file = test_file
@@ -86,13 +86,15 @@ class WrapHyperband:
         dec_l2 = params['decoder_l2']
 
         # train a model
-        enc_model, dec_model, enc_optimizer, dec_optimizer = train(self.train_file, batch_size, epoch_limit, prev_ite,
-                                                                   self.gpu_mode, num_workers, retrain_model,
-                                                                   retrain_model_path, hidden_size,
-                                                                   enc_lr, enc_l2, dec_lr, dec_l2)
+        enc_model, dec_model, enc_optimizer, dec_optimizer, stats_dictionary = train(self.train_file, self.test_file,
+                                                                                     batch_size, epoch_limit, prev_ite,
+                                                                                     self.gpu_mode, num_workers,
+                                                                                     retrain_model,
+                                                                                     retrain_model_path, hidden_size,
+                                                                                     enc_lr, enc_l2, dec_lr, dec_l2)
         # test the trained mode
-        stats_dictionary = test(self.test_file, batch_size, self.gpu_mode, enc_model, dec_model, num_workers,
-                                hidden_size, num_classes=6)
+        # stats_dictionary = test(self.test_file, batch_size, self.gpu_mode, enc_model, dec_model, num_workers,
+        #                         hidden_size, num_classes=6)
 
         return enc_model, dec_model, enc_optimizer, dec_optimizer, stats_dictionary
 
