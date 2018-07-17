@@ -19,10 +19,10 @@ class SequenceDataset(Dataset):
             "Some images referenced in the CSV file were not found"
         self.transform = transform
 
-        self.file_info = data_frame[0]
-        self.position_info = data_frame[1]
-        self.label = data_frame[2]
-        self.reference_seq = data_frame[3]
+        self.file_info = list(data_frame[0])
+        self.position_info = list(data_frame[1])
+        self.label = list(data_frame[2])
+        self.reference_seq = list(data_frame[3])
 
     @staticmethod
     def load_dictionary(dictionary_location):
@@ -34,21 +34,21 @@ class SequenceDataset(Dataset):
     def __getitem__(self, index):
         # load the image
         hdf5_file_path, allele_dict_path = self.file_info[index].split(' ')
-        hdf5_file = h5py.File(hdf5_file_path, 'r')
-        img = np.array(hdf5_file['image'], dtype=np.int8)
-        hdf5_file.close()
-
         # load positional information
         chromosome_name, genomic_start_position = self.position_info[index].split(' ')
-
-        # load the labels
-        label = [int(x) for x in self.label[index]]
-        label = np.array(label)
-
         # load genomic position information
         reference_sequence = self.reference_seq[index]
+        # load the labels
+        label = self.label[index]
+        label = [int(x) for x in label]
 
-        img = img.astype(dtype=np.uint8)
+        hdf5_file = h5py.File(hdf5_file_path, 'r')
+        img = np.array(hdf5_file['image'], dtype=np.uint8)
+        hdf5_file.close()
+
+        label = np.array(label)
+
+        # img = img.astype(dtype=np.uint8)
         # type fix and convert to tensor
         if self.transform is not None:
             img = self.transform(img)
@@ -63,4 +63,4 @@ class SequenceDataset(Dataset):
         return img, label, positional_information
 
     def __len__(self):
-        return len(self.file_info.index)
+        return len(self.file_info)
