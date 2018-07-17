@@ -31,7 +31,7 @@ WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
 # ALL_HOM_BASE_RATIO = 0.005 (this worked great)
-ALL_HOM_BASE_RATIO = 0.3
+ALL_HOM_BASE_RATIO = 1
 # buffer around boundary to make sure all the bases in the interval is included
 POS_BUFFER = 0
 
