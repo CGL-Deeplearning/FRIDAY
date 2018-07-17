@@ -44,7 +44,6 @@ class SequenceDataset(Dataset):
 
         hdf5_file = h5py.File(hdf5_file_path, 'r')
         img = np.array(hdf5_file['image'], dtype=np.uint8)
-        hdf5_file.close()
 
         label = np.array(label)
 
