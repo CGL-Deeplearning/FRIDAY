@@ -599,7 +599,7 @@ class ImageGenerator:
             img_file = hdf5_filename + "_" + str(image_index) + ".h5"
             hdf5_file = h5py.File(img_file, mode='w')
             # the image dataset we save. The index name in h5py is "images".
-            img_dset = hdf5_file.create_dataset("image", (img_h, img_w, img_c), np.int8, compression='gzip')
+            img_dset = hdf5_file.create_dataset("image", (img_h, img_w, img_c), np.uint8)
             # save the images and labels to the h5py file
             img_dset[...] = sliced_image
             hdf5_file.close()
