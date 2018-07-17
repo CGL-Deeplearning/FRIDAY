@@ -585,13 +585,13 @@ class ImageGenerator:
             sub_label_seq = label_seq[label_left_index:label_right_index]
             sub_ref_seq = ref_seq[img_left_index:img_right_index]
 
-            hom_bases_count = collections.Counter(sub_label_seq)
-            other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
+            # hom_bases_count = collections.Counter(sub_label_seq)
+            # other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
 
-            if other_bases <= 0:
-                include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
-                if not include_this:
-                    continue
+            # if other_bases <= 0:
+            #     include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
+            #     if not include_this:
+            #         continue
 
             sliced_image = image[:, img_left_index:img_right_index, :]
             img_h, img_w, img_c = sliced_image.shape
