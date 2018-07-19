@@ -118,8 +118,8 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                 images = images.cuda()
                 labels = labels.cuda()
 
-            decoder_input = Variable(torch.LongTensor(labels.size(0), 1).zero_(), requires_grad=False)
-            encoder_hidden = Variable(torch.FloatTensor(labels.size(0), 2, hidden_size).zero_(), requires_grad=False)
+            decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
+            encoder_hidden = torch.FloatTensor(labels.size(0), 2, hidden_size).zero_()
 
             if gpu_mode:
                 decoder_input = decoder_input.cuda()
