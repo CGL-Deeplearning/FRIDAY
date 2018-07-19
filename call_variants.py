@@ -64,8 +64,7 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     testloader = DataLoader(test_dset,
                             batch_size=batch_size,
                             shuffle=False,
-                            num_workers=num_workers,
-                            pin_memory=gpu_mode
+                            num_workers=num_workers
                             )
 
     sys.stderr.write(TextColor.PURPLE + 'Data loading finished\n' + TextColor.END)
