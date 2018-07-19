@@ -521,7 +521,7 @@ class ImageGenerator:
             self.vcf_positional_dict[indx] = self.get_site_label_from_allele_tuple(pos, alts_with_genotype)
 
     def get_segmented_image_sequences(self, interval_start, interval_end, positional_variants, read_id_list,
-                                      dict_file_name, hdf5_filename):
+                                      file_info):
         """
         Generates segmented image sequences for training
         :param interval_start: Genomic interval start
@@ -540,7 +540,7 @@ class ImageGenerator:
         label_seq, ref_seq = self.get_label_sequence(interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS)
 
         summary_strings = ''
-        # sliced_images = []
+        sliced_images = []
         ref_row, ref_start, ref_end = self.image_row_for_ref
         img_started_in_indx = self.positional_info_position_to_index[interval_start - BOUNDARY_COLUMNS] - \
                               self.positional_info_position_to_index[ref_start]
@@ -550,6 +550,7 @@ class ImageGenerator:
 
         # this is sliding window based approach
         image_index = 0
+        img_w, img_h, img_c = 0, 0, 0
 
         # segment based image generation
         # this kind of works for sure
@@ -596,18 +597,19 @@ class ImageGenerator:
             sliced_image = image[:, img_left_index:img_right_index, :]
             img_h, img_w, img_c = sliced_image.shape
 
-            img_file = hdf5_filename + "_" + str(image_index) + ".h5"
-            hdf5_file = h5py.File(img_file, mode='w')
-            # the image dataset we save. The index name in h5py is "images".
-            img_dset = hdf5_file.create_dataset("image", (img_h, img_w, img_c), np.uint8)
-            # save the images and labels to the h5py file
-            img_dset[...] = sliced_image
-            hdf5_file.close()
+            # img_file = hdf5_filename + "_" + str(image_index) + ".h5"
+            # hdf5_file = h5py.File(img_file, mode='w')
+            # # the image dataset we save. The index name in h5py is "images".
+            # img_dset = hdf5_file.create_dataset("image", (img_h, img_w, img_c), np.uint8)
+            # # save the images and labels to the h5py file
+            # img_dset[...] = sliced_image
+            # hdf5_file.close()
 
-            # sliced_images.append(np.array(sliced_image, dtype=np.int8))
+            sliced_images.append(np.array(sliced_image, dtype=np.int8))
+            index_info = str(image_index)
             sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(sub_label_seq)
             sequence_info = sequence_info + "," + str(sub_ref_seq)
-            summary_string = img_file + " " + dict_file_name + "," + sequence_info + "\n"
+            summary_string = file_info + "," + index_info + "," + sequence_info + "\n"
             summary_strings = summary_strings + summary_string
 
             # if sub_label_seq != '0':
@@ -617,4 +619,4 @@ class ImageGenerator:
             #     exit()
             image_index += 1
 
-        return summary_strings
+        return sliced_images, summary_strings, img_h, img_w, img_c
