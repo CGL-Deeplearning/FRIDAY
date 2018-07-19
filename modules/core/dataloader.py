@@ -55,8 +55,6 @@ class SequenceDataset(Dataset):
 
         label = torch.from_numpy(label)
 
-        chromosome_name = chromosome_name
-
         positional_information = (chromosome_name, genomic_start_position, reference_sequence, allele_dict_path)
 
         return img, label, positional_information
