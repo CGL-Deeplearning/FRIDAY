@@ -31,21 +31,21 @@ def plot_hyperband(pkl_file_path):
         plt.plot(*zip(*results_xy[i][1]), 'o--')
         indx = results_xy[i][0]
         # labels.append(r'$(%f ,%f)$' % (result_reverse_hash[indx][0], result_reverse_hash[indx][1]))
-    # x1, x2, y1, y2 = plt.axis()
-    # plt.axis((x1, x2, y1, 0.00005))
+    x1, x2, y1, y2 = plt.axis()
+    # plt.axis((x1, x2, y1, 0.00075))
     # print(min_loss, max_loss)
     # plt.legend(labels, ncol=4, loc='upper center',
     #            bbox_to_anchor=[0.5, 1.1],
     #            columnspacing=1.0, labelspacing=0.0,
     #            handletextpad=0.0, handlelength=1.5,
     #            fancybox=True, shadow=True)
-    plt.text(3.5, 0.00004, 'Parameters tuned:\n1) Encoder learning rate\n2) Encoder weight decay\n'
-                           '3) Decoder learning rate\n4) Decoder weight decay', verticalalignment='center',
+    plt.text(6.5, 0.0020, 'Parameters tuned:\n1) Encoder learning rate\n2) Encoder weight decay\n'
+                          '3) Decoder learning rate\n4) Decoder weight decay', verticalalignment='center',
              bbox=dict(facecolor='white', alpha=0.5))
     plt.xlabel('Iterations')
     plt.ylabel('Test loss')
     plt.title('Hyper-parameter tuning with hyperband algorithm')
-        # labels.append(r'$y = %ix + %i$' % (i, 5 * i))
+    # labels.append(r'$y = %ix + %i$' % (i, 5 * i))
     plt.show()
 
 

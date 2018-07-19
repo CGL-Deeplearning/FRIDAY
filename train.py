@@ -60,7 +60,7 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
     accuracy = 0
     with torch.no_grad():
         with tqdm(total=len(test_loader), desc='Accuracy: ', leave=True, dynamic_ncols=True) as pbar:
-            for i, (images, labels, positional_information) in enumerate(test_loader):
+            for i, (images, labels) in enumerate(test_loader):
                 if gpu_mode:
                     # encoder_hidden = encoder_hidden.cuda()
                     images = images.cuda()
@@ -190,7 +190,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
         decoder_model.train()
         batch_no = 1
         with tqdm(total=len(train_loader), desc='Loss', leave=True, dynamic_ncols=True) as progress_bar:
-            for images, labels, positional_information in train_loader:
+            for images, labels in train_loader:
                 if gpu_mode:
                     # encoder_hidden = encoder_hidden.cuda()
                     images = images.cuda()

@@ -105,7 +105,7 @@ def train(train_file, test_file, batch_size, epoch_limit, prev_ite, gpu_mode, nu
         decoder_model.train()
         batch_no = 1
         with tqdm(total=len(train_loader), desc='Loss', leave=True, dynamic_ncols=True) as progress_bar:
-            for images, labels, positional_information in train_loader:
+            for images, labels in train_loader:
                 if gpu_mode:
                     # encoder_hidden = encoder_hidden.cuda()
                     images = images.cuda()

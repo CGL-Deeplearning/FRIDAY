@@ -8,7 +8,7 @@ from torchvision import transforms
 import multiprocessing
 from torch.autograd import Variable
 from modules.models.Seq2Seq_atn import EncoderCRNN, AttnDecoderRNN
-from modules.core.dataloader import SequenceDataset
+from modules.core.dataloader_test import SequenceDataset
 from modules.handlers.TextColor import TextColor
 from collections import defaultdict
 from modules.handlers.VcfWriter import VCFWriter
