@@ -118,12 +118,12 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                 images = images.cuda()
                 labels = labels.cuda()
 
-            decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
-            encoder_hidden = torch.FloatTensor(labels.size(0), 2, hidden_size).zero_()
-
-            if gpu_mode:
-                decoder_input = decoder_input.cuda()
-                encoder_hidden = encoder_hidden.cuda()
+            # decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
+            # encoder_hidden = torch.FloatTensor(labels.size(0), 2, hidden_size).zero_()
+            #
+            # if gpu_mode:
+            #     decoder_input = decoder_input.cuda()
+            #     encoder_hidden = encoder_hidden.cuda()
 
             chr_name, start_positions, reference_seqs, allele_dict_paths = positional_info
 
@@ -132,18 +132,18 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
             end_index = index_start + window_size
             unrolling_genomic_position = np.zeros((images.size(0)), dtype=np.int64)
 
-            output_enc, hidden_dec = encoder_model(images, encoder_hidden)
+            # output_enc, hidden_dec = encoder_model(images, encoder_hidden)
 
             for seq_index in range(index_start, end_index):
-                output_dec, hidden_dec, attn = decoder_model(decoder_input, output_enc, hidden_dec)
+                # output_dec, hidden_dec, attn = decoder_model(decoder_input, output_enc, hidden_dec)
 
-                topv, topi = output_dec.topk(1)
-                decoder_input = topi.squeeze().detach()  # detach from history as input
+                # topv, topi = output_dec.topk(1)
+                # decoder_input = topi.squeeze().detach()  # detach from history as input
 
                 # One dimensional softmax is used to convert the logits to probability distribution
-                m = nn.Softmax(dim=1)
-                soft_probs = m(output_dec)
-                output_preds = soft_probs.cpu()
+                # m = nn.Softmax(dim=1)
+                # soft_probs = m(output_dec)
+                # output_preds = soft_probs.cpu()
                 # record each of the predictions from a batch prediction
                 batches = images.size(0)
 
