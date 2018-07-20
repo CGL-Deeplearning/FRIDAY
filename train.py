@@ -15,6 +15,7 @@ from modules.core.dataloader import SequenceDataset
 from modules.models.ModelHandler import ModelHandler
 from modules.handlers.TextColor import TextColor
 """
+FREEZE THIS BRANCH TO HAVE 1 WINDOW!!
 Train a model and save the model that performs best.
 
 Input:
