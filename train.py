@@ -3,7 +3,7 @@ import os
 import sys
 import time
 import random
-import cProfile
+
 import torch
 import torch.nn.parallel
 import torchnet.meter as meter
@@ -94,6 +94,7 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
 
                     total_loss += loss.item()
                     total_images += labels.size(0)
+                    del output_enc, hidden_dec, attn
 
                 pbar.update(1)
                 cm_value = confusion_matrix.value()
@@ -101,6 +102,8 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
                 accuracy = 100.0 * (cm_value[1][1] + cm_value[2][2] + cm_value[3][3] + cm_value[4][4] +
                                     cm_value[5][5]) / denom
                 pbar.set_description("Accuracy: " + str(accuracy))
+
+                del images, labels, decoder_input, encoder_hidden
 
     avg_loss = total_loss / total_images if total_images else 0
     # print('Test Loss: ' + str(avg_loss))
@@ -138,7 +141,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
     train_data_set = SequenceDataset(train_file, transformations)
     train_loader = DataLoader(train_data_set,
                               batch_size=batch_size,
-                              shuffle=False,
+                              shuffle=True,
                               num_workers=num_workers,
                               pin_memory=gpu_mode
                               )
@@ -235,6 +238,8 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                     total_loss += loss.item()
                     total_images += labels.size(0)
 
+                    del output_enc, hidden_dec, attn
+
                 # update the progress bar
                 avg_loss = (total_loss / total_images) if total_images else 0
                 progress_bar.set_description("Loss: " + str(avg_loss))
@@ -243,7 +248,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 progress_bar.update(1)
                 batch_no += 1
 
-                del decoder_input, encoder_hidden
+                del images, labels, decoder_input, encoder_hidden
             progress_bar.close()
 
         # save the model after each epoch

@@ -112,15 +112,14 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     # TO HERE
     with torch.no_grad():
         for images, labels, positional_info in tqdm(testloader, file=sys.stdout, dynamic_ncols=True):
-
             if gpu_mode:
                 # encoder_hidden = encoder_hidden.cuda()
                 images = images.cuda()
                 labels = labels.cuda()
 
-            # decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
-            # encoder_hidden = torch.FloatTensor(labels.size(0), 2, hidden_size).zero_()
-            #
+            decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
+            encoder_hidden = torch.FloatTensor(labels.size(0), 2, hidden_size).zero_()
+
             # if gpu_mode:
             #     decoder_input = decoder_input.cuda()
             #     encoder_hidden = encoder_hidden.cuda()
@@ -132,22 +131,24 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
             end_index = index_start + window_size
             unrolling_genomic_position = np.zeros((images.size(0)), dtype=np.int64)
 
-            # output_enc, hidden_dec = encoder_model(images, encoder_hidden)
-
             for seq_index in range(index_start, end_index):
-                # output_dec, hidden_dec, attn = decoder_model(decoder_input, output_enc, hidden_dec)
+                x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
 
-                # topv, topi = output_dec.topk(1)
-                # decoder_input = topi.squeeze().detach()  # detach from history as input
+                output_enc, hidden_dec = encoder_model(x, encoder_hidden)
+                output_dec, decoder_hidden, attn = decoder_model(decoder_input, output_enc, hidden_dec)
+
+                encoder_hidden = decoder_hidden.detach()
+
+                topv, topi = output_dec.topk(1)
+                decoder_input = topi.squeeze().detach()  # detach from history as input
 
                 # One dimensional softmax is used to convert the logits to probability distribution
-                # m = nn.Softmax(dim=1)
-                # soft_probs = m(output_dec)
-                # output_preds = soft_probs.cpu()
+                m = nn.Softmax(dim=1)
+                soft_probs = m(output_dec)
+                output_preds = soft_probs.cpu()
                 # record each of the predictions from a batch prediction
                 batches = images.size(0)
 
-                # if seq_index - index_start == 2:
                 for batch in range(batches):
                     allele_dict_path = allele_dict_paths[batch]
                     chromosome_name = chr_name[batch]
@@ -160,19 +161,19 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                     if ref_base == '*':
                         continue
 
-                    true_label = labels[batch, seq_index - index_start]
-                    fake_probs = [0.0] * 6
-                    fake_probs[true_label] = 1.0
-                    top_n, top_i = torch.FloatTensor(fake_probs).topk(1)
-                    predicted_label = top_i[0].item()
-                    reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
-                    prediction_dict[current_genomic_position].append((predicted_label, fake_probs))
-
-                    # preds = output_preds[batch, :].data
-                    # top_n, top_i = preds.topk(1)
+                    # true_label = labels[batch, seq_index - index_start]
+                    # fake_probs = [0.0] * 6
+                    # fake_probs[true_label] = 1.0
+                    # top_n, top_i = torch.FloatTensor(fake_probs).topk(1)
                     # predicted_label = top_i[0].item()
                     # reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
-                    # prediction_dict[current_genomic_position].append((predicted_label, preds))
+                    # prediction_dict[current_genomic_position].append((predicted_label, fake_probs))
+
+                    preds = output_preds[batch, :].data
+                    top_n, top_i = preds.topk(1)
+                    predicted_label = top_i[0].item()
+                    reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
+                    prediction_dict[current_genomic_position].append((predicted_label, preds))
 
                     if ref_base != '*':
                         unrolling_genomic_position[batch] += 1

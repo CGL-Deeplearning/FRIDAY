@@ -1,6 +1,5 @@
 from __future__ import print_function
 import numpy as np
-from random import random
 from math import log, ceil
 from time import time, ctime
 import sys
@@ -8,7 +7,6 @@ from modules.handlers.TextColor import TextColor
 import logging
 import os
 from datetime import datetime
-import torch
 from modules.models.ModelHandler import ModelHandler
 """
 The Hyperband class used for hyper-parameter optimization.

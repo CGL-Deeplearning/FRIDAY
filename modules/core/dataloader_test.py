@@ -16,9 +16,7 @@ class SequenceDataset(Dataset):
     def __init__(self, csv_path, transform=None):
         data_frame = pd.read_csv(csv_path, header=None, dtype=str)
         # assert data_frame[0].apply(lambda x: os.path.isfile(x.split(' ')[0])).all(), \
-        #     "Some images referenced in the CSV file were not found"
-        # / data / users / jacob / image_output / run_07182018_172143 / chr19 / chr19_11546392.h5 / data / users / jacob / image_output / run_07182018_172143 / chr19 / candidate_dictionaries / chr19_11546392_11550865.pkl, 63, chr19
-        # 11546517, 0, TATTTTTAG * TAGAGATGGGG
+        # "Some images referenced in the CSV file were not found"
         self.transform = transform
 
         self.file_info = list(data_frame[0])
