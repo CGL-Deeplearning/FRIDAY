@@ -3,7 +3,7 @@ import os
 import sys
 import time
 import random
-
+import cProfile
 import torch
 import torch.nn.parallel
 import torchnet.meter as meter
@@ -189,7 +189,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
         encoder_model.train()
         decoder_model.train()
         batch_no = 1
-        with tqdm(total=len(train_loader), desc='Loss', leave=True, dynamic_ncols=True) as progress_bar:
+        with tqdm(total=min(len(train_loader), 800), desc='Loss', leave=True, dynamic_ncols=True) as progress_bar:
             for images, labels in train_loader:
                 if gpu_mode:
                     # encoder_hidden = encoder_hidden.cuda()
