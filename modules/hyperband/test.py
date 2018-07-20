@@ -55,7 +55,7 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
     accuracy = 0
     with torch.no_grad():
         with tqdm(total=len(test_loader), desc='Accuracy: ', leave=True, dynamic_ncols=True) as pbar:
-            for i, (images, labels, positional_information) in enumerate(test_loader):
+            for i, (images, labels) in enumerate(test_loader):
                 if gpu_mode:
                     # encoder_hidden = encoder_hidden.cuda()
                     images = images.cuda()

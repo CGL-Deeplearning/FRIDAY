@@ -103,6 +103,8 @@ class Hyperband:
 
                 sys.stderr.write(TextColor.BLUE + "\n*** {} configurations x {:.5f} iterations each"
                                  .format(n_configs, n_iterations) + "\n" + TextColor.END)
+                sys.stderr.write(TextColor.BLUE + "\n*** {} configurations left to evaluate"
+                                 .format((s + 1) - int(skip_last) - i) + "\n" + TextColor.END)
 
                 logging.info("\n*** {} configurations x {:.1f} iterations each".format(n_configs, n_iterations))
 
@@ -111,8 +113,9 @@ class Hyperband:
 
                 for config_index, config in enumerate(model_configs):
                     self.counter += 1
-                    sys.stderr.write(TextColor.BLUE + "{} | {} | lowest loss so far: {} | (run {})"
-                                     .format(self.counter, ctime(), self.best_loss, self.best_counter) + TextColor.END)
+                    sys.stderr.write(TextColor.BLUE + "{} | {} | lowest loss so far: {} | accuracy: {} | (run {})"
+                                     .format(self.counter, ctime(), self.best_loss, self.best_acc, self.best_counter)
+                                     + TextColor.END)
                     logging.info("{} | {} | lowest loss so far: {} | (run {})"
                                  .format(self.counter, ctime(), self.best_loss, self.best_counter))
 
@@ -140,7 +143,7 @@ class Hyperband:
                     if loss < self.best_loss:
                         self.best_loss = loss
                         self.best_counter = self.counter
-
+                        self.best_acc = result['accuracy']
                     params, retrain_model, model_path, prev_ite = config
                     save_model(enc_model, dec_model, enc_optimizer, dec_optimizer, model_path)
                     model_configs[config_index] = (params, True, model_path, int(n_iterations))
