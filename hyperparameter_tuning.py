@@ -104,7 +104,7 @@ class WrapHyperband:
         :param save_output: If true, output will beb saved in a pkl file
         :return:
         """
-        hyperband = Hyperband(self.get_params, self.try_params, max_iteration=self.max_epochs, downsample_rate=2,
+        hyperband = Hyperband(self.get_params, self.try_params, max_iteration=self.max_epochs, downsample_rate=3,
                               model_directory=self.model_out_dir, log_directory=self.log_directory)
         results = hyperband.run()
 
