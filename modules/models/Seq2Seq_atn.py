@@ -73,7 +73,7 @@ class EncoderCRNN(nn.Module):
         self.cnn_encoder = EncoderCNN(image_channels)
         self.hidden_size = hidden_size
         self.bidirectional = bidirectional
-        self.num_layers = 1
+        self.num_layers = 3
         self.gru = nn.GRU(1024, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional, batch_first=True)
 
     def forward(self, x, hidden):

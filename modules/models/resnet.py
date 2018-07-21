@@ -154,6 +154,6 @@ class ResNet(nn.Module):
 def resnet18_custom(input_channels):
     """Constructs a ResNet-18 model.
     """
-    model = ResNet(input_channels, BasicBlock, [2, 3, 3, 2])
+    model = ResNet(input_channels, BasicBlock, [3, 5, 5, 3])
 
     return model
