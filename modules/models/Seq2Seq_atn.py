@@ -68,12 +68,12 @@ class EncoderCNN(nn.Module):
 
 
 class EncoderCRNN(nn.Module):
-    def __init__(self, image_channels, hidden_size, bidirectional=True):
+    def __init__(self, image_channels, gru_layers, hidden_size, bidirectional=True):
         super(EncoderCRNN, self).__init__()
         self.cnn_encoder = EncoderCNN(image_channels)
         self.hidden_size = hidden_size
         self.bidirectional = bidirectional
-        self.num_layers = 3
+        self.num_layers = gru_layers
         self.gru = nn.GRU(1024, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional, batch_first=True)
 
     def forward(self, x, hidden):
@@ -102,7 +102,7 @@ class EncoderCRNN(nn.Module):
 
 
 class AttnDecoderRNN(nn.Module):
-    def __init__(self, hidden_size, num_classes, max_length, dropout_p=0.1, bidirectional=True):
+    def __init__(self, hidden_size, gru_layers, num_classes, max_length, dropout_p=0.1, bidirectional=True):
         super(AttnDecoderRNN, self).__init__()
         self.hidden_size = hidden_size
         self.num_classes = num_classes
@@ -112,7 +112,9 @@ class AttnDecoderRNN(nn.Module):
         self.embedding = nn.Embedding(self.num_classes, self.hidden_size)
         self.attention = Attention(self.hidden_size)
         self.dropout = nn.Dropout(self.dropout_p)
-        self.gru = nn.GRU(self.hidden_size, self.hidden_size, batch_first=True, bidirectional=True)
+        self.num_layers = gru_layers
+        self.gru = nn.GRU(self.hidden_size, self.hidden_size, num_layers=self.num_layers, batch_first=True,
+                          bidirectional=True)
         self.out = nn.Linear(self.hidden_size, self.num_classes)
 
     def forward_step(self, x, encoder_output, encoder_hidden):

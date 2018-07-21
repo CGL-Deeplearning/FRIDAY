@@ -8,10 +8,11 @@ class ModelHandler:
         torch.save(state, filename)
 
     @staticmethod
-    def get_new_model(input_channels, hidden_size, num_classes=6):
+    def get_new_model(input_channels, gru_layers, hidden_size, num_classes=6):
         # get a new model
-        encoder_model = EncoderCRNN(image_channels=input_channels, hidden_size=hidden_size)
-        decoder_model = AttnDecoderRNN(hidden_size=hidden_size, num_classes=num_classes, max_length=1)
+        encoder_model = EncoderCRNN(image_channels=input_channels, gru_layers=gru_layers, hidden_size=hidden_size)
+        decoder_model = AttnDecoderRNN(hidden_size=hidden_size, gru_layers=gru_layers, num_classes=num_classes,
+                                       max_length=1)
         return encoder_model, decoder_model
 
     @staticmethod

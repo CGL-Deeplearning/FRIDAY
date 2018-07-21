@@ -29,7 +29,7 @@ FLANK_SIZE = 10
 CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
-def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers):
+def test(data_file, batch_size, gru_layers, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers):
     transformations = transforms.Compose([transforms.ToTensor()])
 
     # data loader
@@ -68,7 +68,7 @@ def test(data_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_mo
                     labels = labels.cuda()
 
                 decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
-                encoder_hidden = torch.FloatTensor(labels.size(0), 2, hidden_size).zero_()
+                encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
 
                 if gpu_mode:
                     decoder_input = decoder_input.cuda()
@@ -148,7 +148,9 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                               )
     # this needs to change
     hidden_size = 256
+    gru_layers = 3
     encoder_model, decoder_model = ModelHandler.get_new_model(input_channels=10,
+                                                              gru_layers=gru_layers,
                                                               hidden_size=hidden_size,
                                                               num_classes=6)
     encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.0006936144984063986,
@@ -202,7 +204,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
 
                 teacher_forcing_ratio = 0.5
                 decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
-                encoder_hidden = torch.FloatTensor(labels.size(0), 2, hidden_size).zero_()
+                encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
 
                 use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
                 if gpu_mode:
@@ -257,7 +259,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                         model_dir+"_epoch_"+str(epoch+1))
         # After each epoch do validation and write the loggers
         confusion_matrix, test_loss, accuracy = \
-            test(test_file, batch_size, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers)
+            test(test_file, batch_size, gru_layers, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers)
 
         # update the loggers
         test_loss_logger.write(str(epoch+1) + "," + str(test_loss) + "," + str(accuracy) + "\n")

@@ -27,7 +27,7 @@ CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
 def train(train_file, test_file, batch_size, epoch_limit, prev_ite, gpu_mode, num_workers, retrain_model,
-          retrain_model_path, hidden_size, encoder_lr, encoder_decay, decoder_lr, decoder_decay):
+          retrain_model_path, gru_layers, hidden_size, encoder_lr, encoder_decay, decoder_lr, decoder_decay):
     """
     Train a model and save
     :param train_file: A CSV file containing train image information
@@ -56,6 +56,7 @@ def train(train_file, test_file, batch_size, epoch_limit, prev_ite, gpu_mode, nu
                               )
     # this needs to change
     encoder_model, decoder_model = ModelHandler.get_new_model(input_channels=10,
+                                                              gru_layers=gru_layers,
                                                               hidden_size=hidden_size,
                                                               num_classes=6)
     encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=encoder_lr,
@@ -113,7 +114,7 @@ def train(train_file, test_file, batch_size, epoch_limit, prev_ite, gpu_mode, nu
 
                 teacher_forcing_ratio = 0.5
                 decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
-                encoder_hidden = torch.FloatTensor(labels.size(0), 2, hidden_size).zero_()
+                encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
 
                 use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
                 if gpu_mode:

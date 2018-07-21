@@ -23,7 +23,7 @@ FLANK_SIZE = 10
 CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
-def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_workers, hidden_size, num_classes=6):
+def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_workers, gru_layers, hidden_size, num_classes=6):
     transformations = transforms.Compose([transforms.ToTensor()])
 
     # data loader
@@ -62,7 +62,7 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
                     labels = labels.cuda()
 
                 decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
-                encoder_hidden = torch.FloatTensor(labels.size(0), 2, hidden_size).zero_()
+                encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
 
                 if gpu_mode:
                     decoder_input = decoder_input.cuda()

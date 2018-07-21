@@ -76,7 +76,8 @@ class WrapHyperband:
         sys.stderr.write(TextColor.BLUE + '\nEpochs: ' + str(n_iterations) + "\n" + TextColor.END)
         sys.stderr.write(TextColor.BLUE + str(params) + "\n" + TextColor.END)
 
-        hidden_size = 256
+        hidden_size = 512
+        gru_layers = 3
         batch_size = self.batch_size
         num_workers = self.num_workers
         epoch_limit = int(n_iterations)
@@ -89,8 +90,8 @@ class WrapHyperband:
         enc_model, dec_model, enc_optimizer, dec_optimizer, stats_dictionary = train(self.train_file, self.test_file,
                                                                                      batch_size, epoch_limit, prev_ite,
                                                                                      self.gpu_mode, num_workers,
-                                                                                     retrain_model,
-                                                                                     retrain_model_path, hidden_size,
+                                                                                     retrain_model, retrain_model_path,
+                                                                                     gru_layers, hidden_size,
                                                                                      enc_lr, enc_l2, dec_lr, dec_l2)
         # test the trained mode
         # stats_dictionary = test(self.test_file, batch_size, self.gpu_mode, enc_model, dec_model, num_workers,
