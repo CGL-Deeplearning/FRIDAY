@@ -162,7 +162,7 @@ def train(train_file, test_file, batch_size, epoch_limit, prev_ite, gpu_mode, nu
             progress_bar.close()
 
         stats_dictioanry = test(test_file, batch_size, gpu_mode, encoder_model, decoder_model, num_workers,
-                                hidden_size, num_classes=6)
+                                gru_layers, hidden_size, num_classes=6)
         stats['loss'] = stats_dictioanry['loss']
         stats['accuracy'] = stats_dictioanry['accuracy']
         stats['loss_epoch'].append((epoch, stats_dictioanry['loss']))

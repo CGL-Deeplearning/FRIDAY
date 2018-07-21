@@ -46,6 +46,9 @@ class WrapHyperband:
             'decoder_lr': hp.loguniform('dec_lr', -12, -4),
             'encoder_l2': hp.loguniform('enc_l2', -12, -4),
             'decoder_l2': hp.loguniform('dec_l2', -12, -4),
+            'hidden_size': hp.choice('hs', (128, 256, 512)),
+            'gru_layers': hp.choice('gl', (1, 3, 5)),
+            'batch_size': hp.choice('bs', (3500, 4200, 7000)),
         }
         self.train_file = train_file
         self.test_file = test_file
@@ -76,11 +79,11 @@ class WrapHyperband:
         sys.stderr.write(TextColor.BLUE + '\nEpochs: ' + str(n_iterations) + "\n" + TextColor.END)
         sys.stderr.write(TextColor.BLUE + str(params) + "\n" + TextColor.END)
 
-        hidden_size = 512
-        gru_layers = 3
-        batch_size = self.batch_size
         num_workers = self.num_workers
         epoch_limit = int(n_iterations)
+        hidden_size = params['hidden_size']
+        gru_layers = params['gru_layers']
+        batch_size = params['batch_size']
         enc_lr = params['encoder_lr']
         enc_l2 = params['encoder_l2']
         dec_lr = params['decoder_lr']
