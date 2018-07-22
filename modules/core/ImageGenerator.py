@@ -23,9 +23,9 @@ VCF_INDEX_BUFFER = -1
 
 # Per sequence threshold
 # jump window size so the last 50 bases will be overlapping
-WINDOW_OVERLAP_JUMP = 10
+WINDOW_OVERLAP_JUMP = 250
 # image size
-WINDOW_SIZE = 1
+WINDOW_SIZE = 300
 # flanking size is the amount add on each size
 WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety
@@ -553,38 +553,27 @@ class ImageGenerator:
         img_w, img_h, img_c = 0, 0, 0
 
         # segment based image generation
-        # this kind of works for sure
-        for i, pos in enumerate(self.top_alleles.keys()):
-            allele, freq = self.top_alleles[pos][0]
-
-            if allele[1] == SNP and freq <= 2:
+        pos = interval_start
+        while pos <= interval_end:
+            if pos < interval_start or pos > interval_end:
                 continue
-
             start_index = self.positional_info_position_to_index[pos] - \
                           self.positional_info_position_to_index[ref_start]
             left_window_index = start_index - WINDOW_FLANKING_SIZE
             right_window_index = start_index + WINDOW_SIZE + WINDOW_FLANKING_SIZE
 
-            if pos < interval_start - POS_BUFFER or pos > interval_end + POS_BUFFER:
-                continue
-
-            # end_pos = self.positional_info_index_to_position[start_index + WINDOW_SIZE][0]
-
-            # if end_pos < interval_start - POS_BUFFER or end_pos > interval_end + POS_BUFFER:
-            #     continue
-
             if left_window_index < img_started_in_indx:
+                pos += 1
                 continue
             if right_window_index > img_ended_in_indx:
                 break
+            img_left_indx = left_window_index - img_started_in_indx
+            img_right_indx = right_window_index - img_started_in_indx
+            label_left_indx = start_index
+            label_right_indx = start_index + WINDOW_SIZE
 
-            img_left_index = left_window_index - img_started_in_indx
-            img_right_index = right_window_index - img_started_in_indx
-            label_left_index = start_index
-            label_right_index = start_index + WINDOW_SIZE
-
-            sub_label_seq = label_seq[label_left_index:label_right_index]
-            sub_ref_seq = ref_seq[img_left_index:img_right_index]
+            sub_label_seq = label_seq[label_left_indx:label_right_indx]
+            sub_ref_seq = ref_seq[img_left_indx:img_right_indx]
 
             # hom_bases_count = collections.Counter(sub_label_seq)
             # other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
@@ -593,30 +582,28 @@ class ImageGenerator:
             #     include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
             #     if not include_this:
             #         continue
-
-            sliced_image = image[:, img_left_index:img_right_index, :]
+            sliced_image = image[:, img_left_indx:img_right_indx, :]
             img_h, img_w, img_c = sliced_image.shape
 
-            # img_file = hdf5_filename + "_" + str(image_index) + ".h5"
-            # hdf5_file = h5py.File(img_file, mode='w')
-            # # the image dataset we save. The index name in h5py is "images".
-            # img_dset = hdf5_file.create_dataset("image", (img_h, img_w, img_c), np.uint8)
-            # # save the images and labels to the h5py file
-            # img_dset[...] = sliced_image
-            # hdf5_file.close()
+            # ---- VISUALIZE GENERATED IMAGE -----
+            # from analysis.analyze_png_img import analyze_array
+            # print(" "*WINDOW_FLANKING_SIZE + sub_label_seq)
+            # analyze_array(sliced_image)
+            # exit()
 
-            sliced_images.append(np.array(sliced_image, dtype=np.int8))
-            index_info = str(image_index)
+            sliced_images.append(np.array(sliced_image, dtype=np.uint8))
             sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(sub_label_seq)
             sequence_info = sequence_info + "," + str(sub_ref_seq)
+            index_info = str(image_index)
             summary_string = file_info + "," + index_info + "," + sequence_info + "\n"
             summary_strings = summary_strings + summary_string
-
-            # if sub_label_seq != '0':
-            #     from analysis.analyze_png_img import analyze_array
-            #     print(' ' * WINDOW_FLANKING_SIZE + str(sub_label_seq))
-            #     analyze_array(sliced_image)
-            #     exit()
             image_index += 1
+
+            end_pos = self.positional_info_index_to_position[img_right_indx][0]
+
+            if end_pos - pos >= WINDOW_OVERLAP_JUMP:
+                pos += WINDOW_OVERLAP_JUMP
+            else:
+                pos += (end_pos-pos - 20)
 
         return sliced_images, summary_strings, img_h, img_w, img_c
