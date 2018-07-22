@@ -98,7 +98,7 @@ class Hyperband:
                 # and keep best (n_configs / eta) configurations
 
                 n_configs = n * self.eta ** (-i)
-                n_iterations = r * self.eta ** (i)
+                n_iterations = int(ceil(r * self.eta ** (i)))
 
                 sys.stderr.write(TextColor.BLUE + "\n*** {} configurations x {:.5f} iterations each"
                                  .format(n_configs, n_iterations) + "\n" + TextColor.END)
@@ -143,7 +143,7 @@ class Hyperband:
                         self.best_acc = result['accuracy']
                     params, retrain_model, model_path, prev_ite = config
                     save_model(enc_model, dec_model, enc_optimizer, dec_optimizer, model_path)
-                    model_configs[config_index] = (params, True, model_path, int(n_iterations))
+                    model_configs[config_index] = (params, True, model_path, n_iterations)
 
                     result['counter'] = self.counter
                     result['seconds'] = seconds
