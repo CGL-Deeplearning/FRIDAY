@@ -112,12 +112,17 @@ class WrapHyperband:
         results = hyperband.run()
 
         if save_output:
-            with open('results.pkl', 'wb') as f:
+            with open(self.log_directory + 'results.pkl', 'wb') as f:
                 pickle.dump(results, f)
 
         # Print top 5 configs based on loss
         results = sorted(results, key=lambda r: r['loss'])[:5]
-        print(results)
+        for i, result in enumerate(results):
+            print(i+1)
+            print("Loss:\t\t", result['loss'])
+            print("Accuracy:\t", result['accuracy'])
+            print("Params:\t\t", result['params'])
+            print("Model path:\t", result['model_path'])
 
 
 def handle_output_directory(output_dir):

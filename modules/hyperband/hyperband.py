@@ -80,6 +80,7 @@ class Hyperband:
         :param skip_last: Skip the last iteration
         :return:
         """
+        model_id = 0
         for s in reversed(range(self.s_max + 1)):
 
             # initial number of configurations
@@ -89,8 +90,8 @@ class Hyperband:
             r = self.max_iter * self.eta ** (-s)
 
             # n random configurations
-            model_configs = [(self.get_params(), False, self.model_dir + 'con_' + str(i) + '.pkl', 0) for i in range(n)]
-
+            model_configs = [(self.get_params(), False, self.model_dir + 'con_' + str(model_id + i) + '.pkl', 0) for i in range(n)]
+            model_id += n
             for i in range((s + 1) - int(skip_last)):  # changed from s + 1
 
                 # Run each of the n configs for <iterations>
@@ -101,8 +102,6 @@ class Hyperband:
 
                 sys.stderr.write(TextColor.BLUE + "\n*** {} configurations x {:.5f} iterations each"
                                  .format(n_configs, n_iterations) + "\n" + TextColor.END)
-                sys.stderr.write(TextColor.BLUE + "\n*** {} configurations left to evaluate"
-                                 .format((s + 1) - int(skip_last) - i) + "\n" + TextColor.END)
 
                 logging.info("\n*** {} configurations x {:.1f} iterations each".format(n_configs, n_iterations))
 
