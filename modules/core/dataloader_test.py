@@ -16,12 +16,14 @@ class SequenceDataset(Dataset):
     def __init__(self, csv_path, transform=None):
         data_frame = pd.read_csv(csv_path, header=None, dtype=str)
         # assert data_frame[0].apply(lambda x: os.path.isfile(x.split(' ')[0])).all(), \
-        #     "Some images referenced in the CSV file were not found"
+        # "Some images referenced in the CSV file were not found"
         self.transform = transform
 
         self.file_info = list(data_frame[0])
         self.index_info = list(data_frame[1])
+        self.position_info = list(data_frame[2])
         self.label = list(data_frame[3])
+        self.reference_seq = list(data_frame[4])
 
     @staticmethod
     def load_dictionary(dictionary_location):
@@ -34,17 +36,21 @@ class SequenceDataset(Dataset):
         # load the image
         hdf5_file_path, allele_dict_path = self.file_info[index].split(' ')
         hdf5_index = int(self.index_info[index])
+        # load positional information
+        chromosome_name, genomic_start_position = self.position_info[index].split(' ')
+        # load genomic position information
+        reference_sequence = self.reference_seq[index]
+        # load the labels
+        label = self.label[index]
+        label = [int(x) for x in label]
 
         hdf5_file = h5py.File(hdf5_file_path, 'r')
         image_dataset = hdf5_file['images']
         img = np.array(image_dataset[hdf5_index], dtype=np.uint8)
-        hdf5_file.close()
 
-        # load the labels
-        label = self.label[index]
-        label = [int(x) for x in label]
         label = np.array(label)
 
+        # img = img.astype(dtype=np.uint8)
         # type fix and convert to tensor
         if self.transform is not None:
             img = self.transform(img)
@@ -52,7 +58,9 @@ class SequenceDataset(Dataset):
 
         label = torch.from_numpy(label)
 
-        return img, label
+        positional_information = (chromosome_name, genomic_start_position, reference_sequence, allele_dict_path)
+
+        return img, label, positional_information
 
     def __len__(self):
         return len(self.file_info)

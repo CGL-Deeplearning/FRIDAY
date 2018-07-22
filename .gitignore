@@ -111,6 +111,7 @@ vcf_output/
 
 # trained models
 trained_model/
+hyperband_output/
 
 # the DS_Store
 .DS_Store

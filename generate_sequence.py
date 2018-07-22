@@ -4,6 +4,8 @@ import os
 import sys
 import multiprocessing
 import pickle
+import h5py
+import numpy as np
 from tqdm import tqdm
 
 from modules.core.CandidateFinder import CandidateFinder
@@ -39,11 +41,12 @@ LOG_LEVEL_HIGH = 0
 LOG_LEVEL_LOW = 1
 LOG_LEVEL = LOG_LEVEL_LOW
 
+TRAIN_MODE = 1
+TEST_MODE = 2
 
-# only select STRATIFICATION_RATE% of the total homozygous cases if they are dominant
-STRATIFICATION_RATE = 1.0
-MIN_SEQUENCE_BASE_LENGTH_THRESHOLD = 20
-MIN_VARIANT_IN_WINDOW_THRESHOLD = 1
+
+MIN_SEQUENCE_BASE_LENGTH_THRESHOLD = 0
+MIN_VARIANT_IN_WINDOW_THRESHOLD = 0
 BED_INDEX_BUFFER = -1
 SAFE_BOUNDARY_BASES = 50
 
@@ -141,10 +144,9 @@ class View:
         :param end_index: End index of the confident interval
         :return:
         """
-
         for i in range(start_index, end_index):
-            interval_start, interval_end = self.confidence_intervals[i][0]+BED_INDEX_BUFFER, \
-                                           self.confidence_intervals[i][1]+BED_INDEX_BUFFER
+            interval_start, interval_end = self.confidence_intervals[i][0] + BED_INDEX_BUFFER, \
+                                           self.confidence_intervals[i][1] + BED_INDEX_BUFFER
 
             interval_length = interval_end - interval_start
             if interval_length < MIN_SEQUENCE_BASE_LENGTH_THRESHOLD:
@@ -153,6 +155,16 @@ class View:
                 if LOG_LEVEL == LOG_LEVEL_HIGH:
                     sys.stderr.write(TextColor.BLUE + "INFO: " + warn_msg + TextColor.END)
                 continue
+
+            # create a h5py file where the images are stored
+            hdf5_filename = os.path.abspath(self.output_dir) + '/' + str(self.chromosome_name) + '_' \
+                            + str(interval_start) + ".h5"
+
+            allele_dict_filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
+            allele_dict_filename = os.path.abspath(self.output_dir) + "/candidate_dictionaries/" \
+                                   + allele_dict_filename + '.pkl'
+
+            file_info = hdf5_filename + " " + allele_dict_filename
 
             # get positional variants
             positional_variants = self.get_vcf_record_of_region(interval_start - SAFE_BOUNDARY_BASES,
@@ -172,45 +184,23 @@ class View:
 
             image_generator = ImageGenerator(self.candidate_finder)
             # get trainable sequences
-            img, sequences = image_generator.get_segmented_image_sequences(interval_start, interval_end,
-                                                                           positional_variants, read_id_list)
+            sliced_images, summary_strings, img_h, img_w, img_c = \
+                image_generator.get_segmented_image_sequences(interval_start, interval_end, positional_variants,
+                                                              read_id_list, file_info)
 
-            # save allele dictionary
-            allele_dictionary = image_generator.top_alleles
-            allele_dict_filename = self.chromosome_name + '_' + str(interval_start) + '_' + str(interval_end)
-            allele_dict_filename = os.path.abspath(self.output_dir) + "/candidate_dictionaries/" \
-                                 + allele_dict_filename + '.pkl'
-            self.save_dictionary(allele_dictionary, allele_dict_filename)
+            if len(summary_strings) > 0:
+                # save allele dictionary
+                allele_dictionary = image_generator.top_alleles
+                self.save_dictionary(allele_dictionary, allele_dict_filename)
 
-            # gather all information about the saved image
-            # img_shape_string = ' '.join([str(x) for x in img.shape])
-            # file_location = os.path.abspath(self.output_dir) + "/" + filename
-            # file_info = file_location + " " + img_shape_string
+                self.summary_file.write(summary_strings)
 
-            for counter, training_sequence in enumerate(sequences):
-                pos, left_index, right_index, label_seq, sub_ref_seq = training_sequence
-
-                # the sequence information
-                sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(label_seq)
-                sequence_info = sequence_info + "," + str(sub_ref_seq)
-                # file location and information
-                filename = self.chromosome_name + '_' + str(pos)
-                file_location = os.path.abspath(self.output_dir) + "/" + filename
-
-                sub_img = img[:, left_index:right_index, :]
-                img_shape_string = ' '.join([str(x) for x in sub_img.shape])
-                file_info = file_location + " " + allele_dict_filename + " " + img_shape_string
-
-                image_generator.save_image_as_png(sub_img, self.output_dir, filename)
-
-                summary_string = file_info + "," + sequence_info + "\n"
-
-                self.summary_file.write(summary_string)
-
-                # from analysis.analyze_png_img import analyze_it
-                # print(" " * 10 + label_seq)
-                # analyze_it(self.output_dir+filename+'.png', sub_img.shape)
-                # exit()
+                hdf5_file = h5py.File(hdf5_filename, mode='w')
+                # the image dataset we save. The index name in h5py is "images".
+                img_dset = hdf5_file.create_dataset("images", (len(sliced_images),) + (img_h, img_w, img_c), np.uint8,
+                                                    compression='gzip')
+                # save the images and labels to the h5py file
+                img_dset[...] = sliced_images
 
 
 def test(view_object):
@@ -343,9 +333,9 @@ def genome_level_parallelization(bam_file, ref_file, vcf_file, output_dir_path, 
     """
 
     # --- NEED WORK HERE --- GET THE CHROMOSOME NAMES FROM THE BAM FILE
-    # chr_list = ["chr1", "chr2", "chr3", "chr4", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11",
-    #             "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21", "chr22"]
-    chr_list = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"]
+    chr_list = ["chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11",
+                "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", "chr18", "chr19"]
+    # chr_list = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"]
 
     program_start_time = time.time()
 

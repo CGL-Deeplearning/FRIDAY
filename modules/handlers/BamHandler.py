@@ -26,6 +26,8 @@ class BamHandler:
         :param pos: Position [ex 100001]
         :return: pysam.AlignmentFile.pileup object
         """
+        if start < 0:
+            start = 0
         # get pileup columns
         pileup_columns = self.bamFile.pileup(chromosome_name, start, end, truncate=True)
         # return pileup columns
@@ -38,6 +40,8 @@ class BamHandler:
         :param pos: Position [ex 100001]
         :return: pysam.AlignmentFile.pileup object
         """
+        if pos < 0:
+            pos = 0
         # get pileup columns
         pileup_columns = self.bamFile.pileup(contig, pos, pos+1)
         # return pileup columns
@@ -51,6 +55,8 @@ class BamHandler:
         :param stop: Site end in the chromosome
         :return: Reads that align to that site
         """
+        if start < 0:
+            start = 0
         return self.bamFile.fetch(chromosome_name, start, stop)
 
     def get_header_sq(self):

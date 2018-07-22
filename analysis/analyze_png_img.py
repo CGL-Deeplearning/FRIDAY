@@ -35,8 +35,6 @@ def get_alt_support_by_color(support_color):
     """
     if 240.0 <= support_color <= 255.0:
         return 1
-    if 117.0 <= support_color <= 131.0:
-        return 2
     if 0.0 <= support_color <= 10.0:
         return 0
 
@@ -68,9 +66,9 @@ def get_match_ref_color(is_match):
     :param is_match: If true, base matches to reference
     :return:
     """
-    if is_match == 50:
+    if 45.0 <= is_match <= 55.0:
         return 1
-    elif is_match == 254:
+    elif 250.0 <= is_match <= 255.0:
         return 0
 
 
@@ -100,9 +98,192 @@ def get_cigar_by_color(cigar_code):
         return 2
 
 
-def analyze_array(img):
+def visualize_match_channel(img):
     img_h, img_w, img_c = img.shape
-    print("BASE CHANNEL")
+    img_h = 28
+    entire_image = []
+    for i in range(img_h):
+        image_row = []
+        for j in range(img_w):
+            if img[i][j][4] != 0:
+                print(get_match_ref_color(img[i][j][4]), end='')
+                if get_match_ref_color(img[i][j][4]) == 0:
+                    image_row.append([0, 255, 0, 255])
+                if get_match_ref_color(img[i][j][4]) == 1:
+                    image_row.append([0, 54, 0, 255])
+            else:
+                print(' ', end='')
+                image_row.append([0, 0, 0, 255])
+        entire_image.append(image_row)
+        print()
+    entire_image = np.array(entire_image)
+    from scipy import misc
+    misc.imsave("Mismatch_visualized" + ".png", entire_image, format="PNG")
+
+
+def visualize_allele_channel(img):
+    img_h, img_w, img_c = img.shape
+    img_h = 28
+    entire_image = []
+    for i in range(img_h):
+        image_row = []
+        for j in range(img_w):
+            if img[i][j][6] != 0:
+                print(get_alt_support_by_color(img[i][j][6]), end='')
+                if get_alt_support_by_color(img[i][j][6]) == 0:
+                    image_row.append([54, 0, 0, 255])
+                if get_alt_support_by_color(img[i][j][6]) == 1:
+                    image_row.append([255, 0, 0, 255])
+            else:
+                print(' ', end='')
+                image_row.append([0, 0, 0, 255])
+        entire_image.append(image_row)
+        print()
+    entire_image = np.array(entire_image)
+    from scipy import misc
+    misc.imsave("Alt1_visualized" + ".png", entire_image, format="PNG")
+
+    entire_image = []
+    for i in range(img_h):
+        image_row = []
+        for j in range(img_w):
+            if img[i][j][8] != 0:
+                print(get_alt_support_by_color(img[i][j][8]), end='')
+                if get_alt_support_by_color(img[i][j][8]) == 0:
+                    image_row.append([0, 0, 54, 255])
+                if get_alt_support_by_color(img[i][j][8]) == 1:
+                    image_row.append([0, 0, 255, 255])
+            else:
+                print(' ', end='')
+                image_row.append([0, 0, 0, 255])
+        entire_image.append(image_row)
+        print()
+    entire_image = np.array(entire_image)
+    from scipy import misc
+    misc.imsave("Alt2_rgb" + ".png", entire_image, format="PNG")
+
+
+def visualize_allele_rgb(img):
+    img_h, img_w, img_c = img.shape
+    img_h = 28
+    entire_image = []
+    for i in range(img_h):
+        image_row = []
+        for j in range(img_w):
+            if img[i][j][6] != 0:
+                print(get_alt_support_by_color(img[i][j][6]), end='')
+                if get_alt_support_by_color(img[i][j][6]) == 0:
+                    image_row.append([255, 255, 255, 255])
+                if get_alt_support_by_color(img[i][j][6]) == 1:
+                    if get_base_by_color(img[i][j][0]) == get_base_by_color(img[0][j][0]) and i > 0:
+                        image_row.append([255, 255, 255, 255])
+                    elif get_base_by_color(img[i][j][0]) == 'A':
+                        image_row.append([0, 0, 255, 255])
+                    elif get_base_by_color(img[i][j][0]) == 'C':
+                        image_row.append([255, 0, 0, 255])
+                    elif get_base_by_color(img[i][j][0]) == 'G':
+                        image_row.append([0, 255, 0, 255])
+                    elif get_base_by_color(img[i][j][0]) == 'T':
+                        image_row.append([255, 255, 0, 255])
+                    else:
+                        # purple
+                        image_row.append([160, 32, 240, 255])
+            else:
+                print(' ', end='')
+                image_row.append([0, 0, 0, 255])
+        entire_image.append(image_row)
+        print()
+    entire_image = np.array(entire_image)
+    from scipy import misc
+    misc.imsave("Alt1_rgb" + ".png", entire_image, format="PNG")
+
+    entire_image = []
+    for i in range(img_h):
+        image_row = []
+        for j in range(img_w):
+            if img[i][j][8] != 0:
+                print(get_alt_support_by_color(img[i][j][8]), end='')
+                if get_alt_support_by_color(img[i][j][8]) == 0:
+                    image_row.append([255, 255, 255, 255])
+                if get_alt_support_by_color(img[i][j][8]) == 1:
+                    if get_base_by_color(img[i][j][0]) == get_base_by_color(img[0][j][0]) and i > 0:
+                        image_row.append([255, 255, 255, 255])
+                    elif get_base_by_color(img[i][j][0]) == 'A':
+                        image_row.append([0, 0, 255, 255])
+                    elif get_base_by_color(img[i][j][0]) == 'C':
+                        image_row.append([255, 0, 0, 255])
+                    elif get_base_by_color(img[i][j][0]) == 'G':
+                        image_row.append([0, 255, 0, 255])
+                    elif get_base_by_color(img[i][j][0]) == 'T':
+                        image_row.append([255, 255, 0, 255])
+                    else:
+                        # purple
+                        image_row.append([160, 32, 240, 255])
+            else:
+                print(' ', end='')
+                image_row.append([0, 0, 0, 255])
+        entire_image.append(image_row)
+        print()
+    entire_image = np.array(entire_image)
+    from scipy import misc
+    misc.imsave("Alt2_rgb" + ".png", entire_image, format="PNG")
+
+
+def visualize_map_quality_channel(img):
+    img_h, img_w, img_c = img.shape
+    img_h = 28
+    entire_image = []
+    for i in range(img_h):
+        image_row = []
+        for j in range(img_w):
+            image_row.append([0, 0, img[i][j][1], 255])
+        entire_image.append(image_row)
+    entire_image = np.array(entire_image)
+    from scipy import misc
+    misc.imsave("Map_quality_visualized" + ".png", entire_image, format="PNG")
+
+
+def visualize_base_channel(img):
+    img_h, img_w, img_c = img.shape
+    img_h = 28
+    entire_image = []
+    for i in range(img_h):
+        image_row = []
+        for j in range(img_w):
+            if img[i][j][0] != 0:
+                print(get_base_by_color(img[i][j][0]), end='')
+                if get_base_by_color(img[i][j][0]) == get_base_by_color(img[0][j][0]) and i > 0:
+                    image_row.append([255, 255, 255, 255])
+                elif get_base_by_color(img[i][j][0]) == 'A':
+                    image_row.append([0, 0, 255, 255])
+                elif get_base_by_color(img[i][j][0]) == 'C':
+                    image_row.append([255, 0, 0, 255])
+                elif get_base_by_color(img[i][j][0]) == 'G':
+                    image_row.append([0, 255, 0, 255])
+                elif get_base_by_color(img[i][j][0]) == 'T':
+                    image_row.append([255, 255, 0, 255])
+                else:
+                    # purple
+                    image_row.append([160, 32, 240, 255])
+            else:
+                print(' ', end='')
+                image_row.append([0, 0, 0, 255])
+        entire_image.append(image_row)
+        print()
+    entire_image = np.array(entire_image)
+    from scipy import misc
+    misc.imsave("Base_visualized" + ".png", entire_image, format="PNG")
+
+
+def analyze_array(img):
+    # visualize_base_channel(img)
+    # visualize_match_channel(img)
+    # visualize_map_quality_channel(img)
+    # visualize_allele_channel(img)
+    # visualize_allele_rgb(img)
+    # return
+
+    img_h, img_w, img_c = img.shape
     for i in range(img_h):
         for j in range(img_w):
             if img[i][j][0] != 0:

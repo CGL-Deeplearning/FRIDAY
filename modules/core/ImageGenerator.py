@@ -2,8 +2,11 @@ from collections import defaultdict
 from modules.handlers.ImageChannels import ImageChannels
 from scipy import misc
 import sys
+import random
+import collections
 import numpy as np
 from modules.handlers.TextColor import TextColor
+import h5py
 import operator
 """
 Generate image and label of that image given a region. 
@@ -20,13 +23,17 @@ VCF_INDEX_BUFFER = -1
 
 # Per sequence threshold
 # jump window size so the last 50 bases will be overlapping
-WINDOW_OVERLAP_JUMP = 1
+WINDOW_OVERLAP_JUMP = 10
 # image size
 WINDOW_SIZE = 1
 # flanking size is the amount add on each size
 WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
+# ALL_HOM_BASE_RATIO = 0.005 (this worked great)
+ALL_HOM_BASE_RATIO = 1
+# buffer around boundary to make sure all the bases in the interval is included
+POS_BUFFER = 0
 
 # Logging configuration
 LOG_LEVEL_HIGH = 1
@@ -513,13 +520,15 @@ class ImageGenerator:
 
             self.vcf_positional_dict[indx] = self.get_site_label_from_allele_tuple(pos, alts_with_genotype)
 
-    def get_segmented_image_sequences(self, interval_start, interval_end, positional_variants, read_id_list):
+    def get_segmented_image_sequences(self, interval_start, interval_end, positional_variants, read_id_list,
+                                      file_info):
         """
         Generates segmented image sequences for training
         :param interval_start: Genomic interval start
         :param interval_end: Genomic interval stop
         :param positional_variants: VCF positional variants
         :param read_id_list: List of reads ids that fall in this region
+        :param file_info: File names of hdf5 file and allele dict to save in summary
         :return:
         """
         # post process reference and read and label
@@ -530,7 +539,8 @@ class ImageGenerator:
         image = self.create_image(interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS, read_id_list)
         label_seq, ref_seq = self.get_label_sequence(interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS)
 
-        sliced_windows = []
+        summary_strings = ''
+        sliced_images = []
         ref_row, ref_start, ref_end = self.image_row_for_ref
         img_started_in_indx = self.positional_info_position_to_index[interval_start - BOUNDARY_COLUMNS] - \
                               self.positional_info_position_to_index[ref_start]
@@ -538,34 +548,75 @@ class ImageGenerator:
         img_ended_in_indx = self.positional_info_position_to_index[interval_end + BOUNDARY_COLUMNS] - \
                             self.positional_info_position_to_index[ref_start]
 
-        candidate_finder_positions = sorted(self.top_alleles.keys())
-        # print(label_seq)
-        # from analysis.analyze_png_img import analyze_array
-        # analyze_array(image)
-        # exit()
+        # this is sliding window based approach
+        image_index = 0
+        img_w, img_h, img_c = 0, 0, 0
 
-        for i, pos in enumerate(candidate_finder_positions):
-            if pos < interval_start or pos > interval_end:
+        # segment based image generation
+        # this kind of works for sure
+        for i, pos in enumerate(self.top_alleles.keys()):
+            allele, freq = self.top_alleles[pos][0]
+
+            if allele[1] == SNP and freq <= 2:
                 continue
-            # if i > 0 and candidate_finder_positions[i] - candidate_finder_positions[i-1] < int(WINDOW_SIZE/2):
-            #     continue
-            pos = pos - int(WINDOW_SIZE / 2)
+
             start_index = self.positional_info_position_to_index[pos] - \
                           self.positional_info_position_to_index[ref_start]
             left_window_index = start_index - WINDOW_FLANKING_SIZE
             right_window_index = start_index + WINDOW_SIZE + WINDOW_FLANKING_SIZE
 
+            if pos < interval_start - POS_BUFFER or pos > interval_end + POS_BUFFER:
+                continue
+
+            # end_pos = self.positional_info_index_to_position[start_index + WINDOW_SIZE][0]
+
+            # if end_pos < interval_start - POS_BUFFER or end_pos > interval_end + POS_BUFFER:
+            #     continue
+
             if left_window_index < img_started_in_indx:
                 continue
             if right_window_index > img_ended_in_indx:
                 break
-            img_left_indx = left_window_index - img_started_in_indx
-            img_right_indx = right_window_index - img_started_in_indx
-            label_left_indx = start_index
-            label_right_indx = start_index + WINDOW_SIZE
-            # sub_label_seq = label_seq[img_left_indx:img_right_indx]
-            sub_label_seq = label_seq[label_left_indx:label_right_indx]
-            sub_ref_seq = ref_seq[img_left_indx:img_right_indx]
-            sliced_windows.append((pos, img_left_indx, img_right_indx, sub_label_seq, sub_ref_seq))
 
-        return image, sliced_windows
+            img_left_index = left_window_index - img_started_in_indx
+            img_right_index = right_window_index - img_started_in_indx
+            label_left_index = start_index
+            label_right_index = start_index + WINDOW_SIZE
+
+            sub_label_seq = label_seq[label_left_index:label_right_index]
+            sub_ref_seq = ref_seq[img_left_index:img_right_index]
+
+            # hom_bases_count = collections.Counter(sub_label_seq)
+            # other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
+
+            # if other_bases <= 0:
+            #     include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
+            #     if not include_this:
+            #         continue
+
+            sliced_image = image[:, img_left_index:img_right_index, :]
+            img_h, img_w, img_c = sliced_image.shape
+
+            # img_file = hdf5_filename + "_" + str(image_index) + ".h5"
+            # hdf5_file = h5py.File(img_file, mode='w')
+            # # the image dataset we save. The index name in h5py is "images".
+            # img_dset = hdf5_file.create_dataset("image", (img_h, img_w, img_c), np.uint8)
+            # # save the images and labels to the h5py file
+            # img_dset[...] = sliced_image
+            # hdf5_file.close()
+
+            sliced_images.append(np.array(sliced_image, dtype=np.int8))
+            index_info = str(image_index)
+            sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(sub_label_seq)
+            sequence_info = sequence_info + "," + str(sub_ref_seq)
+            summary_string = file_info + "," + index_info + "," + sequence_info + "\n"
+            summary_strings = summary_strings + summary_string
+
+            # if sub_label_seq != '0':
+            #     from analysis.analyze_png_img import analyze_array
+            #     print(' ' * WINDOW_FLANKING_SIZE + str(sub_label_seq))
+            #     analyze_array(sliced_image)
+            #     exit()
+            image_index += 1
+
+        return sliced_images, summary_strings, img_h, img_w, img_c

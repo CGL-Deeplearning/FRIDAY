@@ -1,5 +1,5 @@
 import torch
-from modules.models.inception import Inception3
+from modules.models.Seq2Seq_atn import EncoderCRNN, AttnDecoderRNN
 
 
 class ModelHandler:
@@ -8,57 +8,61 @@ class ModelHandler:
         torch.save(state, filename)
 
     @staticmethod
-    def get_new_model(gpu_mode):
-        model = Inception3()
-        if gpu_mode:
-            model = model.cuda()
-        return model
+    def get_new_model(input_channels, gru_layers, hidden_size, num_classes=6):
+        # get a new model
+        encoder_model = EncoderCRNN(image_channels=input_channels, gru_layers=gru_layers, hidden_size=hidden_size)
+        decoder_model = AttnDecoderRNN(hidden_size=hidden_size, gru_layers=gru_layers, num_classes=num_classes,
+                                       max_length=1)
+        return encoder_model, decoder_model
 
     @staticmethod
-    def load_model(model_path, gpu_mode):
-        model = torch.load(model_path)
-        if gpu_mode is True:
-            model = model.cuda()
-        return model
-
-    @staticmethod
-    def load_optimizer(optimizer, checkpoint_path, gpu_mode):
+    def load_optimizer(encoder_optimizer, decoder_optimizer, checkpoint_path, gpu_mode):
         if gpu_mode:
             checkpoint = torch.load(checkpoint_path)
-            optimizer.load_state_dict(checkpoint['optimizer'])
-            for state in optimizer.state.values():
+            encoder_optimizer.load_state_dict(checkpoint['encoder_optimizer'])
+            for state in encoder_optimizer.state.values():
                 for k, v in state.items():
-                    if torch.is_tensor(v):
+                    if isinstance(v, torch.Tensor):
+                        state[k] = v.cuda()
+
+            decoder_optimizer.load_state_dict(checkpoint['decoder_optimizer'])
+            for state in decoder_optimizer.state.values():
+                for k, v in state.items():
+                    if isinstance(v, torch.Tensor):
                         state[k] = v.cuda()
         else:
             checkpoint = torch.load(checkpoint_path, map_location='cpu')
-            optimizer.load_state_dict(checkpoint['optimizer'])
+            encoder_optimizer.load_state_dict(checkpoint['encoder_optimizer'])
+            decoder_optimizer.load_state_dict(checkpoint['decoder_optimizer'])
 
-        return optimizer
-
-    @staticmethod
-    def load_model_for_training(state_dict_path, gpu_mode):
-        if gpu_mode:
-            model = ModelHandler.load_gpu_models_to_cpu(state_dict_path)
-            model = model.cuda()
-        else:
-            model = ModelHandler.load_gpu_models_to_cpu(state_dict_path)
-
-        return model
+        return encoder_optimizer, decoder_optimizer
 
     @staticmethod
-    def load_gpu_models_to_cpu(state_dict_path):
-        checkpoint = torch.load(state_dict_path, map_location='cpu')
-        state_dict = checkpoint['state_dict']
+    def load_model_for_training(encoder_model, decoder_model, model_path):
+        checkpoint = torch.load(model_path, map_location='cpu')
+        encoder_state_dict = checkpoint['encoder_state_dict']
+        decoder_state_dict = checkpoint['decoder_state_dict']
+
         from collections import OrderedDict
-        new_state_dict = OrderedDict()
+        new_encoder_state_dict = OrderedDict()
+        new_decoder_state_dict = OrderedDict()
 
-        for k, v in state_dict.items():
-            name = k[7:]  # remove `module.`
-            new_state_dict[name] = v
+        for k, v in encoder_state_dict.items():
+            name = k
+            if k[0:7] == 'module.':
+                name = k[7:]  # remove `module.`
+            new_encoder_state_dict[name] = v
 
-        model = Inception3()
-        model.load_state_dict(new_state_dict)
-        model.cpu()
+        for k, v in decoder_state_dict.items():
+            name = k
+            if k[0:7] == 'module.':
+                name = k[7:]  # remove `module.`
+            new_decoder_state_dict[name] = v
 
-        return model
+        encoder_model.load_state_dict(new_encoder_state_dict)
+        decoder_model.load_state_dict(new_decoder_state_dict)
+        encoder_model.cpu()
+        decoder_model.cpu()
+
+        return encoder_model, decoder_model
+
