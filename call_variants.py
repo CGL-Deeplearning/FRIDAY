@@ -91,8 +91,9 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
         new_decoder_state_dict[name] = v
 
     hidden_size = 256
-    encoder_model = EncoderCRNN(image_channels=10, hidden_size=hidden_size)
-    decoder_model = AttnDecoderRNN(hidden_size=hidden_size, num_classes=6, max_length=1)
+    gru_layers = 3
+    encoder_model = EncoderCRNN(image_channels=10, gru_layers=gru_layers, hidden_size=hidden_size)
+    decoder_model = AttnDecoderRNN(hidden_size=hidden_size, gru_layers=gru_layers, num_classes=6, max_length=1)
     encoder_model.load_state_dict(new_encoder_state_dict)
     decoder_model.load_state_dict(new_decoder_state_dict)
     encoder_model.cpu()
