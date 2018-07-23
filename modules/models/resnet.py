@@ -100,16 +100,21 @@ class ResNet(nn.Module):
     def __init__(self, in_channels, block, layers):
         self.inplanes = 80
         super(ResNet, self).__init__()
-        self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=(CONTEXT_SIZE, 3), groups=in_channels)
-        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1), groups=20)
-        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1), groups=40)
+        # self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=(CONTEXT_SIZE, 3), groups=in_channels)
+        # self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1), groups=20)
+        # self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1), groups=40)
+        # self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0))
+
+        self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=3, padding=(1, 0), groups=in_channels)
+        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=3, padding=(1, 0), groups=20)
+        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=3, padding=(1, 0), groups=40)
         self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0))
 
         self.layer1 = self._make_layer(block, 128, layers[0])
         self.layer2 = self._make_layer(block, 192, layers[1], stride=(1, 2))
         self.layer3 = self._make_layer(block, 256, layers[2], stride=(1, 2))
         self.layer4 = self._make_layer(block, 512, layers[3], stride=(1, 2))
-        self.avgpool = nn.AvgPool2d(kernel_size=(1, 6))
+        self.avgpool = nn.AvgPool2d(kernel_size=(1, 3))
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
