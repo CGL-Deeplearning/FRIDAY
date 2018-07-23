@@ -137,7 +137,7 @@ class View:
         with open(file_path, 'wb') as f:
             pickle.dump(dictionary, f, pickle.HIGHEST_PROTOCOL)
 
-    def parse_region(self, start_index, end_index):
+    def parse_region(self, start_index, end_index, test_mode=True):
         """
         Generate labeled images of a given region of the genome
         :param start_index: Start index of the confident interval
@@ -149,6 +149,12 @@ class View:
                                            self.confidence_intervals[i][1] + BED_INDEX_BUFFER
 
             interval_length = interval_end - interval_start
+
+            if interval_length < 300 and test_mode is True:
+                diff = 300 - interval_length + 10
+                interval_start = interval_start - (diff + 10)
+                interval_end = interval_end + (diff + 10)
+
             if interval_length < MIN_SEQUENCE_BASE_LENGTH_THRESHOLD:
                 warn_msg = "REGION SKIPPED, TOO SMALL OF A WINDOW " + self.chromosome_name + " "
                 warn_msg = warn_msg + str(interval_start) + " " + str(interval_end) + "\n"
