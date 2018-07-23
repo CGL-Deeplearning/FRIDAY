@@ -147,7 +147,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                               pin_memory=gpu_mode
                               )
     # this needs to change
-    hidden_size = 256
+    hidden_size = 512
     gru_layers = 3
     encoder_model, decoder_model = ModelHandler.get_new_model(input_channels=10,
                                                               gru_layers=gru_layers,
