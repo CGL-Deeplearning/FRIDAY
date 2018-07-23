@@ -1,14 +1,13 @@
 import argparse
 import sys
 import torch
-import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader
 from torchvision import transforms
 import multiprocessing
-from torch.autograd import Variable
+
 from modules.models.Seq2Seq_atn import EncoderCRNN, AttnDecoderRNN
-from modules.core.dataloader_test import SequenceDataset
+from modules.core.dataloader_fake import SequenceDataset
 from modules.handlers.TextColor import TextColor
 from collections import defaultdict
 from modules.handlers.VcfWriter import VCFWriter
@@ -112,14 +111,14 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     sys.stderr.write(TextColor.PURPLE + 'MODEL LOADED\n' + TextColor.END)
     # TO HERE
     with torch.no_grad():
-        for images, labels, positional_info in tqdm(testloader, file=sys.stdout, dynamic_ncols=True):
-            if gpu_mode:
-                # encoder_hidden = encoder_hidden.cuda()
-                images = images.cuda()
-                labels = labels.cuda()
+        for labels, positional_info in tqdm(testloader, file=sys.stdout, dynamic_ncols=True):
+            # if gpu_mode:
+            #     # encoder_hidden = encoder_hidden.cuda()
+            #     images = images.cuda()
+            #     labels = labels.cuda()
 
-            decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
-            encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
+            # decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
+            # encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
 
             # if gpu_mode:
             #     decoder_input = decoder_input.cuda()
@@ -127,10 +126,10 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
 
             chr_name, start_positions, reference_seqs, allele_dict_paths = positional_info
 
-            window_size = images.size(2) - 2 * FLANK_SIZE
+            window_size = labels.size(1)
             index_start = FLANK_SIZE
             end_index = index_start + window_size
-            unrolling_genomic_position = np.zeros((images.size(0)), dtype=np.int64)
+            unrolling_genomic_position = np.zeros((labels.size(0)), dtype=np.int64)
 
             for seq_index in range(index_start, end_index):
                 # x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
@@ -148,7 +147,7 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                 # soft_probs = m(output_dec)
                 # output_preds = soft_probs.cpu()
                 # record each of the predictions from a batch prediction
-                batches = images.size(0)
+                batches = labels.size(0)
 
                 for batch in range(batches):
                     allele_dict_path = allele_dict_paths[batch]
