@@ -150,10 +150,10 @@ class View:
 
             interval_length = interval_end - interval_start
 
-            if interval_length < 300 and test_mode is True:
-                diff = 300 - interval_length + 10
-                interval_start = interval_start - (diff + 10)
-                interval_end = interval_end + (diff + 10)
+            if interval_length < 20 and test_mode is True:
+                interval_start = interval_start - 20
+                interval_end = interval_end + 20
+                interval_length = interval_end - interval_start
 
             if interval_length < MIN_SEQUENCE_BASE_LENGTH_THRESHOLD:
                 warn_msg = "REGION SKIPPED, TOO SMALL OF A WINDOW " + self.chromosome_name + " "

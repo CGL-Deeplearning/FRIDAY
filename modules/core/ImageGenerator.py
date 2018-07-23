@@ -23,9 +23,9 @@ VCF_INDEX_BUFFER = -1
 
 # Per sequence threshold
 # jump window size so the last 50 bases will be overlapping
-WINDOW_OVERLAP_JUMP = 250
+WINDOW_OVERLAP_JUMP = 15
 # image size
-WINDOW_SIZE = 300
+WINDOW_SIZE = 20
 # flanking size is the amount add on each size
 WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety
@@ -552,37 +552,41 @@ class ImageGenerator:
         image_index = 0
         img_w, img_h, img_c = 0, 0, 0
 
+        last_processed = -1
+
         # segment based image generation
-        pos = interval_start
-        while pos <= interval_end:
-            if pos < interval_start or pos > interval_end:
+        for pos in sorted(self.top_alleles.keys()):
+            if pos < interval_start:
                 continue
-            start_index = self.positional_info_position_to_index[pos] - \
-                          self.positional_info_position_to_index[ref_start]
-            left_window_index = start_index - WINDOW_FLANKING_SIZE
-            right_window_index = start_index + WINDOW_SIZE + WINDOW_FLANKING_SIZE
+            if pos > interval_end:
+                break
+            if last_processed > 0 and last_processed > pos:
+                continue
+            pos_index = self.positional_info_position_to_index[pos] - self.positional_info_position_to_index[ref_start]
+
+            left_window_index = pos_index - int(WINDOW_SIZE/2) - WINDOW_FLANKING_SIZE
+            right_window_index = pos_index + int(WINDOW_SIZE/2) + WINDOW_FLANKING_SIZE
 
             if left_window_index < img_started_in_indx:
-                pos += 1
                 continue
             if right_window_index > img_ended_in_indx:
                 break
-            img_left_indx = left_window_index - img_started_in_indx
-            img_right_indx = right_window_index - img_started_in_indx
-            label_left_indx = start_index
-            label_right_indx = start_index + WINDOW_SIZE
+            img_left_index = left_window_index - img_started_in_indx
+            img_right_index = right_window_index - img_started_in_indx
+            label_left_index = pos_index - int(WINDOW_SIZE/2)
+            label_right_index = pos_index + int(WINDOW_SIZE/2)
 
-            sub_label_seq = label_seq[label_left_indx:label_right_indx]
-            sub_ref_seq = ref_seq[img_left_indx:img_right_indx]
+            sub_label_seq = label_seq[label_left_index:label_right_index]
+            sub_ref_seq = ref_seq[img_left_index:img_right_index]
 
-            # hom_bases_count = collections.Counter(sub_label_seq)
-            # other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
+            hom_bases_count = collections.Counter(sub_label_seq)
+            other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
 
-            # if other_bases <= 0:
-            #     include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
-            #     if not include_this:
-            #         continue
-            sliced_image = image[:, img_left_indx:img_right_indx, :]
+            if other_bases <= 0:
+                include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
+                if not include_this:
+                    continue
+            sliced_image = image[:, img_left_index:img_right_index, :]
             img_h, img_w, img_c = sliced_image.shape
 
             # ---- VISUALIZE GENERATED IMAGE -----
@@ -599,11 +603,6 @@ class ImageGenerator:
             summary_strings = summary_strings + summary_string
             image_index += 1
 
-            end_pos = self.positional_info_index_to_position[img_right_indx][0]
-
-            if end_pos - pos >= WINDOW_OVERLAP_JUMP:
-                pos += WINDOW_OVERLAP_JUMP
-            else:
-                pos += (end_pos-pos - 20)
+            last_processed = self.positional_info_index_to_position[img_right_index][0]
 
         return sliced_images, summary_strings, img_h, img_w, img_c
