@@ -94,7 +94,7 @@ class ImageGenerator:
             if candidate_alleles is not None:
                 if pos not in self.top_alleles:
                     self.top_alleles[pos] = \
-                        sorted(self.pos_dicts.positional_allele_frequency[pos].items(), key=operator.itemgetter(1),
+                        sorted(self.pos_dicts.positional_allele_frequency[pos].items(), key=operator.itemgetter(1, 0),
                                reverse=True)[:PLOIDY]
                 support_candidate_type = SNP
                 supported_allele = ''
