@@ -100,10 +100,10 @@ class ResNet(nn.Module):
     def __init__(self, in_channels, block, layers):
         self.inplanes = 80
         super(ResNet, self).__init__()
-        self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=(CONTEXT_SIZE, 3), groups=in_channels)
-        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1), groups=20)
-        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1), groups=40)
-        self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0))
+        self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=(FLANK_SIZE + 1, 3), groups=in_channels)
+        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=5, groups=20, stride=(1, 2))
+        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=5, padding=1, groups=40)
+        self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0), stride=(1, 2))
 
         # self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=3, padding=(1, 0), groups=in_channels)
         # self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=3, padding=(1, 0), groups=20)
@@ -114,7 +114,6 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 192, layers[1], stride=(1, 2))
         self.layer3 = self._make_layer(block, 256, layers[2], stride=(1, 2))
         self.layer4 = self._make_layer(block, 512, layers[3], stride=(1, 2))
-        self.avgpool = nn.AvgPool2d(kernel_size=(1, 6))
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -131,7 +130,6 @@ class ResNet(nn.Module):
                           kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm2d(planes * block.expansion),
             )
-
         layers = []
         layers.append(block(self.inplanes, planes, stride, downsample))
         self.inplanes = planes * block.expansion
@@ -150,7 +148,6 @@ class ResNet(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-        x = self.avgpool(x)
         # x = x.view(x.size(0), x.size(2), -1)
 
         return x
@@ -159,6 +156,6 @@ class ResNet(nn.Module):
 def resnet18_custom(input_channels):
     """Constructs a ResNet-18 model.
     """
-    model = ResNet(input_channels, BasicBlock, [2, 2, 2, 2])
+    model = ResNet(input_channels, BasicBlock, [3, 5, 5, 3])
 
     return model
