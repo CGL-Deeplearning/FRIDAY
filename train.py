@@ -26,7 +26,7 @@ Output:
 - A trained model
 """
 FLANK_SIZE = 10
-CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+CLASS_WEIGHTS = [0.5, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
 def test(data_file, batch_size, gru_layers, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers):
