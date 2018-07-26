@@ -34,12 +34,12 @@ def inception_v3(pretrained=False, **kwargs):
 
 class Inception3(nn.Module):
 
-    def __init__(self, in_):
+    def __init__(self, in_channels):
         super(Inception3, self).__init__()
-        self.Context_Conv2d_0a = BasicConv2d(in_, 20, kernel_size=(CONTEXT_SIZE, 3), groups=in_)
-        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1), groups=20)
-        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1), groups=40)
-        self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0))
+        self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=(FLANK_SIZE + 1, 3), groups=in_channels)
+        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=5, groups=20, stride=(1, 2))
+        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=5, padding=(1, 0), stride=(1, 2), groups=40)
+        self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0), stride=(1, 2))
         self.Mixed_5b = InceptionA(80, pool_features=32)
         self.Mixed_5c = InceptionA(256, pool_features=64)
         self.Mixed_5d = InceptionA(288, pool_features=64)
@@ -73,6 +73,7 @@ class Inception3(nn.Module):
         x = self.Context_Conv2d_0c(x)
         # 80 x 20 x 94
         x = self.Conv2d_1a_3x3(x)
+
         # 80 x 20 x 92
         x = self.Mixed_5b(x)
         # 256 x 20 x 92
@@ -99,7 +100,6 @@ class Inception3(nn.Module):
         x = self.Mixed_7c(x)
         # 2048 x 20 x 22
 
-        x = F.avg_pool2d(x, kernel_size=(1, 22))
         # 2048 x 20 x 1
         x = F.dropout(x, training=self.training)
 
