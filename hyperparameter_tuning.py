@@ -119,6 +119,7 @@ class WrapHyperband:
         results = sorted(results, key=lambda r: r['loss'])[:5]
         for i, result in enumerate(results):
             print(i+1)
+            print(result)
             print("Loss:\t\t", result['loss'])
             print("Accuracy:\t", result['accuracy'])
             print("Params:\t\t", result['params'])
