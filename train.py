@@ -144,7 +144,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                               batch_size=batch_size,
                               shuffle=True,
                               num_workers=num_workers,
-                              pin_memory=gpu_mode
+                              # pin_memory=gpu_mode
                               )
     # this needs to change
     hidden_size = 512
