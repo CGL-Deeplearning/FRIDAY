@@ -153,10 +153,13 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                                                               gru_layers=gru_layers,
                                                               hidden_size=hidden_size,
                                                               num_classes=6)
-    encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.00071813882946144,
-                                         weight_decay=6.324840790531379e-06)
-    decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=0.0003147571033815045,
-                                         weight_decay=0.001653328993450026)
+    # Params: {'encoder_l2': 0.0019602826212548837, 'decoder_l2': 7.028652182801859e-05,
+    #          'decoder_lr': 4.5048063728673346e-05, 'encoder_lr': 0.0002685715754251269}
+    # 98.66
+    encoder_optimizer = torch.optim.Adam(encoder_model.parameters(), lr=0.0002685715754251269,
+                                         weight_decay=0.0019602826212548837)
+    decoder_optimizer = torch.optim.Adam(decoder_model.parameters(), lr=4.5048063728673346e-05,
+                                         weight_decay=7.028652182801859e-05)
     if retrain_model is True:
         if os.path.isfile(retrain_model_path) is False:
             sys.stderr.write(TextColor.RED + "ERROR: INVALID PATH TO RETRAIN PATH MODEL --retrain_model_path\n")
