@@ -568,7 +568,11 @@ class ImageGenerator:
             if pos < interval_start - POS_BUFFER or pos > interval_end + POS_BUFFER:
                 continue
 
+            start_pos_is_insert = self.positional_info_index_to_position[left_window_index][1]
             start_pos = self.positional_info_index_to_position[left_window_index][0]
+            if start_pos_is_insert:
+                start_pos += 1
+
             end_pos = self.positional_info_index_to_position[right_window_index][0]
 
             if end_pos < interval_start - POS_BUFFER or end_pos > interval_end + POS_BUFFER:
