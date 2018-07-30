@@ -25,7 +25,7 @@ VCF_INDEX_BUFFER = -1
 # jump window size so the last 50 bases will be overlapping
 WINDOW_OVERLAP_JUMP = 10
 # image size
-WINDOW_SIZE = 1
+WINDOW_SIZE = 10
 # flanking size is the amount add on each size
 WINDOW_FLANKING_SIZE = 10
 # boundary columns is the number of bases we process for safety
@@ -562,16 +562,17 @@ class ImageGenerator:
 
             start_index = self.positional_info_position_to_index[pos] - \
                           self.positional_info_position_to_index[ref_start]
-            left_window_index = start_index - WINDOW_FLANKING_SIZE
-            right_window_index = start_index + WINDOW_SIZE + WINDOW_FLANKING_SIZE
+            left_window_index = start_index - int(WINDOW_SIZE / 2) - WINDOW_FLANKING_SIZE
+            right_window_index = start_index + int(WINDOW_SIZE / 2) + WINDOW_FLANKING_SIZE
 
             if pos < interval_start - POS_BUFFER or pos > interval_end + POS_BUFFER:
                 continue
 
-            # end_pos = self.positional_info_index_to_position[start_index + WINDOW_SIZE][0]
+            start_pos = self.positional_info_index_to_position[left_window_index][0]
+            end_pos = self.positional_info_index_to_position[right_window_index][0]
 
-            # if end_pos < interval_start - POS_BUFFER or end_pos > interval_end + POS_BUFFER:
-            #     continue
+            if end_pos < interval_start - POS_BUFFER or end_pos > interval_end + POS_BUFFER:
+                continue
 
             if left_window_index < img_started_in_indx:
                 continue
@@ -580,16 +581,17 @@ class ImageGenerator:
 
             img_left_index = left_window_index - img_started_in_indx
             img_right_index = right_window_index - img_started_in_indx
-            label_left_index = start_index
-            label_right_index = start_index + WINDOW_SIZE
+            label_left_index = start_index - int(WINDOW_SIZE / 2)
+            label_right_index = start_index + int(WINDOW_SIZE / 2)
 
             sub_label_seq = label_seq[label_left_index:label_right_index]
             sub_ref_seq = ref_seq[img_left_index:img_right_index]
 
             # hom_bases_count = collections.Counter(sub_label_seq)
             # other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
-
+            #
             # if other_bases <= 0:
+            #     continue
             #     include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
             #     if not include_this:
             #         continue
@@ -597,17 +599,9 @@ class ImageGenerator:
             sliced_image = image[:, img_left_index:img_right_index, :]
             img_h, img_w, img_c = sliced_image.shape
 
-            # img_file = hdf5_filename + "_" + str(image_index) + ".h5"
-            # hdf5_file = h5py.File(img_file, mode='w')
-            # # the image dataset we save. The index name in h5py is "images".
-            # img_dset = hdf5_file.create_dataset("image", (img_h, img_w, img_c), np.uint8)
-            # # save the images and labels to the h5py file
-            # img_dset[...] = sliced_image
-            # hdf5_file.close()
-
             sliced_images.append(np.array(sliced_image, dtype=np.int8))
             index_info = str(image_index)
-            sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(sub_label_seq)
+            sequence_info = str(self.chromosome_name) + " " + str(start_pos) + "," + str(sub_label_seq)
             sequence_info = sequence_info + "," + str(sub_ref_seq)
             summary_string = file_info + "," + index_info + "," + sequence_info + "\n"
             summary_strings = summary_strings + summary_string
