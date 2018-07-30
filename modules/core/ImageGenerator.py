@@ -568,12 +568,12 @@ class ImageGenerator:
             if pos < interval_start - POS_BUFFER or pos > interval_end + POS_BUFFER:
                 continue
 
-            start_pos_is_insert = self.positional_info_index_to_position[left_window_index][1]
-            start_pos = self.positional_info_index_to_position[left_window_index][0]
+            start_pos_is_insert = self.positional_info_index_to_position[start_index - int(WINDOW_SIZE / 2)][1]
+            start_pos = self.positional_info_index_to_position[start_index - int(WINDOW_SIZE / 2)][0]
             if start_pos_is_insert:
                 start_pos += 1
 
-            end_pos = self.positional_info_index_to_position[right_window_index][0]
+            end_pos = self.positional_info_index_to_position[start_index + int(WINDOW_SIZE / 2) - 1][0]
 
             if end_pos < interval_start - POS_BUFFER or end_pos > interval_end + POS_BUFFER:
                 continue
@@ -610,10 +610,11 @@ class ImageGenerator:
             summary_string = file_info + "," + index_info + "," + sequence_info + "\n"
             summary_strings = summary_strings + summary_string
 
-            # if sub_label_seq != '0':
-            #     from analysis.analyze_png_img import analyze_array
-            #     print(' ' * WINDOW_FLANKING_SIZE + str(sub_label_seq))
-            #     analyze_array(sliced_image)
+
+            # print(pos, start_pos, end_pos)
+            # from analysis.analyze_png_img import analyze_array
+            # print(' ' * WINDOW_FLANKING_SIZE + str(sub_label_seq))
+            # analyze_array(sliced_image)
             #     exit()
             image_index += 1
 
