@@ -11,8 +11,8 @@ img_files = list(tmp_df[0])
 for i in tqdm(range(len(img_files))):
     img_file = img_files[i]
     hdf5_file_path, allele_dict_path = img_file.split(' ')
-    if os.path.isfile(img_file) is False:
-        print("INVALID FILE PATH: ", img_file)
+    if os.path.isfile(hdf5_file_path) is False:
+        print("INVALID FILE PATH: ", hdf5_file_path)
         exit()
     elif os.path.isfile(allele_dict_path) is False:
         print("INVALID FILE PATH: ", allele_dict_path)
