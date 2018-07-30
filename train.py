@@ -26,7 +26,7 @@ Output:
 - A trained model
 """
 FLANK_SIZE = 10
-CLASS_WEIGHTS = [0.5, 1.0, 1.0, 1.0, 1.0, 1.0]
+CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
 def test(data_file, batch_size, gru_layers, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes, num_workers):
@@ -147,8 +147,8 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                               pin_memory=gpu_mode
                               )
     # this needs to change
-    hidden_size = 256
-    gru_layers = 1
+    hidden_size = 512
+    gru_layers = 3
     encoder_model, decoder_model = ModelHandler.get_new_model(input_channels=10,
                                                               gru_layers=gru_layers,
                                                               hidden_size=hidden_size,
