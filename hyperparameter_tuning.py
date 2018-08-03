@@ -80,8 +80,8 @@ class WrapHyperband:
 
         num_workers = self.num_workers
         epoch_limit = int(n_iterations)
-        hidden_size = 512
-        gru_layers = 3
+        hidden_size = 256
+        gru_layers = 1
         batch_size = self.batch_size
         enc_lr = params['encoder_lr']
         enc_l2 = params['encoder_l2']

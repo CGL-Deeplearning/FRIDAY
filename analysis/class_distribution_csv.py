@@ -37,7 +37,7 @@ with open(file_name, "r") as ins:
             all_zero_sequences += 1
         total += 1
 print('All zeros: ', all_zero_sequences)
-print('Total: ', total)
+print('Total: ', total, " Percent: ", int(all_zero_sequences/total))
 print('0/0', dictionary['0'])
 print('0/1', dictionary['1'])
 print('1/1', dictionary['2'])
