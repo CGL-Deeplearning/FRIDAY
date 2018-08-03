@@ -11,7 +11,7 @@ with open(file_name, "r") as ins:
         if not line:
             continue
         line = line.split(',')
-        gts = line[2]
+        gts = line[3]
         all_zero = True
         for gt in gts:
             if gt != '0':
