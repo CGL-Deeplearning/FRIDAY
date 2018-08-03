@@ -11,8 +11,13 @@ with open(file_name, "r") as ins:
         if not line:
             continue
         line = line.split(',')
-        gt = line[3]
-        if gt == '0':
+        gts = line[2]
+        all_zero = True
+        for gt in gts:
+            if gt != '0':
+                all_zero = False
+                break
+        if all_zero:
             if random.random() < 0.1:
                 print(line_for_print)
         else:

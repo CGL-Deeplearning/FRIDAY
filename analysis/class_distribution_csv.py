@@ -18,16 +18,26 @@ dictionary['3'] = 0
 dictionary['4'] = 0
 dictionary['5'] = 0
 # dictionary['3'] = 0
+all_zero_sequences = 0
+total = 0
 with open(file_name, "r") as ins:
     for line in ins:
         line = line.rstrip()
         if not line:
             continue
         line = line.split(',')
-        gts = line[2]
+        gts = line[3]
+        all_zero = True
         for gt in gts:
             dictionary[gt] += 1
-
+            if gt != '0':
+                all_zero = False
+                break
+        if all_zero:
+            all_zero_sequences += 1
+        total += 1
+print('All zeros: ', all_zero_sequences)
+print('Total: ', total)
 print('0/0', dictionary['0'])
 print('0/1', dictionary['1'])
 print('1/1', dictionary['2'])
