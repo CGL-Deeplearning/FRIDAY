@@ -246,6 +246,7 @@ def merge_call_files(vcf_file_directory):
     file_paths = filemanager_object.get_file_paths_from_directory(vcf_file_directory)
     all_records = []
     for file_path in file_paths:
+        print(file_path)
         with open(file_path, 'r') as tsv:
             for line in tsv:
                 chr_name, pos_st, pos_end, ref, alt1, alt2, genotype, qual, gq = line.strip().split('\t')
