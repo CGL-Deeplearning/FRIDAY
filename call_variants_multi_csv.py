@@ -6,7 +6,6 @@ import numpy as np
 from torch.utils.data import DataLoader
 from torchvision import transforms
 import multiprocessing
-from torch.autograd import Variable
 from modules.models.Seq2Seq_atn import EncoderCRNN, AttnDecoderRNN
 from modules.core.dataloader_test import SequenceDataset
 from modules.handlers.TextColor import TextColor
@@ -17,7 +16,6 @@ import operator
 import pickle
 from tqdm import tqdm
 import os
-import time
 """
 This script uses a trained model to call variants on a given set of images generated from the genome.
 The process is:
@@ -248,7 +246,6 @@ def merge_call_files(vcf_file_directory):
     file_paths = filemanager_object.get_file_paths_from_directory(vcf_file_directory)
     all_records = []
     for file_path in file_paths:
-        print(file_path)
         with open(file_path, 'r') as tsv:
             for line in tsv:
                 chr_name, pos_st, pos_end, ref, alt1, alt2, genotype, qual, gq = line.strip().split('\t')
@@ -265,15 +262,9 @@ def merge_call_files(vcf_file_directory):
     return all_records
 
 
-def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, sample_name, output_dir,
-                 vcf_dir, vcf_writer, max_threads):
-    program_start_time = time.time()
-    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "SAMPLE NAME: " + sample_name + "\n")
-    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PLEASE USE --sample_name TO CHANGE SAMPLE NAME.\n")
-    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "OUTPUT DIRECTORY: " + output_dir + "\n")
+def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, vcf_dir, vcf_writer, max_threads):
     chr_name = predict(csv_file, batch_size, model_path, gpu_mode, num_workers)
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PREDICTION GENERATED SUCCESSFULLY.\n")
-    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "COMPILING PREDICTIONS TO CALL VARIANTS.\n")
 
     pos_list = list(prediction_dict.keys())
     each_chunk_size = int(len(pos_list) / max_threads)
@@ -301,15 +292,13 @@ def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, sample
     while True:
         if len(multiprocessing.active_children()) == 0:
             break
-    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "VARIANT CALLING COMPLETE.\n")
-    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "MERGING FILES.\n")
     all_calls = merge_call_files(vcf_dir)
 
     # sort based on position
     all_calls.sort(key=operator.itemgetter(1))
     # print(all_calls)
     last_end = 0
-    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "WRITING VCF.\n")
+
     for record in all_calls:
         # get the record filter ('PASS' or not)
         rec_filter = VCFWriter.get_filter(record, last_end)
@@ -324,9 +313,6 @@ def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, sample
         vcf_writer.write_vcf_record(chrm, st_pos, end_pos, ref, alt_field, genotype, phred_qual, phred_gq, rec_filter)
 
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "VARIANT CALLING COMPLETE.\n")
-    program_end_time = time.time()
-
-    sys.stderr.write(TextColor.PURPLE + "TIME ELAPSED: " + str(program_end_time - program_start_time) + "\n")
 
 
 def call_variants_on_multiple_chromosome(csv_dir, bam_file_path, sample_name, output_dir,
@@ -337,6 +323,10 @@ def call_variants_on_multiple_chromosome(csv_dir, bam_file_path, sample_name, ou
     # object that can write and handle VCF
     vcf_writer = VCFWriter(bam_file_path, sample_name, output_dir)
 
+    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "SAMPLE NAME: " + sample_name + "\n")
+    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PLEASE USE --sample_name TO CHANGE SAMPLE NAME.\n")
+    sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "OUTPUT DIRECTORY: " + output_dir + "\n")
+
     for chromosome_name in chr_list:
         test_file = csv_dir + chromosome_name + ".csv"
         sys.stderr.write(TextColor.BLUE + "INFO: PREDICTING " + TextColor.END + str(chromosome_name) + "\n")
@@ -345,8 +335,6 @@ def call_variants_on_multiple_chromosome(csv_dir, bam_file_path, sample_name, ou
                      model_path,
                      gpu_mode,
                      num_workers,
-                     sample_name,
-                     output_dir,
                      vcf_dir,
                      vcf_writer,
                      max_threads)
