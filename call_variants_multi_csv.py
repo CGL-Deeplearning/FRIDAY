@@ -258,7 +258,6 @@ def merge_call_files(vcf_file_directory):
                 all_records.append((chr_name, pos_st, pos_end, ref, alts, genotype, qual, gq))
 
     filemanager_object.delete_files(file_paths)
-    os.rmdir(vcf_file_directory)
 
     return all_records
 
@@ -350,6 +349,7 @@ def call_variants_on_multiple_chromosome(csv_dir, bam_file_path, sample_name, ou
                      max_threads)
         sys.stderr.write(TextColor.BLUE + "INFO: " + TextColor.END + "PREDICTION COMPLETED SUCCESSFULLY.\n")
         sys.stderr.flush()
+    os.rmdir(vcf_dir)
 
 
 def handle_output_directory(output_dir):
