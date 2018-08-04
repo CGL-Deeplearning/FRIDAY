@@ -54,6 +54,8 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     :param num_workers: Number of workers to be used by the dataloader
     :return: Prediction dictionary
     """
+    prediction_dict.clear()
+    reference_dict.clear()
     # the prediction table/dictionary
     chromosome_name = ''
     transformations = transforms.Compose([transforms.ToTensor()])
