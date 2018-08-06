@@ -76,7 +76,7 @@ def test(data_file, batch_size, gru_layers, hidden_size, gpu_mode, encoder_model
 
                 window_size = images.size(2) - 2 * FLANK_SIZE
                 index_start = FLANK_SIZE
-                end_index = index_start + window_size
+                end_index = index_start + int(window_size/2) + 1
 
                 for seq_index in range(index_start, end_index):
                     x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
@@ -90,11 +90,13 @@ def test(data_file, batch_size, gru_layers, hidden_size, gpu_mode, encoder_model
                     decoder_input = topi.squeeze().detach()  # detach from history as input
 
                     # loss
-                    loss = test_criterion(output_dec, y)
-                    confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes), y.data.contiguous().view(-1))
+                    if seq_index == 15:
+                        loss = test_criterion(output_dec, y)
+                        confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes),
+                                             y.data.contiguous().view(-1))
 
-                    total_loss += loss.item()
-                    total_images += labels.size(0)
+                        total_loss += loss.item()
+                        total_images += labels.size(0)
                     del output_enc, hidden_dec, attn
 
                 pbar.update(1)
