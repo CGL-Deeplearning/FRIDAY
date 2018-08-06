@@ -207,7 +207,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                     images = images.cuda()
                     labels = labels.cuda()
 
-                teacher_forcing_ratio = 0.5
+                teacher_forcing_ratio = 0.0
                 decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
                 encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
 
@@ -231,10 +231,9 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                     output_dec, decoder_hidden, attn = decoder_model(decoder_input, output_enc, hidden_dec)
 
                     encoder_hidden = decoder_hidden.detach()
-
                     if seq_index == 15:
-                        loss = criterion(output_dec, y)
                         # loss + optimize
+                        loss = criterion(output_dec, y)
                         loss.backward()
                         encoder_optimizer.step()
                         decoder_optimizer.step()
@@ -246,8 +245,6 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                     else:
                         topv, topi = output_dec.topk(1)
                         decoder_input = topi.squeeze().detach()
-
-                    del output_enc, hidden_dec, attn
 
                 # update the progress bar
                 avg_loss = (total_loss / total_images) if total_images else 0
