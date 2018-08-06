@@ -136,11 +136,14 @@ def train(train_file, test_file, batch_size, epoch_limit, prev_ite, gpu_mode, nu
                     output_dec, decoder_hidden, attn = decoder_model(decoder_input, output_enc, hidden_dec)
 
                     encoder_hidden = decoder_hidden.detach()
-                    # loss + optimize
-                    loss = criterion(output_dec, y)
-                    loss.backward()
-                    encoder_optimizer.step()
-                    decoder_optimizer.step()
+                    if seq_index == 15:
+                        # loss + optimize
+                        loss = criterion(output_dec, y)
+                        loss.backward()
+                        encoder_optimizer.step()
+                        decoder_optimizer.step()
+                        total_loss += loss.item()
+                        total_images += labels.size(0)
 
                     if use_teacher_forcing:
                         decoder_input = y
@@ -148,8 +151,7 @@ def train(train_file, test_file, batch_size, epoch_limit, prev_ite, gpu_mode, nu
                         topv, topi = output_dec.topk(1)
                         decoder_input = topi.squeeze().detach()
 
-                    total_loss += loss.item()
-                    total_images += labels.size(0)
+
 
                 # update the progress bar
                 avg_loss = (total_loss / total_images) if total_images else 0

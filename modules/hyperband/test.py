@@ -84,11 +84,15 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
                     decoder_input = topi.squeeze().detach()  # detach from history as input
 
                     # loss
-                    loss = test_criterion(output_dec, y)
-                    confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes), y.data.contiguous().view(-1))
+                    if seq_index == 15:
+                        loss = test_criterion(output_dec, y)
+                        confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes),
+                                             y.data.contiguous().view(-1))
 
                     total_loss += loss.item()
                     total_images += labels.size(0)
+
+
 
                 pbar.update(1)
                 cm_value = confusion_matrix.value()
