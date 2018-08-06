@@ -131,8 +131,8 @@ def do_test(test_file, batch_size, gpu_mode, num_workers, model_path, num_classe
     sys.stderr.write(TextColor.PURPLE + 'Loading data\n' + TextColor.END)
 
     # this needs to change
-    hidden_size = 512
-    gru_layers = 3
+    hidden_size = 256
+    gru_layers = 1
     encoder_model, decoder_model = ModelHandler.get_new_model(input_channels=10,
                                                               gru_layers=gru_layers,
                                                               hidden_size=hidden_size,
