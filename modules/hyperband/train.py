@@ -112,7 +112,7 @@ def train(train_file, test_file, batch_size, epoch_limit, prev_ite, gpu_mode, nu
                     images = images.cuda()
                     labels = labels.cuda()
 
-                teacher_forcing_ratio = 0.5
+                teacher_forcing_ratio = 0.0
                 decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
                 encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
 
@@ -123,7 +123,7 @@ def train(train_file, test_file, batch_size, epoch_limit, prev_ite, gpu_mode, nu
 
                 window_size = images.size(2) - 2 * FLANK_SIZE
                 index_start = FLANK_SIZE
-                end_index = index_start + window_size
+                end_index = index_start + int(window_size / 2) + 1
 
                 for seq_index in range(index_start, end_index):
                     encoder_optimizer.zero_grad()
