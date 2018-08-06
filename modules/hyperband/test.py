@@ -89,8 +89,8 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
                         confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes),
                                              y.data.contiguous().view(-1))
 
-                    total_loss += loss.item()
-                    total_images += labels.size(0)
+                        total_loss += loss.item()
+                        total_images += labels.size(0)
 
 
 
