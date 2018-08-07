@@ -151,35 +151,34 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                 # record each of the predictions from a batch prediction
                 batches = images.size(0)
 
-                if seq_index == 15:
-                    for batch in range(batches):
-                        allele_dict_path = allele_dict_paths[batch]
-                        chromosome_name = chr_name[batch]
-                        reference_seq = reference_seqs[batch]
-                        # current_genomic_position = int(start_positions[batch])
-                        current_genomic_position = int(start_positions[batch]) + unrolling_genomic_position[batch]
+                for batch in range(batches):
+                    allele_dict_path = allele_dict_paths[batch]
+                    chromosome_name = chr_name[batch]
+                    reference_seq = reference_seqs[batch]
+                    # current_genomic_position = int(start_positions[batch])
+                    current_genomic_position = int(start_positions[batch]) + unrolling_genomic_position[batch]
 
-                        ref_base = reference_seq[seq_index]
+                    ref_base = reference_seq[seq_index]
 
-                        if ref_base == '*':
-                            continue
+                    if ref_base == '*':
+                        continue
 
-                        # true_label = labels[batch, seq_index - index_start]
-                        # fake_probs = [0.0] * 6
-                        # fake_probs[true_label] = 1.0
-                        # top_n, top_i = torch.FloatTensor(fake_probs).topk(1)
-                        # predicted_label = top_i[0].item()
-                        # reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
-                        # prediction_dict[current_genomic_position].append((predicted_label, fake_probs))
+                    # true_label = labels[batch, seq_index - index_start]
+                    # fake_probs = [0.0] * 6
+                    # fake_probs[true_label] = 1.0
+                    # top_n, top_i = torch.FloatTensor(fake_probs).topk(1)
+                    # predicted_label = top_i[0].item()
+                    # reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
+                    # prediction_dict[current_genomic_position].append((predicted_label, fake_probs))
 
-                        preds = output_preds[batch, :].data
-                        top_n, top_i = preds.topk(1)
-                        predicted_label = top_i[0].item()
-                        reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
-                        prediction_dict[current_genomic_position].append((predicted_label, preds))
+                    preds = output_preds[batch, :].data
+                    top_n, top_i = preds.topk(1)
+                    predicted_label = top_i[0].item()
+                    reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
+                    prediction_dict[current_genomic_position].append((predicted_label, preds))
 
-                        if ref_base != '*':
-                            unrolling_genomic_position[batch] += 1
+                    if ref_base != '*':
+                        unrolling_genomic_position[batch] += 1
     return chromosome_name
 
 

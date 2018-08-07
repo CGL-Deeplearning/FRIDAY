@@ -90,13 +90,13 @@ def test(data_file, batch_size, gru_layers, hidden_size, gpu_mode, encoder_model
                     decoder_input = topi.squeeze().detach()  # detach from history as input
 
                     # loss
-                    if seq_index == 15:
-                        loss = test_criterion(output_dec, y)
-                        confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes),
-                                             y.data.contiguous().view(-1))
+                    loss = test_criterion(output_dec, y)
+                    confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes),
+                                         y.data.contiguous().view(-1))
 
-                        total_loss += loss.item()
-                        total_images += labels.size(0)
+                    total_loss += loss.item()
+                    total_images += labels.size(0)
+
                     del output_enc, hidden_dec, attn
 
                 pbar.update(1)
@@ -231,14 +231,14 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                     output_dec, decoder_hidden, attn = decoder_model(decoder_input, output_enc, hidden_dec)
 
                     encoder_hidden = decoder_hidden.detach()
-                    if seq_index == 15:
-                        # loss + optimize
-                        loss = criterion(output_dec, y)
-                        loss.backward()
-                        encoder_optimizer.step()
-                        decoder_optimizer.step()
-                        total_loss += loss.item()
-                        total_images += labels.size(0)
+
+                    # loss + optimize
+                    loss = criterion(output_dec, y)
+                    loss.backward()
+                    encoder_optimizer.step()
+                    decoder_optimizer.step()
+                    total_loss += loss.item()
+                    total_images += labels.size(0)
 
                     if use_teacher_forcing:
                         decoder_input = y
