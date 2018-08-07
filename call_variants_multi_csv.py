@@ -54,6 +54,8 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     :return: Prediction dictionary
     """
     # the prediction table/dictionary
+    prediction_dict.clear()
+    reference_dict.clear()
     chromosome_name = ''
     transformations = transforms.Compose([transforms.ToTensor()])
 
