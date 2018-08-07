@@ -174,8 +174,9 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                     preds = output_preds[batch, :].data
                     top_n, top_i = preds.topk(1)
                     predicted_label = top_i[0].item()
-                    reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
-                    prediction_dict[current_genomic_position].append((predicted_label, preds))
+                    if seq_index == 15:
+                        reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
+                        prediction_dict[current_genomic_position].append((predicted_label, preds))
 
                     if ref_base != '*':
                         unrolling_genomic_position[batch] += 1
