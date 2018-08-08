@@ -36,7 +36,7 @@ class Attention(nn.Module):
         # print("UNMAKED", attn)
         # print(mask)
         if mask is not None:
-            max_value = abs(attn.max().data.numpy())
+            max_value = abs(attn.max().data.cpu().contiguous().numpy())
             attn.data.masked_fill_(mask.view(attn.size(0), 1, -1), max_value * 2)
         # if mask_reversed is not None:
         #     attn.data.masked_fill_(mask_reversed.view(attn.size(0), 1, -1), -float('inf'))
