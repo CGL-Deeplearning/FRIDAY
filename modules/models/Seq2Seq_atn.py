@@ -126,8 +126,10 @@ class AttnDecoderRNN(nn.Module):
         # In your for loop
         attention_index_onehot.zero_()
         attention_index_onehot.scatter_(1, attention_index, 1)
-
+        print(encoder_hidden.size())
         output_gru, hidden_gru = self.gru(attention_index_onehot.view(batch_size, 1, -1), encoder_hidden)
+        print(hidden_gru.size())
+        exit()
         # print("Attention", attention_index_onehot)
 
         if self.bidirectional:
