@@ -102,7 +102,6 @@ class Hyperband:
                     logging.info("Iterations:\t" + str(n_iterations))
                     logging.info("Params:\t" + str(config[0]))
                     params, retrain_model, model_path, prev_ite = config
-                    print(model_path)
                     enc_model, dec_model, enc_optimizer, dec_optimizer, result = self.try_params(n_iterations, config,
                                                                                                  model_path)
 
