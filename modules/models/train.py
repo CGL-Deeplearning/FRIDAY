@@ -141,7 +141,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                     images = images.cuda()
                     labels = labels.cuda()
 
-                encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
+                encoder_hidden = torch.FloatTensor(images.size(0), gru_layers * 2, hidden_size).zero_()
 
                 if gpu_mode:
                     encoder_hidden = encoder_hidden.cuda()
@@ -154,10 +154,10 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 loss = 0
                 for seq_index in range(0, images.size(2)):
                     y = labels[:, seq_index]
-
+                    print(hidden_encoder.size())
                     output_dec, decoder_hidden, attn = decoder_model(seq_index, images.size(0), images.size(2),
                                                                      context_vector, hidden_encoder)
-
+                    print(decoder_hidden.size())
                     # decoder_attentions[:, seq_index] = attn.view(attn.size(0), -1).data
 
                     # loss
