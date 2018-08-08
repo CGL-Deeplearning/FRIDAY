@@ -10,7 +10,7 @@ import time
 # Custom generator for our dataset
 from modules.hyperband.hyperband import Hyperband
 from modules.handlers.TextColor import TextColor
-from modules.models.train import train
+from modules.models.train import train, save_best_model
 """
 Tune hyper-parameters of a model using hyperband.
 Input:
@@ -64,7 +64,7 @@ class WrapHyperband:
         """
         return sample(self.space)
 
-    def try_params(self, n_iterations, model_params):
+    def try_params(self, n_iterations, model_params, model_path):
         """
         Try a parameter space to train a model with n_iterations (epochs).
         :param n_iterations: Number of epochs to train on
@@ -100,7 +100,9 @@ class WrapHyperband:
                                                                                      dec_l2,
                                                                                      model_dir=None,
                                                                                      stats_dir=None,
-                                                                                     train_mode=0)
+                                                                                     train_mode=False)
+        save_best_model(enc_model, dec_model, enc_optimizer, dec_optimizer,
+                        self.hidden_size, self.gru_layers, epoch_limit, model_path)
 
         return enc_model, dec_model, enc_optimizer, dec_optimizer, stats_dictionary
 

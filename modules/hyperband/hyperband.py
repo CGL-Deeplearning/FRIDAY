@@ -15,27 +15,6 @@ https://github.com/zygmuntz/hyperband
 """
 
 
-def save_model(encoder_model, decoder_model, encoder_optimizer, decoder_optimizer, file_name):
-    """
-    Save the best model
-    :param encoder_model: A trained encoder model
-    :param decoder_model: A trained decoder model
-    :param encoder_optimizer: Encoder optimizer
-    :param decoder_optimizer: Decoder optimizer
-    :param file_name: Output file name
-    :return:
-    """
-    if os.path.isfile(file_name):
-        os.remove(file_name)
-    ModelHandler.save_checkpoint({
-        'encoder_state_dict': encoder_model.state_dict(),
-        'decoder_state_dict': decoder_model.state_dict(),
-        'encoder_optimizer': encoder_optimizer.state_dict(),
-        'decoder_optimizer': decoder_optimizer.state_dict(),
-    }, file_name)
-    sys.stderr.write(TextColor.RED + "\nMODEL SAVED SUCCESSFULLY.\n" + TextColor.END)
-
-
 class Hyperband:
     """
     Hyper-parameter optimization algorithm implemented
@@ -68,6 +47,7 @@ class Hyperband:
         self.best_loss = np.inf
         self.best_acc = 0
         self.best_counter = -1
+        self.best_config = ''
         self.log_file = log_directory+'Hyperband_'+datetime.now().strftime("%Y%m%d_%H%M%S")+'.log'
         self.model_dir = model_directory + 'Hyperband_' + datetime.now().strftime("%Y%m%d_%H%M%S") + "_"
 
@@ -110,8 +90,9 @@ class Hyperband:
 
                 for config_index, config in enumerate(model_configs):
                     self.counter += 1
-                    sys.stderr.write(TextColor.BLUE + "{} | {} | lowest loss so far: {} | accuracy: {} | (run {})"
-                                     .format(self.counter, ctime(), self.best_loss, self.best_acc, self.best_counter)
+                    sys.stderr.write(TextColor.BLUE + "{} | {} | lowest loss: {} | accuracy: {} | (run {}) | model {}"
+                                     .format(self.counter, ctime(), self.best_loss, self.best_acc, self.best_counter,
+                                             self.best_config)
                                      + TextColor.END)
                     logging.info("{} | {} | lowest loss so far: {} | (run {})"
                                  .format(self.counter, ctime(), self.best_loss, self.best_counter))
@@ -120,8 +101,10 @@ class Hyperband:
 
                     logging.info("Iterations:\t" + str(n_iterations))
                     logging.info("Params:\t" + str(config[0]))
-
-                    enc_model, dec_model, enc_optimizer, dec_optimizer, result = self.try_params(n_iterations, config)
+                    params, retrain_model, model_path, prev_ite = config
+                    print(model_path)
+                    enc_model, dec_model, enc_optimizer, dec_optimizer, result = self.try_params(n_iterations, config,
+                                                                                                 model_path)
 
                     assert (type(result) == dict)
                     assert ('loss' in result)
@@ -141,8 +124,8 @@ class Hyperband:
                         self.best_loss = loss
                         self.best_counter = self.counter
                         self.best_acc = result['accuracy']
-                    params, retrain_model, model_path, prev_ite = config
-                    save_model(enc_model, dec_model, enc_optimizer, dec_optimizer, model_path)
+                        self.best_config = model_path
+
                     model_configs[config_index] = (params, True, model_path, n_iterations)
 
                     result['counter'] = self.counter

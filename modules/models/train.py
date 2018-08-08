@@ -39,8 +39,8 @@ def save_best_model(encoder_model, decoder_model, encoder_optimizer, decoder_opt
     :param file_name: Output file name
     :return:
     """
-    if os.path.isfile(file_name + '_checkpoint.pkl'):
-        os.remove(file_name + '_checkpoint.pkl')
+    if os.path.isfile(file_name):
+        os.remove(file_name)
     ModelHandler.save_checkpoint({
         'encoder_state_dict': encoder_model.state_dict(),
         'decoder_state_dict': decoder_model.state_dict(),
@@ -49,7 +49,7 @@ def save_best_model(encoder_model, decoder_model, encoder_optimizer, decoder_opt
         'hidden_size': hidden_size,
         'gru_layers': layers,
         'epochs': epoch,
-    }, file_name + '_checkpoint.pkl')
+    }, file_name)
     sys.stderr.write(TextColor.RED + "\nMODEL SAVED SUCCESSFULLY.\n" + TextColor.END)
 
 
@@ -134,7 +134,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
         encoder_model.train()
         decoder_model.train()
         batch_no = 1
-        with tqdm(total=len(train_loader), desc='Loss', leave=True, dynamic_ncols=True) as progress_bar:
+        with tqdm(total=len(train_loader), desc='Loss', leave=True, ncols=100) as progress_bar:
             for images, labels in train_loader:
                 if gpu_mode:
                     # encoder_hidden = encoder_hidden.cuda()
@@ -197,13 +197,18 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
             # encoder_model, decoder_model, encoder_optimizer, decoder_optimizer, hidden_size, layers, epoch,
             # file_name
             save_best_model(encoder_model, decoder_model, encoder_optimizer, decoder_optimizer,
-                            hidden_size, gru_layers, epoch, model_dir + "_epoch_" + str(epoch + 1))
+                            hidden_size, gru_layers, epoch, model_dir + "_epoch_" + str(epoch + 1) + '_checkpoint.pkl')
 
             test_loss_logger.write(str(epoch + 1) + "," + str(stats['loss']) + "," + str(stats['accuracy']) + "\n")
             confusion_matrix_logger.write(str(epoch + 1) + "\n" + str(stats_dictioanry['confusion_matrix']) + "\n")
             train_loss_logger.flush()
             test_loss_logger.flush()
             confusion_matrix_logger.flush()
+        else:
+            # this setup is for hyperband
+            if epoch > 5 and stats['accuracy'] < 90:
+                sys.stderr.write(TextColor.PURPLE + 'EARLY STOPPING AS THE MODEL NOT DOING WELL\n' + TextColor.END)
+                return encoder_model, decoder_model, encoder_optimizer, decoder_optimizer, stats
 
     sys.stderr.write(TextColor.PURPLE + 'Finished training\n' + TextColor.END)
 
