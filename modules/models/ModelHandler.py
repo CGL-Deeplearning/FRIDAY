@@ -38,8 +38,15 @@ class ModelHandler:
         return encoder_optimizer, decoder_optimizer
 
     @staticmethod
-    def load_model_for_training(encoder_model, decoder_model, model_path):
+    def load_model_for_training(model_path, input_channels, num_classes):
         checkpoint = torch.load(model_path, map_location='cpu')
+        hidden_size = checkpoint['hidden_size']
+        gru_layers = checkpoint['gru_layers']
+        epochs = checkpoint['epochs']
+        encoder_model, decoder_model = ModelHandler.get_new_model(input_channels=input_channels,
+                                                                  gru_layers=gru_layers,
+                                                                  hidden_size=hidden_size,
+                                                                  num_classes=num_classes)
         encoder_state_dict = checkpoint['encoder_state_dict']
         decoder_state_dict = checkpoint['decoder_state_dict']
 
@@ -64,5 +71,5 @@ class ModelHandler:
         encoder_model.cpu()
         decoder_model.cpu()
 
-        return encoder_model, decoder_model
+        return encoder_model, decoder_model, hidden_size, gru_layers, epochs
 

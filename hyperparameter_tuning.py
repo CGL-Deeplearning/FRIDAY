@@ -10,8 +10,7 @@ import time
 # Custom generator for our dataset
 from modules.hyperband.hyperband import Hyperband
 from modules.handlers.TextColor import TextColor
-from modules.hyperband.train import train
-from modules.hyperband.test import test
+from modules.models.train import train
 """
 Tune hyper-parameters of a model using hyperband.
 Input:
@@ -46,8 +45,6 @@ class WrapHyperband:
             'decoder_lr': hp.loguniform('dec_lr', -12, -4),
             'encoder_l2': hp.loguniform('enc_l2', -12, -4),
             'decoder_l2': hp.loguniform('dec_l2', -12, -4),
-            # 'hidden_size': hp.choice('hs', (128, 256, 512)),
-            # 'gru_layers': hp.choice('gl', (1, 3, 5)),
         }
         self.train_file = train_file
         self.test_file = test_file
@@ -57,6 +54,8 @@ class WrapHyperband:
         self.max_epochs = max_epochs
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.hidden_size = 512
+        self.gru_layers = 3
 
     def get_params(self):
         """
@@ -78,26 +77,30 @@ class WrapHyperband:
         sys.stderr.write(TextColor.BLUE + '\nEpochs: ' + str(n_iterations) + "\n" + TextColor.END)
         sys.stderr.write(TextColor.BLUE + str(params) + "\n" + TextColor.END)
 
-        num_workers = self.num_workers
         epoch_limit = int(n_iterations)
-        hidden_size = 256
-        gru_layers = 1
-        batch_size = self.batch_size
         enc_lr = params['encoder_lr']
         enc_l2 = params['encoder_l2']
         dec_lr = params['decoder_lr']
         dec_l2 = params['decoder_l2']
 
         # train a model
-        enc_model, dec_model, enc_optimizer, dec_optimizer, stats_dictionary = train(self.train_file, self.test_file,
-                                                                                     batch_size, epoch_limit, prev_ite,
-                                                                                     self.gpu_mode, num_workers,
-                                                                                     retrain_model, retrain_model_path,
-                                                                                     gru_layers, hidden_size,
-                                                                                     enc_lr, enc_l2, dec_lr, dec_l2)
-        # test the trained mode
-        # stats_dictionary = test(self.test_file, batch_size, self.gpu_mode, enc_model, dec_model, num_workers,
-        #                         hidden_size, num_classes=6)
+        enc_model, dec_model, enc_optimizer, dec_optimizer, stats_dictionary = train(self.train_file,
+                                                                                     self.test_file,
+                                                                                     self.batch_size,
+                                                                                     epoch_limit,
+                                                                                     self.gpu_mode,
+                                                                                     self.num_workers,
+                                                                                     retrain_model,
+                                                                                     retrain_model_path,
+                                                                                     self.gru_layers,
+                                                                                     self.hidden_size,
+                                                                                     enc_lr,
+                                                                                     enc_l2,
+                                                                                     dec_lr,
+                                                                                     dec_l2,
+                                                                                     model_dir=None,
+                                                                                     stats_dir=None,
+                                                                                     train_mode=0)
 
         return enc_model, dec_model, enc_optimizer, dec_optimizer, stats_dictionary
 
