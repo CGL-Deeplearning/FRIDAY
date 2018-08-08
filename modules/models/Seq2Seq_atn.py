@@ -1,24 +1,18 @@
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+import numpy as np
 from modules.models.resnet import resnet18_custom
 
 
+def reverse_onehot(one_hot_vector):
+    reversed_onehot = one_hot_vector.clone()
+    reversed_onehot[one_hot_vector==0] = 1
+    reversed_onehot[one_hot_vector!=0] = 0
+    return reversed_onehot
+
+
 class Attention(nn.Module):
-    r"""
-    Applies an attention mechanism on the output features from the decoder.
-    Args:
-        dim(int): The number of expected features in the output
-    Inputs: output, context
-        - **output** (batch, output_len, dimensions): tensor containing the output features from the decoder.
-        - **context** (batch, input_len, dimensions): tensor containing features of the encoded input sequence.
-    Outputs: output, attn
-        - **output** (batch, output_len, dimensions): tensor containing the attended output features from the decoder.
-        - **attn** (batch, output_len, input_len): tensor containing attention weights.
-    Attributes:
-        linear_out (torch.nn.Linear): applies a linear transformation to the incoming data: :math:`y = Ax + b`.
-        mask (torch.Tensor, optional): applies a :math:`-inf` to the indices specified in the `Tensor`.
-    """
     def __init__(self, dim):
         super(Attention, self).__init__()
         self.linear_out = nn.Linear(dim*2, dim)
@@ -32,15 +26,23 @@ class Attention(nn.Module):
         """
         self.mask = mask
 
-    def forward(self, output, context):
+    def forward(self, mask, mask_reversed, output, context):
         batch_size = output.size(0)
         hidden_size = output.size(2)
         input_size = context.size(1)
 
         # (batch, out_len, dim) * (batch, in_len, dim) -> (batch, out_len, in_len)
         attn = torch.bmm(output, context.transpose(1, 2))
-        if self.mask is not None:
-            attn.data.masked_fill_(self.mask, -float('inf'))
+        # print("UNMAKED", attn)
+        # print(mask)
+        if mask is not None:
+            max_value = abs(attn.max().data.numpy())
+            attn.data.masked_fill_(mask.view(attn.size(0), 1, -1), max_value * 2)
+        # if mask_reversed is not None:
+        #     attn.data.masked_fill_(mask_reversed.view(attn.size(0), 1, -1), -float('inf'))
+        # print("MASKED", attn)
+        # print(attn)
+        # exit()
         attn = F.softmax(attn.view(-1, input_size), dim=1).view(batch_size, -1, input_size)
 
         # (batch, out_len, in_len) * (batch, in_len, dim) -> (batch, out_len, dim)
@@ -58,11 +60,11 @@ class EncoderCNN(nn.Module):
     def __init__(self, image_channels):
         """Load the pretrained ResNet-152 and replace top fc layer."""
         super(EncoderCNN, self).__init__()
-        self.resnet = resnet18_custom(image_channels)
+        self.cnn = resnet18_custom(image_channels)
 
     def forward(self, images):
         """Extract feature vectors from input images."""
-        features = self.resnet(images)
+        features = self.cnn(images)
 
         return features
 
@@ -112,31 +114,38 @@ class AttnDecoderRNN(nn.Module):
         self.attention = Attention(self.hidden_size)
         self.dropout = nn.Dropout(self.dropout_p)
         self.num_layers = gru_layers
-        self.gru = nn.GRU(self.hidden_size, self.hidden_size, num_layers=self.num_layers, batch_first=True,
+        self.gru = nn.GRU(10, self.hidden_size, num_layers=self.num_layers, batch_first=True,
                           bidirectional=True)
         self.out = nn.Linear(self.hidden_size, self.num_classes)
 
-    def forward_step(self, x, encoder_output, encoder_hidden):
-        embedded = self.embedding(x).view(x.size(0), 1, -1)
-        embedded = self.dropout(embedded)
+    def forward_step(self, focus_index, batch_size, seq_length, context_vector, encoder_hidden):
+        attention_index = torch.from_numpy(np.asarray([focus_index] * batch_size)).view(-1, 1)
 
-        # self.gru.flatten_parameters()
-        output_gru, hidden_gru = self.gru(embedded, encoder_hidden)
+        attention_index_onehot = torch.FloatTensor(batch_size, seq_length)
+
+        # In your for loop
+        attention_index_onehot.zero_()
+        attention_index_onehot.scatter_(1, attention_index, 1)
+
+        output_gru, hidden_gru = self.gru(attention_index_onehot.view(batch_size, 1, -1), encoder_hidden)
+        # print("Attention", attention_index_onehot)
 
         if self.bidirectional:
             output_gru = output_gru.contiguous()
             output_gru = output_gru.view(output_gru.size(0), output_gru.size(1), 2, -1).sum(2)\
                 .view(output_gru.size(0), output_gru.size(1), -1)
 
-        output, attn = self.attention(output_gru, encoder_output)
+        output, attn = self.attention(attention_index_onehot.byte(), reverse_onehot(attention_index_onehot).byte(),
+                                      output_gru, context_vector)
 
         class_probabilities = self.out(output.contiguous().view(-1, self.hidden_size))
 
         return class_probabilities, hidden_gru, attn
 
-    def forward(self, decoder_input, encoder_output, encoder_hidden):
+    def forward(self, focus_index, batch_size, seq_length, context_vector, encoder_hidden):
         encoder_hidden = encoder_hidden.transpose(0, 1).contiguous()
-        class_probabilities, hidden, attn = self.forward_step(decoder_input, encoder_output, encoder_hidden)
+        class_probabilities, hidden, attn = self.forward_step(focus_index, batch_size, seq_length, context_vector,
+                                                              encoder_hidden)
 
         hidden = hidden.transpose(0, 1).contiguous()
 

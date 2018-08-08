@@ -1,10 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-FLANK_SIZE = 10
-CONTEXT_SIZE = FLANK_SIZE * 2 + 1
-
-
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
@@ -100,9 +96,9 @@ class ResNet(nn.Module):
     def __init__(self, in_channels, block, layers):
         self.inplanes = 80
         super(ResNet, self).__init__()
-        self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=(FLANK_SIZE + 1, 3), groups=in_channels)
-        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=5, groups=20, stride=(1, 2))
-        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=5, padding=1, groups=40)
+        self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=3, padding=1, groups=in_channels)
+        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=3, groups=20, padding=1, stride=(1, 2))
+        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=3, padding=1, groups=40)
         self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0), stride=(1, 2))
 
         # self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=3, padding=(1, 0), groups=in_channels)
@@ -148,7 +144,6 @@ class ResNet(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-        # x = x.view(x.size(0), x.size(2), -1)
 
         return x
 
@@ -156,6 +151,6 @@ class ResNet(nn.Module):
 def resnet18_custom(input_channels):
     """Constructs a ResNet-18 model.
     """
-    model = ResNet(input_channels, BasicBlock, [5, 7, 7, 5])
+    model = ResNet(input_channels, BasicBlock, [2, 3, 3, 2])
 
     return model

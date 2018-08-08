@@ -34,10 +34,10 @@ class TrainModule:
         self.stats_dir = stats_dir
         self.hidden_size = 512
         self.gru_layers = 3
-        self.encoder_lr = 0.001
-        self.encoder_l2 = 0.001
-        self.decoder_lr = 0.001
-        self.decoder_l2 = 0.001
+        self.encoder_lr = 0.0001
+        self.encoder_l2 = 0.000001
+        self.decoder_lr = 0.0001
+        self.decoder_l2 = 0.000001
 
     def train_model(self):
         # train a model
@@ -57,7 +57,7 @@ class TrainModule:
                                                                                      self.decoder_l2,
                                                                                      self.model_dir,
                                                                                      self.stats_dir,
-                                                                                     train_mode=1)
+                                                                                     train_mode=True)
 
         return enc_model, dec_model, enc_optimizer, dec_optimizer, stats_dictionary
 

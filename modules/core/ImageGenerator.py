@@ -27,7 +27,7 @@ WINDOW_OVERLAP_JUMP = 10
 # image size
 WINDOW_SIZE = 10
 # flanking size is the amount add on each size
-WINDOW_FLANKING_SIZE = 10
+WINDOW_FLANKING_SIZE = 0
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
 # ALL_HOM_BASE_RATIO = 0.005 (this worked great)
@@ -610,12 +610,11 @@ class ImageGenerator:
             summary_string = file_info + "," + index_info + "," + sequence_info + "\n"
             summary_strings = summary_strings + summary_string
 
-
             # print(pos, start_pos, end_pos)
             # from analysis.analyze_png_img import analyze_array
             # print(' ' * WINDOW_FLANKING_SIZE + str(sub_label_seq))
             # analyze_array(sliced_image)
-            #     exit()
+            # exit()
             image_index += 1
 
         return sliced_images, summary_strings, img_h, img_w, img_c

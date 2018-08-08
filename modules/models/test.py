@@ -61,36 +61,26 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
                     images = images.cuda()
                     labels = labels.cuda()
 
-                decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
                 encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
 
                 if gpu_mode:
-                    decoder_input = decoder_input.cuda()
                     encoder_hidden = encoder_hidden.cuda()
 
-                window_size = images.size(2) - 2 * FLANK_SIZE
-                index_start = FLANK_SIZE
-                end_index = index_start + int(window_size / 2) + 1
+                context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
+                loss = 0
+                for seq_index in range(0, images.size(2)):
+                    y = labels[:, seq_index]
 
-                for seq_index in range(index_start, end_index):
-                    x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
-                    y = labels[:, seq_index - index_start]
+                    output_dec, decoder_hidden, attn = decoder_model(seq_index, images.size(0), images.size(2),
+                                                                     context_vector, hidden_encoder)
 
-                    output_enc, hidden_dec = encoder_model(x, encoder_hidden)
-                    output_dec, decoder_hidden, attn = decoder_model(decoder_input, output_enc, hidden_dec)
+                    # loss + optimize
+                    loss += test_criterion(output_dec, y)
+                    confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes),
+                                         y.data.contiguous().view(-1))
 
-                    encoder_hidden = decoder_hidden.detach()
-                    topv, topi = output_dec.topk(1)
-                    decoder_input = topi.squeeze().detach()  # detach from history as input
-
-                    # loss
-                    if seq_index == 15:
-                        loss = test_criterion(output_dec, y)
-                        confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes),
-                                             y.data.contiguous().view(-1))
-
-                        total_loss += loss.item()
-                        total_images += labels.size(0)
+                total_loss += loss.item()
+                total_images += labels.size(0)
 
                 pbar.update(1)
                 cm_value = confusion_matrix.value()

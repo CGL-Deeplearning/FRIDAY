@@ -6,6 +6,9 @@ import random
 import os
 from torchvision import transforms
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+import numpy as np
 
 # Custom generator for our dataset
 from torch.utils.data import DataLoader
@@ -22,7 +25,6 @@ Input:
 Return:
 - A trained model
 """
-FLANK_SIZE = 10
 CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
@@ -123,7 +125,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
     stats = dict()
     stats['loss_epoch'] = []
     stats['accuracy_epoch'] = []
-    sys.stderr.write(TextColor.PURPLE + 'Start: ' + str(start_epoch + 1) + ' End: ' + str(epoch_limit + 1) + "EPOCH\n")
+    sys.stderr.write(TextColor.PURPLE + 'Start: ' + str(start_epoch + 1) + ' End: ' + str(epoch_limit + 1) + "\n")
     for epoch in range(start_epoch, epoch_limit, 1):
         total_loss = 0
         total_images = 0
@@ -139,45 +141,38 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                     images = images.cuda()
                     labels = labels.cuda()
 
-                teacher_forcing_ratio = 0.0
-                decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
                 encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
 
-                use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
                 if gpu_mode:
-                    decoder_input = decoder_input.cuda()
                     encoder_hidden = encoder_hidden.cuda()
 
-                window_size = images.size(2) - 2 * FLANK_SIZE
-                index_start = FLANK_SIZE
-                end_index = index_start + int(window_size / 2) + 1
+                # decoder_attentions = torch.zeros(images.size(0), images.size(2), 10)
+                encoder_optimizer.zero_grad()
+                decoder_optimizer.zero_grad()
 
-                for seq_index in range(index_start, end_index):
-                    encoder_optimizer.zero_grad()
-                    decoder_optimizer.zero_grad()
+                context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
+                loss = 0
+                for seq_index in range(0, images.size(2)):
+                    y = labels[:, seq_index]
 
-                    x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
-                    y = labels[:, seq_index - index_start]
+                    output_dec, decoder_hidden, attn = decoder_model(seq_index, images.size(0), images.size(2),
+                                                                     context_vector, hidden_encoder)
 
-                    output_enc, hidden_dec = encoder_model(x, encoder_hidden)
-                    output_dec, decoder_hidden, attn = decoder_model(decoder_input, output_enc, hidden_dec)
+                    # decoder_attentions[:, seq_index] = attn.view(attn.size(0), -1).data
 
-                    encoder_hidden = decoder_hidden.detach()
-                    if seq_index == 15:
-                        # loss + optimize
-                        loss = criterion(output_dec, y)
-                        loss.backward()
-                        encoder_optimizer.step()
-                        decoder_optimizer.step()
-                        total_loss += loss.item()
-                        total_images += labels.size(0)
+                    # loss
+                    loss += criterion(output_dec, y)
 
-                    if use_teacher_forcing:
-                        decoder_input = y
-                    else:
-                        topv, topi = output_dec.topk(1)
-                        decoder_input = topi.squeeze().detach()
+                loss.backward()
+                encoder_optimizer.step()
+                decoder_optimizer.step()
 
+                total_loss += loss.item()
+                total_images += labels.size(0)
+
+                # plt.matshow(decoder_attentions[0].numpy())
+                # plt.show()
+                # exit()
                 # update the progress bar
                 avg_loss = (total_loss / total_images) if total_images else 0
                 progress_bar.set_description("Loss: " + str(avg_loss))
@@ -187,7 +182,6 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 progress_bar.update(1)
                 batch_no += 1
 
-                del decoder_input, encoder_hidden
             progress_bar.close()
 
         stats_dictioanry = test(test_file, batch_size, gpu_mode, encoder_model, decoder_model, num_workers,
@@ -200,11 +194,13 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
         # update the loggers
         if train_mode is True:
             # save the model after each epoch
+            # encoder_model, decoder_model, encoder_optimizer, decoder_optimizer, hidden_size, layers, epoch,
+            # file_name
             save_best_model(encoder_model, decoder_model, encoder_optimizer, decoder_optimizer,
-                            model_dir + "_epoch_" + str(epoch + 1))
+                            hidden_size, gru_layers, epoch, model_dir + "_epoch_" + str(epoch + 1))
 
             test_loss_logger.write(str(epoch + 1) + "," + str(stats['loss']) + "," + str(stats['accuracy']) + "\n")
-            confusion_matrix_logger.write(str(epoch + 1) + "\n" + str(stats['confusion_matrix']) + "\n")
+            confusion_matrix_logger.write(str(epoch + 1) + "\n" + str(stats_dictioanry['confusion_matrix']) + "\n")
             train_loss_logger.flush()
             test_loss_logger.flush()
             confusion_matrix_logger.flush()
