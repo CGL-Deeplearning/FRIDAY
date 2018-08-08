@@ -118,18 +118,9 @@ class AttnDecoderRNN(nn.Module):
                           bidirectional=True)
         self.out = nn.Linear(self.hidden_size, self.num_classes)
 
-    def forward_step(self, focus_index, batch_size, seq_length, context_vector, encoder_hidden):
-        attention_index = torch.from_numpy(np.asarray([focus_index] * batch_size)).view(-1, 1)
-
-        attention_index_onehot = torch.FloatTensor(batch_size, seq_length)
-
-        # In your for loop
-        attention_index_onehot.zero_()
-        attention_index_onehot.scatter_(1, attention_index, 1)
-        print(encoder_hidden.size())
+    def forward_step(self, attention_index_onehot, context_vector, encoder_hidden):
+        batch_size = attention_index_onehot.size(0)
         output_gru, hidden_gru = self.gru(attention_index_onehot.view(batch_size, 1, -1), encoder_hidden)
-        print(hidden_gru.size())
-        exit()
         # print("Attention", attention_index_onehot)
 
         if self.bidirectional:
@@ -144,9 +135,9 @@ class AttnDecoderRNN(nn.Module):
 
         return class_probabilities, hidden_gru, attn
 
-    def forward(self, focus_index, batch_size, seq_length, context_vector, encoder_hidden):
+    def forward(self, attention_index_onehot, context_vector, encoder_hidden):
         encoder_hidden = encoder_hidden.transpose(0, 1).contiguous()
-        class_probabilities, hidden, attn = self.forward_step(focus_index, batch_size, seq_length, context_vector,
+        class_probabilities, hidden, attn = self.forward_step(attention_index_onehot, context_vector,
                                                               encoder_hidden)
 
         hidden = hidden.transpose(0, 1).contiguous()

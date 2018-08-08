@@ -6,7 +6,7 @@ import torchnet.meter as meter
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from torch.autograd import Variable
+import numpy as np
 from modules.core.dataloader import SequenceDataset
 from modules.handlers.TextColor import TextColor
 """
@@ -68,11 +68,20 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
 
                 context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
                 loss = 0
-                for seq_index in range(0, images.size(2)):
+                seq_length = images.size(2)
+                for seq_index in range(0, seq_length):
+                    current_batch_size = images.size(0)
                     y = labels[:, seq_index]
+                    attention_index = torch.from_numpy(np.asarray([seq_index] * current_batch_size)).view(-1, 1)
 
-                    output_dec, decoder_hidden, attn = decoder_model(seq_index, images.size(0), images.size(2),
-                                                                     context_vector, hidden_encoder)
+                    attention_index_onehot = torch.FloatTensor(current_batch_size, seq_length)
+
+                    attention_index_onehot.zero_()
+                    attention_index_onehot.scatter_(1, attention_index, 1)
+
+                    output_dec, decoder_hidden, attn = decoder_model(attention_index_onehot,
+                                                                     context_vector=context_vector,
+                                                                     encoder_hidden=hidden_encoder)
 
                     # loss + optimize
                     loss += test_criterion(output_dec, y)

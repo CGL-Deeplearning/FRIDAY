@@ -152,12 +152,19 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
 
                 context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
                 loss = 0
-                for seq_index in range(0, images.size(2)):
+                seq_length = images.size(2)
+                for seq_index in range(0, seq_length):
+                    current_batch_size = images.size(0)
                     y = labels[:, seq_index]
-                    print(hidden_encoder.size())
-                    output_dec, decoder_hidden, attn = decoder_model(seq_index, images.size(0), images.size(2),
-                                                                     context_vector, hidden_encoder)
-                    print(decoder_hidden.size())
+                    attention_index = torch.from_numpy(np.asarray([seq_index] * current_batch_size)).view(-1, 1)
+
+                    attention_index_onehot = torch.FloatTensor(current_batch_size, seq_length)
+
+                    attention_index_onehot.zero_()
+                    attention_index_onehot.scatter_(1, attention_index, 1)
+
+                    output_dec, decoder_hidden, attn = decoder_model(attention_index_onehot, context_vector=context_vector,
+                                                                     encoder_hidden=hidden_encoder)
                     # decoder_attentions[:, seq_index] = attn.view(attn.size(0), -1).data
 
                     # loss
