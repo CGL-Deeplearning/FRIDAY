@@ -35,6 +35,8 @@ ALL_HOM_BASE_RATIO = 1
 # buffer around boundary to make sure all the bases in the interval is included
 POS_BUFFER = 0
 
+REF_BAND_LENGTH = 5
+
 # Logging configuration
 LOG_LEVEL_HIGH = 1
 LOG_LEVEL_LOW = 0
@@ -376,10 +378,11 @@ class ImageGenerator:
 
         whole_image = np.zeros((image_height, image_width, image_channels))
         # add the reference row as the first row of the image [0th row]
-        whole_image[0, :, :] = np.array(ref_row)
+        whole_image[0:REF_BAND_LENGTH, :, :] = np.array(ref_row)
 
         # update the packing information
-        image_row_info[0] = interval_end
+        for i in range(REF_BAND_LENGTH):
+            image_row_info[i] = interval_end
 
         # go through each of the reads and add them to the image
         for read_id in read_id_list:

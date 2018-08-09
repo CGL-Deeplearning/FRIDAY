@@ -213,7 +213,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
             confusion_matrix_logger.flush()
         else:
             # this setup is for hyperband
-            if epoch > 5 and stats['accuracy'] < 90:
+            if epoch + 1 >= 5 and stats['accuracy'] < 80:
                 sys.stderr.write(TextColor.PURPLE + 'EARLY STOPPING AS THE MODEL NOT DOING WELL\n' + TextColor.END)
                 return encoder_model, decoder_model, encoder_optimizer, decoder_optimizer, stats
 
