@@ -9,6 +9,8 @@ from torchvision import transforms
 import numpy as np
 from modules.core.dataloader import SequenceDataset
 from modules.handlers.TextColor import TextColor
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 """
 This script will evaluate a model and return the loss value.
 
@@ -66,6 +68,8 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
                 if gpu_mode:
                     encoder_hidden = encoder_hidden.cuda()
 
+                decoder_attentions = torch.zeros(images.size(0), images.size(2), 10)
+
                 context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
                 loss = 0
                 seq_length = images.size(2)
@@ -83,6 +87,8 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
                                                                      context_vector=context_vector,
                                                                      encoder_hidden=hidden_encoder)
 
+                    decoder_attentions[:, seq_index] = attn.view(attn.size(0), -1).data
+
                     # loss + optimize
                     loss += test_criterion(output_dec, y)
                     confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes),
@@ -90,6 +96,14 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
 
                 total_loss += loss.item()
                 total_images += labels.size(0)
+
+                # print(labels.data.cpu().numpy())
+                # plt.matshow(decoder_attentions.numpy()[0])
+                # plt.title(str(labels.data.cpu().numpy()[0]), fontsize=12)
+                # plt.show()
+                # exit()
+                # plt.savefig('/data/users/kishwar/train_data/plots/'+"plot_" + str(i) + ".png")
+                # exit()
 
                 pbar.update(1)
                 cm_value = confusion_matrix.value()

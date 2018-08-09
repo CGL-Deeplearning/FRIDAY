@@ -33,22 +33,14 @@ def do_test(test_file, batch_size, gpu_mode, num_workers, model_path, num_classe
     """
     sys.stderr.write(TextColor.PURPLE + 'Loading data\n' + TextColor.END)
 
-    # this needs to change
-    hidden_size = 256
-    gru_layers = 1
-    encoder_model, decoder_model = ModelHandler.get_new_model(input_channels=10,
-                                                              gru_layers=gru_layers,
-                                                              hidden_size=hidden_size,
-                                                              num_classes=6)
-
     if os.path.isfile(model_path) is False:
         sys.stderr.write(TextColor.RED + "ERROR: INVALID PATH TO MODEL\n")
         exit(1)
 
     sys.stderr.write(TextColor.GREEN + "INFO: MODEL LOADING\n" + TextColor.END)
-    encoder_model, decoder_model = ModelHandler.load_model_for_training(encoder_model,
-                                                                        decoder_model,
-                                                                        model_path)
+    encoder_model, decoder_model, _size, _layers, epochs = ModelHandler.load_model_for_training(model_path,
+                                                                                                input_channels=10,
+                                                                                                num_classes=6)
 
     sys.stderr.write(TextColor.GREEN + "INFO: MODEL LOADED\n" + TextColor.END)
 
@@ -57,8 +49,7 @@ def do_test(test_file, batch_size, gpu_mode, num_workers, model_path, num_classe
         decoder_model = torch.nn.DataParallel(decoder_model).cuda()
 
     confusion_matrix, test_loss, accuracy = \
-        test(test_file, batch_size, gru_layers, hidden_size, gpu_mode, encoder_model, decoder_model, num_classes,
-             num_workers)
+        test(test_file, batch_size, gpu_mode, encoder_model, decoder_model, num_workers, _layers, _size)
 
     sys.stderr.write(TextColor.PURPLE + 'DONE\n' + TextColor.END)
 
