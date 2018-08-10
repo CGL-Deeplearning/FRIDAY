@@ -6,13 +6,12 @@ import numpy as np
 from torch.utils.data import DataLoader
 from torchvision import transforms
 import multiprocessing
-from torch.autograd import Variable
-from modules.models.Seq2Seq_atn import EncoderCRNN, AttnDecoderRNN
 from modules.core.dataloader_test import SequenceDataset
 from modules.handlers.TextColor import TextColor
 from collections import defaultdict
 from modules.handlers.VcfWriter import VCFWriter
 from modules.handlers.FileManager import FileManager
+from modules.models.ModelHandler import ModelHandler
 import operator
 import pickle
 from tqdm import tqdm
@@ -31,8 +30,6 @@ INPUT:
 Output:
 - A VCF file containing all the variants.
 """
-FLANK_SIZE = 10
-
 SNP = 1
 IN = 2
 DEL = 3
@@ -70,87 +67,65 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     sys.stderr.write(TextColor.PURPLE + 'Data loading finished\n' + TextColor.END)
 
     # load the model
-    checkpoint = torch.load(model_path, map_location='cpu')
-    encoder_state_dict = checkpoint['encoder_state_dict']
-    decoder_state_dict = checkpoint['decoder_state_dict']
+    sys.stderr.write(TextColor.PURPLE + 'Loading data\n' + TextColor.END)
 
-    from collections import OrderedDict
-    new_encoder_state_dict = OrderedDict()
-    new_decoder_state_dict = OrderedDict()
+    if os.path.isfile(model_path) is False:
+        sys.stderr.write(TextColor.RED + "ERROR: INVALID PATH TO MODEL\n")
+        exit(1)
 
-    for k, v in encoder_state_dict.items():
-        name = k
-        if k[0:7] == 'module.':
-            name = k[7:]  # remove `module.`
-        new_encoder_state_dict[name] = v
+    sys.stderr.write(TextColor.GREEN + "INFO: MODEL LOADING\n" + TextColor.END)
+    encoder_model, decoder_model, hidden_size, gru_layers, epochs = ModelHandler.load_model_for_training(model_path,
+                                                                                                         input_channels=10,
+                                                                                                         num_classes=6)
 
-    for k, v in decoder_state_dict.items():
-        name = k
-        if k[0:7] == 'module.':
-            name = k[7:]  # remove `module.`
-        new_decoder_state_dict[name] = v
-
-    hidden_size = 256
-    gru_layers = 3
-    encoder_model = EncoderCRNN(image_channels=10, gru_layers=gru_layers, hidden_size=hidden_size)
-    decoder_model = AttnDecoderRNN(hidden_size=hidden_size, gru_layers=gru_layers, num_classes=6, max_length=1)
-    encoder_model.load_state_dict(new_encoder_state_dict)
-    decoder_model.load_state_dict(new_decoder_state_dict)
-    encoder_model.cpu()
-    decoder_model.cpu()
+    sys.stderr.write(TextColor.GREEN + "INFO: MODEL LOADED\n" + TextColor.END)
 
     if gpu_mode:
-        encoder_model = encoder_model.cuda()
         encoder_model = torch.nn.DataParallel(encoder_model).cuda()
-        decoder_model = decoder_model.cuda()
         decoder_model = torch.nn.DataParallel(decoder_model).cuda()
 
-    # Change model to 'eval' mode (BN uses moving mean/var).
     encoder_model.eval()
     decoder_model.eval()
 
     sys.stderr.write(TextColor.PURPLE + 'MODEL LOADED\n' + TextColor.END)
-    # TO HERE
+
     with torch.no_grad():
-        for images, labels, positional_info in tqdm(testloader, file=sys.stdout, dynamic_ncols=True):
+        for images, labels, positional_info in tqdm(testloader, ncols=200):
             if gpu_mode:
-                # encoder_hidden = encoder_hidden.cuda()
                 images = images.cuda()
                 labels = labels.cuda()
 
-            decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
             encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
 
-            # if gpu_mode:
-            #     decoder_input = decoder_input.cuda()
-            #     encoder_hidden = encoder_hidden.cuda()
+            if gpu_mode:
+                encoder_hidden = encoder_hidden.cuda()
 
             chr_name, start_positions, reference_seqs, allele_dict_paths = positional_info
 
-            window_size = images.size(2) - 2 * FLANK_SIZE
-            index_start = FLANK_SIZE
-            end_index = index_start + window_size
             unrolling_genomic_position = np.zeros((images.size(0)), dtype=np.int64)
 
-            for seq_index in range(index_start, end_index):
-                x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
+            context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
+            current_batch_size = images.size(0)
+            seq_length = images.size(2)
+            for seq_index in range(0, seq_length):
+                attention_index = torch.from_numpy(np.asarray([seq_index] * current_batch_size)).view(-1, 1)
 
-                output_enc, hidden_dec = encoder_model(x, encoder_hidden)
-                output_dec, decoder_hidden, attn = decoder_model(decoder_input, output_enc, hidden_dec)
+                attention_index_onehot = torch.FloatTensor(current_batch_size, seq_length)
 
-                encoder_hidden = decoder_hidden.detach()
+                attention_index_onehot.zero_()
+                attention_index_onehot.scatter_(1, attention_index, 1)
 
-                topv, topi = output_dec.topk(1)
-                decoder_input = topi.squeeze().detach()  # detach from history as input
+                output_dec, decoder_hidden, attn = decoder_model(attention_index_onehot,
+                                                                 context_vector=context_vector,
+                                                                 encoder_hidden=hidden_encoder)
 
                 # One dimensional softmax is used to convert the logits to probability distribution
                 m = nn.Softmax(dim=1)
                 soft_probs = m(output_dec)
                 output_preds = soft_probs.cpu()
-                # record each of the predictions from a batch prediction
-                batches = images.size(0)
 
-                for batch in range(batches):
+                # record each of the predictions from a batch prediction
+                for batch in range(current_batch_size):
                     allele_dict_path = allele_dict_paths[batch]
                     chromosome_name = chr_name[batch]
                     reference_seq = reference_seqs[batch]
