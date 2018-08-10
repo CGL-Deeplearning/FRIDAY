@@ -7,8 +7,8 @@ from modules.models.resnet import resnet18_custom
 
 def reverse_onehot(one_hot_vector):
     reversed_onehot = one_hot_vector.clone()
-    reversed_onehot[one_hot_vector==0] = 1
-    reversed_onehot[one_hot_vector!=0] = 0
+    reversed_onehot[one_hot_vector == 0] = 1
+    reversed_onehot[one_hot_vector != 0] = 0
     return reversed_onehot
 
 
@@ -26,23 +26,14 @@ class Attention(nn.Module):
         """
         self.mask = mask
 
-    def forward(self, mask, mask_reversed, output, context):
+    def forward(self, output, context):
         batch_size = output.size(0)
         hidden_size = output.size(2)
         input_size = context.size(1)
 
         # (batch, out_len, dim) * (batch, in_len, dim) -> (batch, out_len, in_len)
         attn = torch.bmm(output, context.transpose(1, 2))
-        # print("UNMAKED", attn)
-        # print(mask)
-        if mask is not None:
-            max_value = abs(attn.max().data.cpu().contiguous().numpy())
-            attn.data.masked_fill_(mask.view(attn.size(0), 1, -1), max_value * 2)
-        # if mask_reversed is not None:
-        #     attn.data.masked_fill_(mask_reversed.view(attn.size(0), 1, -1), -float('inf'))
-        # print("MASKED", attn)
-        # print(attn)
-        # exit()
+
         attn = F.softmax(attn.view(-1, input_size), dim=1).view(batch_size, -1, input_size)
 
         # (batch, out_len, in_len) * (batch, in_len, dim) -> (batch, out_len, dim)
@@ -81,7 +72,7 @@ class EncoderCRNN(nn.Module):
     def forward(self, x, hidden):
         hidden = hidden.transpose(0, 1).contiguous()
 
-        features_cnn = self.cnn_encoder(x)
+        features_cnn = self.cnn_encoder.forward(x)
         batch_size = features_cnn.size(0)
         seq_len = features_cnn.size(2)
         features_cnn = features_cnn.view(batch_size, seq_len, -1)
@@ -128,8 +119,7 @@ class AttnDecoderRNN(nn.Module):
             output_gru = output_gru.view(output_gru.size(0), output_gru.size(1), 2, -1).sum(2)\
                 .view(output_gru.size(0), output_gru.size(1), -1)
 
-        output, attn = self.attention(attention_index_onehot.byte(), reverse_onehot(attention_index_onehot).byte(),
-                                      output_gru, context_vector)
+        output, attn = self.attention.forward(output_gru, context_vector)
 
         class_probabilities = self.out(output.contiguous().view(-1, self.hidden_size))
 

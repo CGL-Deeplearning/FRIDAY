@@ -40,10 +40,10 @@ class TrainModule:
         # 'encoder_l2': 1.1284985594460101e-05, 'encoder_lr': 0.00045944650804049245}
         self.hidden_size = 512
         self.gru_layers = 3
-        self.encoder_lr = 0.0002118281822782419
-        self.encoder_l2 = 7.289606814345454e-05
-        self.decoder_lr = 3.115959090726197e-05
-        self.decoder_l2 = 0.00228874981755492
+        self.encoder_lr = 0.00045944650804049245
+        self.encoder_l2 = 1.1284985594460101e-05
+        self.decoder_lr = 0.00011459338547229649
+        self.decoder_l2 = 4.87149093382362e-05
 
     def train_model(self):
         # train a model
