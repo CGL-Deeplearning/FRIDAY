@@ -1,6 +1,5 @@
 import matplotlib
 matplotlib.use('Agg')
-from __future__ import print_function
 import sys
 import torch
 from tqdm import tqdm
@@ -12,7 +11,6 @@ import numpy as np
 from modules.core.dataloader import SequenceDataset
 from modules.handlers.TextColor import TextColor
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 from collections import defaultdict
 import seaborn as sns
 
