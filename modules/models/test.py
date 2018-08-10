@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')
 from __future__ import print_function
 import sys
 import torch
@@ -11,6 +13,11 @@ from modules.core.dataloader import SequenceDataset
 from modules.handlers.TextColor import TextColor
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+from collections import defaultdict
+import seaborn as sns
+
+
+
 """
 This script will evaluate a model and return the loss value.
 
@@ -23,6 +30,9 @@ Returns:
 """
 FLANK_SIZE = 10
 CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+sns.set(color_codes=True)
+sns.set_palette(sns.color_palette("colorblind"))
+sns.set_style("white")
 
 
 def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_workers, gru_layers, hidden_size, num_classes=6):
@@ -55,6 +65,12 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
     total_loss = 0
     total_images = 0
     accuracy = 0
+    correct_predictions = defaultdict(int)
+    incorrect_predictions = defaultdict(int)
+    total_cases = defaultdict(int)
+    positional_class_distribution = defaultdict(int)
+    positional_hom_cases = defaultdict(int)
+    total_incorrect_calls = 0
     with torch.no_grad():
         with tqdm(total=len(test_loader), desc='Accuracy: ', leave=True, ncols=100) as pbar:
             for i, (images, labels) in enumerate(test_loader):
@@ -94,6 +110,28 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
                     confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes),
                                          y.data.contiguous().view(-1))
 
+                    for batch in range(current_batch_size):
+                        true_label = y[batch].item()
+
+                        m = nn.Softmax(dim=1)
+                        soft_probs = m(output_dec)
+                        output_preds = soft_probs.cpu()
+                        preds = output_preds[batch, :].data
+                        top_n, top_i = preds.topk(1)
+                        predicted_label = top_i[0].item()
+
+                        if true_label != 0:
+                            positional_class_distribution[seq_index] += 1
+                        else:
+                            positional_hom_cases[seq_index] += 1
+
+                        if true_label != 0 and predicted_label == true_label:
+                            correct_predictions[seq_index] += 1
+                        elif predicted_label != true_label:
+                            incorrect_predictions[seq_index] += 1
+                            total_incorrect_calls += 1
+                        total_cases[seq_index] += 1
+
                 total_loss += loss.item()
                 total_images += labels.size(0)
 
@@ -111,6 +149,47 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
                 accuracy = 100.0 * (cm_value[1][1] + cm_value[2][2] + cm_value[3][3] + cm_value[4][4] +
                                     cm_value[5][5]) / denom
                 pbar.set_description("Accuracy: " + str(accuracy))
+
+    x_axes = []
+    y_axes_accuracy = []
+    y_axes_class = []
+    y_axes_hom = []
+    for i in range(0, 10):
+        x = i
+        accuracy = incorrect_predictions[i] / total_incorrect_calls if total_incorrect_calls else 0
+        non_hom_cases = positional_class_distribution[i] / total_cases[i] if total_cases[i] else 0
+        hom_cases = positional_hom_cases[i] / total_cases[i] if total_cases[i] else 0
+
+        x_axes.append(x)
+        y_axes_accuracy.append(accuracy)
+        y_axes_class.append(non_hom_cases)
+        y_axes_hom.append(hom_cases)
+
+    fig, axes = plt.subplots(ncols=2, nrows=1, figsize=(16, 7), sharey=False, frameon=True)
+    ax_ = axes[0]
+    ax_.bar(x_axes, y_axes_accuracy)
+    ax_.set_xticks(np.arange(0, 10, step=1))
+    ax_.set_yticks(np.arange(0, 1.1, step=0.1))
+    ax_.set_ylim(0, 1.1)
+    ax_.set_xlabel('Position')
+    ax_.set_ylabel('Wrong prediction distribution')
+    ax_.set_title('Position-wise wrong prediction distribution', fontsize=12, fontweight='bold')
+
+    ax_ = axes[1]
+    p1 = ax_.bar(x_axes, y_axes_hom)
+    p2 = ax_.bar(x_axes, y_axes_class, bottom=y_axes_hom)
+    ax_.set_xticks(np.arange(0, 10, step=1))
+    ax_.set_yticks(np.arange(0, 1.1, step=0.1))
+    ax_.set_ylim(0, 1.1)
+    ax_.set_xlabel('Position')
+    ax_.set_ylabel('Non-homozygous class frequency')
+    ax_.set_title('Position-wise class distribution', fontsize=12, fontweight='bold')
+    ax_.legend((p1[0], p2[0]), ('Hom', 'Non-Hom'), loc='upper center', bbox_to_anchor=(0.5, 1.0),
+               fancybox=True, shadow=True, ncol=2)
+
+    fig.subplots_adjust(wspace=0.3)
+    fig.subplots_adjust(top=0.88)
+    plt.savefig('wrong_prediction_distribution.png', dpi=400)
 
     avg_loss = total_loss / total_images if total_images else 0
 
