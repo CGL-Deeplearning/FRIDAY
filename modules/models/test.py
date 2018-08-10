@@ -1,5 +1,5 @@
-# import matplotlib
-# matplotlib.use('Agg')
+import matplotlib
+matplotlib.use('Agg')
 import sys
 import torch
 from tqdm import tqdm
