@@ -1,5 +1,5 @@
-import matplotlib
-matplotlib.use('Agg')
+# import matplotlib
+# matplotlib.use('Agg')
 import sys
 import torch
 from tqdm import tqdm
@@ -63,12 +63,17 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
     total_loss = 0
     total_images = 0
     accuracy = 0
-    correct_predictions = defaultdict(int)
-    incorrect_predictions = defaultdict(int)
-    total_cases = defaultdict(int)
-    positional_class_distribution = defaultdict(int)
+
+    incorrect_predictions_non_hom = defaultdict(int)
+    incorrect_predictions_hom = defaultdict(int)
+
+    positional_non_hom_cases = defaultdict(int)
     positional_hom_cases = defaultdict(int)
-    total_incorrect_calls = 0
+
+    total_hom_cases = 0
+    total_non_hom_cases = 0
+    total_non_hom_incorrect_calls = 0
+    total_hom_incorrect_calls = 0
     with torch.no_grad():
         with tqdm(total=len(test_loader), desc='Accuracy: ', leave=True, ncols=100) as pbar:
             for i, (images, labels) in enumerate(test_loader):
@@ -119,16 +124,19 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
                         predicted_label = top_i[0].item()
 
                         if true_label != 0:
-                            positional_class_distribution[seq_index] += 1
+                            positional_non_hom_cases[seq_index] += 1
+                            total_non_hom_cases += 1
                         else:
                             positional_hom_cases[seq_index] += 1
+                            total_hom_cases += 1
 
-                        if true_label != 0 and predicted_label == true_label:
-                            correct_predictions[seq_index] += 1
-                        elif predicted_label != true_label:
-                            incorrect_predictions[seq_index] += 1
-                            total_incorrect_calls += 1
-                        total_cases[seq_index] += 1
+                        if true_label != 0 and predicted_label != true_label:
+                            incorrect_predictions_non_hom[seq_index] += 1
+                            total_non_hom_incorrect_calls += 1
+
+                        if true_label == 0 and predicted_label != true_label:
+                            incorrect_predictions_hom[seq_index] += 1
+                            total_hom_incorrect_calls += 1
 
                 total_loss += loss.item()
                 total_images += labels.size(0)
@@ -149,45 +157,66 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
                 pbar.set_description("Accuracy: " + str(accuracy))
 
     x_axes = []
-    y_axes_accuracy = []
-    y_axes_class = []
-    y_axes_hom = []
+    y_non_hom_incorrect_dist = []
+    y_hom_incorrect_dist = []
+    y_hom_distribution = []
+    y_non_hom_distribution = []
     for i in range(0, 10):
         x = i
-        accuracy = incorrect_predictions[i] / total_incorrect_calls if total_incorrect_calls else 0
-        non_hom_cases = positional_class_distribution[i] / total_cases[i] if total_cases[i] else 0
-        hom_cases = positional_hom_cases[i] / total_cases[i] if total_cases[i] else 0
+        non_hom_incorrectness = incorrect_predictions_non_hom[i] / total_non_hom_incorrect_calls \
+            if total_non_hom_incorrect_calls else 0
+        hom_incorrectness = incorrect_predictions_hom[i] / total_hom_incorrect_calls \
+            if total_hom_incorrect_calls else 0
+        hom_dist = positional_hom_cases[i]  / total_hom_cases if total_hom_cases else 0
+        non_hom_dist = positional_non_hom_cases[i] / total_non_hom_cases if total_non_hom_cases else 0
 
         x_axes.append(x)
-        y_axes_accuracy.append(accuracy)
-        y_axes_class.append(non_hom_cases)
-        y_axes_hom.append(hom_cases)
+        y_non_hom_incorrect_dist.append(non_hom_incorrectness)
+        y_hom_incorrect_dist.append(hom_incorrectness)
+        y_hom_distribution.append(hom_dist)
+        y_non_hom_distribution.append(non_hom_dist)
 
-    fig, axes = plt.subplots(ncols=2, nrows=1, figsize=(16, 7), sharey=False, frameon=True)
-    ax_ = axes[0]
-    ax_.bar(x_axes, y_axes_accuracy)
+    fig, axes = plt.subplots(ncols=2, nrows=2, figsize=(10, 10), sharey=False, frameon=True)
+    ax_ = axes[0, 0]
+    ax_.bar(x_axes, y_non_hom_incorrect_dist)
     ax_.set_xticks(np.arange(0, 10, step=1))
     ax_.set_yticks(np.arange(0, 1.1, step=0.1))
     ax_.set_ylim(0, 1.1)
     ax_.set_xlabel('Position')
-    ax_.set_ylabel('Wrong prediction distribution')
-    ax_.set_title('Position-wise wrong prediction distribution', fontsize=12, fontweight='bold')
+    ax_.set_ylabel('Wrong prediction distribution non-hom')
+    ax_.set_title('Wrong prediction dist. for non-hom cases', fontsize=12, fontweight='bold')
 
-    ax_ = axes[1]
-    p1 = ax_.bar(x_axes, y_axes_hom)
-    p2 = ax_.bar(x_axes, y_axes_class, bottom=y_axes_hom)
+    ax_ = axes[0, 1]
+    ax_.bar(x_axes, y_non_hom_distribution)
     ax_.set_xticks(np.arange(0, 10, step=1))
     ax_.set_yticks(np.arange(0, 1.1, step=0.1))
     ax_.set_ylim(0, 1.1)
     ax_.set_xlabel('Position')
     ax_.set_ylabel('Non-homozygous class frequency')
-    ax_.set_title('Position-wise class distribution', fontsize=12, fontweight='bold')
-    ax_.legend((p1[0], p2[0]), ('Hom', 'Non-Hom'), loc='upper center', bbox_to_anchor=(0.5, 1.0),
-               fancybox=True, shadow=True, ncol=2)
+    ax_.set_title('Non-hom distribution', fontsize=12, fontweight='bold')
+
+    ax_ = axes[1, 0]
+    ax_.bar(x_axes, y_hom_incorrect_dist)
+    ax_.set_xticks(np.arange(0, 10, step=1))
+    ax_.set_yticks(np.arange(0, 1.1, step=0.1))
+    ax_.set_ylim(0, 1.1)
+    ax_.set_xlabel('Position')
+    ax_.set_ylabel('Wrong prediction distribution hom')
+    ax_.set_title('Wrong prediction dist for hom cases', fontsize=12, fontweight='bold')
+
+    ax_ = axes[1, 1]
+    ax_.bar(x_axes, y_hom_distribution)
+    ax_.set_xticks(np.arange(0, 10, step=1))
+    ax_.set_yticks(np.arange(0, 1.1, step=0.1))
+    ax_.set_ylim(0, 1.1)
+    ax_.set_xlabel('Position')
+    ax_.set_ylabel('Homozygous class frequency')
+    ax_.set_title('Hom distribution', fontsize=12, fontweight='bold')
 
     fig.subplots_adjust(wspace=0.3)
     fig.subplots_adjust(top=0.88)
-    plt.savefig('wrong_prediction_distribution.png', dpi=400)
+    # plt.show()
+    plt.savefig('wrong_prediction_distribution.png', dpi=800)
 
     avg_loss = total_loss / total_images if total_images else 0
 
