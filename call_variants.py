@@ -255,7 +255,7 @@ def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, bam_fi
     # produce_vcf_records(chr_name, vcf_dir, thread_no, pos_list)
     # exit()
 
-    for i in tqdm(range(0, len(pos_list), each_chunk_size), file=sys.stdout, dynamic_ncols=True):
+    for i in tqdm(range(0, len(pos_list), each_chunk_size), ncols=50):
         start_position = i
         end_position = min(i + each_chunk_size, len(pos_list))
 
