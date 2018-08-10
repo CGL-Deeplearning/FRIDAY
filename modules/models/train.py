@@ -1,13 +1,9 @@
-from __future__ import print_function
 import sys
 import torch
 import torch.nn as nn
-import random
 import os
 from torchvision import transforms
 from tqdm import tqdm
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 import numpy as np
 
 # Custom generator for our dataset
@@ -146,7 +142,6 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 if gpu_mode:
                     encoder_hidden = encoder_hidden.cuda()
 
-                # decoder_attentions = torch.zeros(images.size(0), images.size(2), 10)
                 encoder_optimizer.zero_grad()
                 decoder_optimizer.zero_grad()
 
@@ -165,7 +160,6 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
 
                     output_dec, decoder_hidden, attn = decoder_model(attention_index_onehot, context_vector=context_vector,
                                                                      encoder_hidden=hidden_encoder)
-                    # decoder_attentions[:, seq_index] = attn.view(attn.size(0), -1).data
 
                     # loss
                     loss += criterion(output_dec, y)
@@ -177,9 +171,6 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 total_loss += loss.item()
                 total_images += labels.size(0)
 
-                # plt.matshow(decoder_attentions[0].numpy())
-                # plt.show()
-                # exit()
                 # update the progress bar
                 avg_loss = (total_loss / total_images) if total_images else 0
                 progress_bar.set_description("Loss: " + str(avg_loss))
