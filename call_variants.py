@@ -137,7 +137,7 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                     if ref_base == '*':
                         continue
 
-                    true_label = labels[batch, seq_index - index_start]
+                    true_label = labels[batch, seq_index]
                     fake_probs = [0.0] * 6
                     fake_probs[true_label] = 1.0
                     top_n, top_i = torch.FloatTensor(fake_probs).topk(1)
