@@ -37,7 +37,7 @@ class SequenceDataset(Dataset):
 
         hdf5_file = h5py.File(hdf5_file_path, 'r')
         image_dataset = hdf5_file['images']
-        img = np.array(image_dataset[hdf5_index], dtype=np.uint8)
+        img = np.array(image_dataset[hdf5_index], dtype=np.float32)
         hdf5_file.close()
 
         # load the labels

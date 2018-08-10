@@ -18,7 +18,8 @@ Input:
 Returns:
 - Loss value
 """
-FLANK_SIZE = 10
+CONTEXT_SIZE = 20
+WINDOW_SIZE = 10
 CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
@@ -69,13 +70,20 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
 
                 decoder_attentions = torch.zeros(images.size(0), images.size(2), 10)
 
-                context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
                 loss = 0
-                seq_length = images.size(2)
-                for seq_index in range(0, seq_length):
+                seq_length = WINDOW_SIZE
+                start_index = CONTEXT_SIZE
+                end_index = CONTEXT_SIZE + WINDOW_SIZE
+                # from analysis.analyze_png_img import analyze_tensor
+                # print(labels[0, :].data.numpy())
+                # analyze_tensor(images[0, :, start_index:end_index, :])
+
+                context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
+                for seq_index in range(start_index, end_index):
                     current_batch_size = images.size(0)
-                    y = labels[:, seq_index]
-                    attention_index = torch.from_numpy(np.asarray([seq_index] * current_batch_size)).view(-1, 1)
+                    current_index = seq_index - start_index
+                    y = labels[:, seq_index - start_index]
+                    attention_index = torch.from_numpy(np.asarray([current_index] * current_batch_size)).view(-1, 1)
 
                     attention_index_onehot = torch.FloatTensor(current_batch_size, seq_length)
 

@@ -22,6 +22,8 @@ Return:
 - A trained model
 """
 CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+CONTEXT_SIZE = 20
+WINDOW_SIZE = 10
 
 
 def save_best_model(encoder_model, decoder_model, encoder_optimizer, decoder_optimizer, hidden_size, layers, epoch,
@@ -68,7 +70,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
     train_data_set = SequenceDataset(train_file, transformations)
     train_loader = DataLoader(train_data_set,
                               batch_size=batch_size,
-                              shuffle=True,
+                              shuffle=False,
                               num_workers=num_workers,
                               pin_memory=gpu_mode
                               )
@@ -145,20 +147,29 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 encoder_optimizer.zero_grad()
                 decoder_optimizer.zero_grad()
 
-                context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
                 loss = 0
-                seq_length = images.size(2)
-                for seq_index in range(0, seq_length):
+                seq_length = WINDOW_SIZE
+                start_index = CONTEXT_SIZE
+                end_index = CONTEXT_SIZE + WINDOW_SIZE
+
+                # from analysis.analyze_png_img import analyze_tensor
+                # print(labels[0, :].data.numpy())
+                # analyze_tensor(images[0, :, start_index:end_index, :])
+
+                context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
+                for seq_index in range(start_index, end_index):
                     current_batch_size = images.size(0)
-                    y = labels[:, seq_index]
-                    attention_index = torch.from_numpy(np.asarray([seq_index] * current_batch_size)).view(-1, 1)
+                    current_index = seq_index - start_index
+                    y = labels[:, seq_index - start_index]
+                    attention_index = torch.from_numpy(np.asarray([current_index] * current_batch_size)).view(-1, 1)
 
                     attention_index_onehot = torch.FloatTensor(current_batch_size, seq_length)
 
                     attention_index_onehot.zero_()
                     attention_index_onehot.scatter_(1, attention_index, 1)
 
-                    output_dec, decoder_hidden, attn = decoder_model(attention_index_onehot, context_vector=context_vector,
+                    output_dec, decoder_hidden, attn = decoder_model(attention_index_onehot,
+                                                                     context_vector=context_vector,
                                                                      encoder_hidden=hidden_encoder)
 
                     # loss

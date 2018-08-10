@@ -1,6 +1,10 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
+CONTEXT_SIZE = 20
+WINDOW_SIZE = 10
+
+
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
@@ -96,15 +100,14 @@ class ResNet(nn.Module):
     def __init__(self, in_channels, block, layers):
         self.inplanes = 80
         super(ResNet, self).__init__()
-        self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=3, padding=1, groups=in_channels)
-        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=3, groups=20, padding=1, stride=(1, 2))
+        context_around = CONTEXT_SIZE * 2 + 1
+        context_window = WINDOW_SIZE * 2 + 1
+        self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=(context_around, 3),
+                                             padding=(0, 1), groups=in_channels)
+        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=(context_window, 3), groups=20,
+                                             padding=(WINDOW_SIZE, 1), stride=(1, 2))
         self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=3, padding=1, groups=40)
-        self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0), stride=(1, 2))
-
-        # self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=3, padding=(1, 0), groups=in_channels)
-        # self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=3, padding=(1, 0), groups=20)
-        # self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=3, padding=(1, 0), groups=40)
-        # self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0))
+        self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=1, stride=(1, 2))
 
         self.layer1 = self._make_layer(block, 128, layers[0])
         self.layer2 = self._make_layer(block, 192, layers[1], stride=(1, 2))
@@ -126,7 +129,7 @@ class ResNet(nn.Module):
                           kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm2d(planes * block.expansion),
             )
-        layers = []
+        layers = list()
         layers.append(block(self.inplanes, planes, stride, downsample))
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
@@ -135,10 +138,11 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.Context_Conv2d_0a(x)
-        x = self.Context_Conv2d_0b(x)
-        x = self.Context_Conv2d_0c(x)
-        x = self.Conv2d_1a_3x3(x)
+        x = self.Context_Conv2d_0a.forward(x)
+        x = self.Context_Conv2d_0b.forward(x)
+
+        x = self.Context_Conv2d_0c.forward(x)
+        x = self.Conv2d_1a_3x3.forward(x)
 
         x = self.layer1(x)
         x = self.layer2(x)

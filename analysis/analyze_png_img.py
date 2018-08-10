@@ -347,15 +347,16 @@ def analyze_it(img, shape):
 
 
 def analyze_tensor(img):
-    img = img * 255.0
     img_c, img_w, img_h = img.shape
     print("BASE CHANNEL")
     for i in range(img_h):
         for j in range(img_w):
             if img[0][j][i] != 0:
+                # print(img[0][j][i])
                 print(get_base_by_color(img[0][j][i]), end='')
             else:
                 print(' ', end='')
+                # print(' ')
         print()
 
     print("SUPPORT CHANNEL")
@@ -366,3 +367,36 @@ def analyze_tensor(img):
             else:
                 print(' ', end='')
         print()
+
+
+def analyze_hdf5(img):
+    print("BASE CHANNEL")
+    for i in range(img_h):
+        for j in range(img_w):
+            if img[0][j][i] != 0:
+                # print(img[0][j][i])
+                print(get_base_by_color(img[0][j][i]), end='')
+            else:
+                print(' ', end='')
+                # print(' ')
+        print()
+
+    print("SUPPORT CHANNEL")
+    for i in range(img_h):
+        for j in range(img_w):
+            if img[6][j][i] != 0:
+                print(get_alt_support_by_color(img[6][j][i]), end='')
+            else:
+                print(' ', end='')
+        print()
+
+
+# import h5py
+# hdf5_file = h5py.File("/data/users/kishwar/train_data/image_output/run_08102018_161950/19/19_259396.h5", 'r')
+# image_dataset = hdf5_file['images']
+# img = np.array(image_dataset[0], dtype=np.int32)
+# from torchvision import transforms
+# transformations = transforms.Compose([transforms.ToTensor()])
+# img = transformations(img)
+# img = img.transpose(1, 2)
+# analyze_tensor(img)

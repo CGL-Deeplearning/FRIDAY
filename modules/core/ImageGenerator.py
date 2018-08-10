@@ -6,7 +6,6 @@ import random
 import collections
 import numpy as np
 from modules.handlers.TextColor import TextColor
-import h5py
 import operator
 """
 Generate image and label of that image given a region. 
@@ -22,12 +21,12 @@ MIN_DELETE_QUALITY = 20
 VCF_INDEX_BUFFER = -1
 
 # Per sequence threshold
+# context to take on each side for each base
+CONTEXT_SIZE = 20
 # jump window size so the last 50 bases will be overlapping
 WINDOW_OVERLAP_JUMP = 10
 # image size
 WINDOW_SIZE = 10
-# flanking size is the amount add on each size
-WINDOW_FLANKING_SIZE = 0
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
 # ALL_HOM_BASE_RATIO = 0.005 (this worked great)
@@ -563,13 +562,13 @@ class ImageGenerator:
             if allele[1] == SNP and freq <= 2:
                 continue
 
-            start_index = self.positional_info_position_to_index[pos] - \
-                          self.positional_info_position_to_index[ref_start]
-            left_window_index = start_index - int(WINDOW_SIZE / 2) - WINDOW_FLANKING_SIZE
-            right_window_index = start_index + int(WINDOW_SIZE / 2) + WINDOW_FLANKING_SIZE
-
             if pos < interval_start - POS_BUFFER or pos > interval_end + POS_BUFFER:
                 continue
+
+            start_index = self.positional_info_position_to_index[pos] - \
+                          self.positional_info_position_to_index[ref_start]
+            left_window_index = start_index - int(WINDOW_SIZE / 2) - CONTEXT_SIZE
+            right_window_index = start_index + int(WINDOW_SIZE / 2) + CONTEXT_SIZE
 
             start_pos_is_insert = self.positional_info_index_to_position[start_index - int(WINDOW_SIZE / 2)][1]
             start_pos = self.positional_info_index_to_position[start_index - int(WINDOW_SIZE / 2)][0]
@@ -594,9 +593,9 @@ class ImageGenerator:
             sub_label_seq = label_seq[label_left_index:label_right_index]
             sub_ref_seq = ref_seq[img_left_index:img_right_index]
 
-            # hom_bases_count = collections.Counter(sub_label_seq)
-            # other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
-            #
+            hom_bases_count = collections.Counter(sub_label_seq)
+            other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
+
             # if other_bases <= 0:
             #     continue
             #     include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
@@ -606,7 +605,7 @@ class ImageGenerator:
             sliced_image = image[:, img_left_index:img_right_index, :]
             img_h, img_w, img_c = sliced_image.shape
 
-            sliced_images.append(np.array(sliced_image, dtype=np.int8))
+            sliced_images.append(np.array(sliced_image, dtype=np.int32))
             index_info = str(image_index)
             sequence_info = str(self.chromosome_name) + " " + str(start_pos) + "," + str(sub_label_seq)
             sequence_info = sequence_info + "," + str(sub_ref_seq)
@@ -615,7 +614,7 @@ class ImageGenerator:
 
             # print(pos, start_pos, end_pos)
             # from analysis.analyze_png_img import analyze_array
-            # print(' ' * WINDOW_FLANKING_SIZE + str(sub_label_seq))
+            # print(' ' * CONTEXT_SIZE + str(sub_label_seq))
             # analyze_array(sliced_image)
             # exit()
             image_index += 1

@@ -361,8 +361,11 @@ class CandidateFinder:
             read_quality_segment = read_quality[read_index:read_index+length]
             read_sequence_segment = read_sequence[read_index:read_index+length]
 
+            # in few cases read may start with an invalid CIGAR, the first cigar base has to be a match
             if cigar_code != 0 and found_valid_cigar is False:
-                read_index += length
+                # if it's an insert or a soft-clip, then increase the read-index
+                if cigar_code == 1 or cigar_code == 4:
+                    read_index += length
                 continue
             found_valid_cigar = True
 
