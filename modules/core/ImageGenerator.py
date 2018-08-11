@@ -26,7 +26,7 @@ CONTEXT_SIZE = 5
 # jump window size so the last 50 bases will be overlapping
 WINDOW_OVERLAP_JUMP = 10
 # image size
-WINDOW_SIZE = 6
+WINDOW_SIZE = 1
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
 # ALL_HOM_BASE_RATIO = 0.005 (this worked great)
@@ -570,8 +570,12 @@ class ImageGenerator:
             left_window_index = start_index - int(WINDOW_SIZE / 2) - CONTEXT_SIZE
             right_window_index = start_index + int(WINDOW_SIZE / 2) + CONTEXT_SIZE
 
+            if WINDOW_SIZE == 1:
+                right_window_index = start_index + int(WINDOW_SIZE / 2) + CONTEXT_SIZE + 1
+
             start_pos_is_insert = self.positional_info_index_to_position[start_index - int(WINDOW_SIZE / 2)][1]
             start_pos = self.positional_info_index_to_position[start_index - int(WINDOW_SIZE / 2)][0]
+
             if start_pos_is_insert:
                 start_pos += 1
 
@@ -589,6 +593,9 @@ class ImageGenerator:
             img_right_index = right_window_index - img_started_in_indx
             label_left_index = start_index - int(WINDOW_SIZE / 2)
             label_right_index = start_index + int(WINDOW_SIZE / 2)
+
+            if WINDOW_SIZE == 1:
+                label_right_index = start_index + int(WINDOW_SIZE / 2) + 1
 
             sub_label_seq = label_seq[label_left_index:label_right_index]
             sub_ref_seq = ref_seq[img_left_index:img_right_index]
