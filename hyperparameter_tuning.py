@@ -41,10 +41,10 @@ class WrapHyperband:
         self.space = {
             # hp.loguniform returns a value drawn according to exp(uniform(low, high)) so that the logarithm of the
             # return value is uniformly distributed.
-            'encoder_lr': hp.loguniform('enc_lr', -10, -4),
-            'decoder_lr': hp.loguniform('dec_lr', -10, -4),
-            'encoder_l2': hp.loguniform('enc_l2', -12, -5),
-            'decoder_l2': hp.loguniform('dec_l2', -12, -5),
+            'encoder_lr': hp.loguniform('enc_lr', -12, -4),
+            'decoder_lr': hp.loguniform('dec_lr', -12, -4),
+            'encoder_l2': hp.loguniform('enc_l2', -12, -4),
+            'decoder_l2': hp.loguniform('dec_l2', -12, -4),
         }
         self.train_file = train_file
         self.test_file = test_file
