@@ -100,7 +100,7 @@ class ResNet(nn.Module):
         self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=3, padding=1, groups=in_channels)
         self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=3, groups=20, padding=1, stride=(1, 2))
         self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=3, padding=1, groups=40)
-        self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0), stride=(1, 2))
+        self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0))
 
         # self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=3, padding=(1, 0), groups=in_channels)
         # self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=3, padding=(1, 0), groups=20)
@@ -109,8 +109,10 @@ class ResNet(nn.Module):
 
         self.layer1 = self._make_layer(block, 128, layers[0])
         self.layer2 = self._make_layer(block, 192, layers[1], stride=(1, 2))
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=(1, 2))
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=(1, 2))
+        self.layer3 = self._make_layer(block, 256, layers[2])
+        self.layer4 = self._make_layer(block, 512, layers[3])
+        # self.layer5 = self._make_layer(block, 1024, layers[4], stride=(1, 2))
+        # self.layer6 = self._make_layer(block, 2048, layers[5])
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -145,12 +147,17 @@ class ResNet(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
+        # x = self.layer5(x)
+        # x = self.layer6(x)
+        x = F.avg_pool2d(x, kernel_size=(1, 6))
+        x = F.dropout(x, training=self.training)
+
         return x
 
 
 def resnet18_custom(input_channels):
     """Constructs a ResNet-18 model.
     """
-    model = ResNet(input_channels, BasicBlock, [5, 7, 7, 5])
+    model = ResNet(input_channels, BasicBlock, [2, 5, 5, 2])
 
     return model
