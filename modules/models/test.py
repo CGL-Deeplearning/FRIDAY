@@ -18,7 +18,7 @@ Input:
 Returns:
 - Loss value
 """
-CONTEXT_SIZE = 20
+CONTEXT_SIZE = 0
 WINDOW_SIZE = 10
 CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 

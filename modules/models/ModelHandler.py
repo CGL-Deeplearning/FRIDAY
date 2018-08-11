@@ -8,11 +8,11 @@ class ModelHandler:
         torch.save(state, filename)
 
     @staticmethod
-    def get_new_model(input_channels, gru_layers, hidden_size, num_classes=6):
+    def get_new_model(input_channels, gru_layers, hidden_size, seq_len, num_classes=6):
         # get a new model
         encoder_model = EncoderCRNN(image_channels=input_channels, gru_layers=gru_layers, hidden_size=hidden_size)
         decoder_model = AttnDecoderRNN(hidden_size=hidden_size, gru_layers=gru_layers, num_classes=num_classes,
-                                       max_length=1)
+                                       seq_len=seq_len, max_length=1)
         return encoder_model, decoder_model
 
     @staticmethod
@@ -38,7 +38,7 @@ class ModelHandler:
         return encoder_optimizer, decoder_optimizer
 
     @staticmethod
-    def load_model_for_training(model_path, input_channels, num_classes):
+    def load_model_for_training(model_path, input_channels, seq_len, num_classes):
         checkpoint = torch.load(model_path, map_location='cpu')
         hidden_size = checkpoint['hidden_size']
         gru_layers = checkpoint['gru_layers']
@@ -46,6 +46,7 @@ class ModelHandler:
         encoder_model, decoder_model = ModelHandler.get_new_model(input_channels=input_channels,
                                                                   gru_layers=gru_layers,
                                                                   hidden_size=hidden_size,
+                                                                  seq_len=seq_len,
                                                                   num_classes=num_classes)
         encoder_state_dict = checkpoint['encoder_state_dict']
         decoder_state_dict = checkpoint['decoder_state_dict']

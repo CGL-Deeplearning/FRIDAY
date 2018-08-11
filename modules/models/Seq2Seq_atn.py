@@ -94,7 +94,7 @@ class EncoderCRNN(nn.Module):
 
 
 class AttnDecoderRNN(nn.Module):
-    def __init__(self, hidden_size, gru_layers, num_classes, max_length, dropout_p=0.1, bidirectional=True):
+    def __init__(self, hidden_size, gru_layers, num_classes, max_length, seq_len, dropout_p=0.1, bidirectional=True):
         super(AttnDecoderRNN, self).__init__()
         self.hidden_size = hidden_size
         self.num_classes = num_classes
@@ -105,7 +105,7 @@ class AttnDecoderRNN(nn.Module):
         self.attention = Attention(self.hidden_size)
         self.dropout = nn.Dropout(self.dropout_p)
         self.num_layers = gru_layers
-        self.gru = nn.GRU(50, self.hidden_size, num_layers=self.num_layers, batch_first=True,
+        self.gru = nn.GRU(seq_len, self.hidden_size, num_layers=self.num_layers, batch_first=True,
                           bidirectional=True)
         self.out = nn.Linear(self.hidden_size, self.num_classes)
 

@@ -22,7 +22,7 @@ VCF_INDEX_BUFFER = -1
 
 # Per sequence threshold
 # context to take on each side for each base
-CONTEXT_SIZE = 20
+CONTEXT_SIZE = 0
 # jump window size so the last 50 bases will be overlapping
 WINDOW_OVERLAP_JUMP = 10
 # image size
@@ -593,9 +593,9 @@ class ImageGenerator:
             sub_label_seq = label_seq[label_left_index:label_right_index]
             sub_ref_seq = ref_seq[img_left_index:img_right_index]
 
-            hom_bases_count = collections.Counter(sub_label_seq)
-            other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
-
+            # hom_bases_count = collections.Counter(sub_label_seq)
+            # other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
+            #
             # if other_bases <= 0:
             #     continue
             #     include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
