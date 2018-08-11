@@ -8,6 +8,7 @@ from torchvision import transforms
 import numpy as np
 from modules.core.dataloader import SequenceDataset
 from modules.handlers.TextColor import TextColor
+from modules.core.ImageGenerator import CONTEXT_SIZE, WINDOW_SIZE
 """
 This script will evaluate a model and return the loss value.
 
@@ -18,8 +19,6 @@ Input:
 Returns:
 - Loss value
 """
-CONTEXT_SIZE = 0
-WINDOW_SIZE = 10
 CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 

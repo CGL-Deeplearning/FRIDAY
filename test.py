@@ -7,6 +7,7 @@ import torch.nn.parallel
 from modules.models.test import test
 from modules.models.ModelHandler import ModelHandler
 from modules.handlers.TextColor import TextColor
+from modules.core.ImageGenerator import CONTEXT_SIZE, WINDOW_SIZE
 """
 FREEZE THIS BRANCH TO HAVE 1 WINDOW!!
 Train a model and save the model that performs best.
@@ -18,8 +19,6 @@ Input:
 Output:
 - A trained model
 """
-CONTEXT_SIZE = 0
-WINDOW_SIZE = 10
 
 
 def do_test(test_file, batch_size, gpu_mode, num_workers, model_path, num_classes=6):
