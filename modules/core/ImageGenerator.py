@@ -22,11 +22,11 @@ VCF_INDEX_BUFFER = -1
 
 # Per sequence threshold
 # context to take on each side for each base
-CONTEXT_SIZE = 0
+CONTEXT_SIZE = 5
 # jump window size so the last 50 bases will be overlapping
 WINDOW_OVERLAP_JUMP = 10
 # image size
-WINDOW_SIZE = 10
+WINDOW_SIZE = 6
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
 # ALL_HOM_BASE_RATIO = 0.005 (this worked great)
