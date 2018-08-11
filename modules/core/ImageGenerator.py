@@ -22,7 +22,7 @@ VCF_INDEX_BUFFER = -1
 
 # Per sequence threshold
 # context to take on each side for each base
-CONTEXT_SIZE = 5
+CONTEXT_SIZE = 15
 # jump window size so the last 50 bases will be overlapping
 WINDOW_OVERLAP_JUMP = 10
 # image size
