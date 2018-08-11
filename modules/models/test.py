@@ -68,12 +68,13 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
                 if gpu_mode:
                     encoder_hidden = encoder_hidden.cuda()
 
-                decoder_attentions = torch.zeros(images.size(0), images.size(2), 10)
+                # decoder_attentions = torch.zeros(images.size(0), images.size(2), 50)
 
                 loss = 0
-                seq_length = WINDOW_SIZE
+                total_seq_length = images.size(2)
                 start_index = CONTEXT_SIZE
                 end_index = CONTEXT_SIZE + WINDOW_SIZE
+
                 # from analysis.analyze_png_img import analyze_tensor
                 # print(labels[0, :].data.numpy())
                 # analyze_tensor(images[0, :, start_index:end_index, :])
@@ -81,11 +82,10 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
                 context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
                 for seq_index in range(start_index, end_index):
                     current_batch_size = images.size(0)
-                    current_index = seq_index - start_index
                     y = labels[:, seq_index - start_index]
-                    attention_index = torch.from_numpy(np.asarray([current_index] * current_batch_size)).view(-1, 1)
+                    attention_index = torch.from_numpy(np.asarray([seq_index] * current_batch_size)).view(-1, 1)
 
-                    attention_index_onehot = torch.FloatTensor(current_batch_size, seq_length)
+                    attention_index_onehot = torch.FloatTensor(current_batch_size, total_seq_length)
 
                     attention_index_onehot.zero_()
                     attention_index_onehot.scatter_(1, attention_index, 1)
@@ -94,7 +94,7 @@ def test(data_file, batch_size, gpu_mode, encoder_model, decoder_model, num_work
                                                                      context_vector=context_vector,
                                                                      encoder_hidden=hidden_encoder)
 
-                    decoder_attentions[:, seq_index] = attn.view(attn.size(0), -1).data
+                    # decoder_attentions[:, seq_index] = attn.view(attn.size(0), -1).data
 
                     # loss + optimize
                     loss += test_criterion(output_dec, y)

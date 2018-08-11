@@ -67,7 +67,7 @@ class EncoderCRNN(nn.Module):
         self.hidden_size = hidden_size
         self.bidirectional = bidirectional
         self.num_layers = gru_layers
-        self.gru = nn.GRU(2048, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional, batch_first=True)
+        self.gru = nn.GRU(1536, hidden_size, num_layers=self.num_layers, bidirectional=bidirectional, batch_first=True)
 
     def forward(self, x, hidden):
         hidden = hidden.transpose(0, 1).contiguous()
@@ -105,7 +105,7 @@ class AttnDecoderRNN(nn.Module):
         self.attention = Attention(self.hidden_size)
         self.dropout = nn.Dropout(self.dropout_p)
         self.num_layers = gru_layers
-        self.gru = nn.GRU(10, self.hidden_size, num_layers=self.num_layers, batch_first=True,
+        self.gru = nn.GRU(50, self.hidden_size, num_layers=self.num_layers, batch_first=True,
                           bidirectional=True)
         self.out = nn.Linear(self.hidden_size, self.num_classes)
 

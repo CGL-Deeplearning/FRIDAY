@@ -148,7 +148,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 decoder_optimizer.zero_grad()
 
                 loss = 0
-                seq_length = WINDOW_SIZE
+                total_seq_length = images.size(2)
                 start_index = CONTEXT_SIZE
                 end_index = CONTEXT_SIZE + WINDOW_SIZE
 
@@ -159,11 +159,10 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
                 for seq_index in range(start_index, end_index):
                     current_batch_size = images.size(0)
-                    current_index = seq_index - start_index
                     y = labels[:, seq_index - start_index]
-                    attention_index = torch.from_numpy(np.asarray([current_index] * current_batch_size)).view(-1, 1)
+                    attention_index = torch.from_numpy(np.asarray([seq_index] * current_batch_size)).view(-1, 1)
 
-                    attention_index_onehot = torch.FloatTensor(current_batch_size, seq_length)
+                    attention_index_onehot = torch.FloatTensor(current_batch_size, total_seq_length)
 
                     attention_index_onehot.zero_()
                     attention_index_onehot.scatter_(1, attention_index, 1)
