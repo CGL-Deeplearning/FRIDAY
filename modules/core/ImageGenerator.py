@@ -559,8 +559,7 @@ class ImageGenerator:
         for i, pos in enumerate(self.top_alleles.keys()):
             allele, freq = self.top_alleles[pos][0]
 
-            if allele[1] == SNP and freq <= 2 \
-                    and self.index_based_coverage[self.positional_info_position_to_index[pos]] > 15:
+            if allele[1] == SNP and freq <= 2:
                 continue
 
             if pos < interval_start - POS_BUFFER or pos > interval_end + POS_BUFFER:
