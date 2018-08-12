@@ -26,7 +26,7 @@ CONTEXT_SIZE = 5
 # jump window size so the last 50 bases will be overlapping
 WINDOW_OVERLAP_JUMP = 10
 # image size
-WINDOW_SIZE = 6
+WINDOW_SIZE = 1
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
 # ALL_HOM_BASE_RATIO = 0.005 (this worked great)
@@ -60,7 +60,6 @@ class ImageGenerator:
         """
         Initialize dictionaries and object files
         :param candidate_finder_object: Candidate finder object that contains populated dictionaries for that region
-        :param vcf_file: Path to the VCF file
         """
         self.pos_dicts = candidate_finder_object
         self.chromosome_name = candidate_finder_object.chromosome_name
@@ -153,7 +152,8 @@ class ImageGenerator:
         :return:
         """
         for read_id in read_id_list:
-            start_pos, end_pos, mapping_quality, strand_direction = self.pos_dicts.read_info[read_id]
+            start_pos, end_pos, mapping_quality, strand_direction, is_duplicate, \
+            is_qcfail, is_read1, is_read2, is_mate_reverse = self.pos_dicts.read_info[read_id]
             start_pos_new = max(start_pos, interval_start)
             end_pos_new = min(end_pos, interval_end)
             read_to_image_row = []
@@ -300,16 +300,16 @@ class ImageGenerator:
 
         return ref_row
 
-    def get_read_row(self, read_id, read_info, image_start, image_end):
+    def get_read_row(self, read_id, image_start, image_end):
         """
         Get the read row to add to the image
         :param read_id: Unique read id
-        :param read_info: Read information
         :param image_start: Start position of the image
         :param image_end: End position of the image
         :return:
         """
-        read_start, read_end, mq, is_rev = read_info
+        read_start, read_end, mq, is_rev, is_duplicate, \
+            is_qcfail, is_read1, is_read2, is_mate_reverse = self.pos_dicts.read_info[read_id]
         read_row = self.image_row_for_reads[read_id][0]
 
         read_start_new = read_start
@@ -386,7 +386,8 @@ class ImageGenerator:
         # go through each of the reads and add them to the image
         for read_id in read_id_list:
             read_info = self.pos_dicts.read_info[read_id]
-            read_start, read_end, mq, is_rev = read_info
+            read_start, read_end, mq, is_rev, is_duplicate, \
+                is_qcfail, is_read1, is_read2, is_mate_reverse = read_info
 
             # get the row of the read
             row = self.get_row_for_read(read_start, read_end, image_row_info, image_height)
@@ -400,7 +401,7 @@ class ImageGenerator:
             image_index_read_start = self.positional_info_position_to_index[image_start] - \
                                          self.positional_info_position_to_index[interval_start]
             # get the row with the images
-            read_row, read_start, read_end = self.get_read_row(read_id, read_info, image_start, interval_end)
+            read_row, read_start, read_end = self.get_read_row(read_id, image_start, interval_end)
 
             image_index_read_end = image_index_read_start + len(read_row)
 

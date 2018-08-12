@@ -128,12 +128,13 @@ class CandidateFinder:
         """
         self.reference_dictionary[position] = ref_base
 
-    def _update_read_allele_dictionary(self, pos, allele, allele_type):
+    def _update_read_allele_dictionary(self, pos, allele, allele_type, qualities):
         """
         Update the read dictionary with an allele
         :param pos: Genomic position
         :param allele: Allele found in that position
         :param allele_type: IN, DEL or SUB
+        :param qualities: qualities of the bases of the allele
         :return:
         """
         if pos not in self.read_allele_dictionary:
@@ -141,14 +142,18 @@ class CandidateFinder:
         if (allele, allele_type) not in self.read_allele_dictionary[pos]:
             self.read_allele_dictionary[pos][(allele, allele_type)] = 0
 
-        self.read_allele_dictionary[pos][(allele, allele_type)] += 1
+        quality = sum(qualities) / len(qualities)
+        prob = 1.0 - (10.0 ** (-quality/10.0))
 
-    def _update_positional_allele_frequency(self, read_id, pos, allele, allele_type):
+        self.read_allele_dictionary[pos][(allele, allele_type)] += prob
+
+    def _update_positional_allele_frequency(self, read_id, pos, allele, allele_type, quality_based_freq):
         """
         Update the positional allele dictionary that contains whole genome allele information
         :param pos: Genomic position
         :param allele: Allele found
         :param allele_type: IN, DEL or SUB
+        :param quality_based_freq: frequency counted based on base quality
         :return:
         """
         if pos not in self.positional_allele_frequency:
@@ -157,7 +162,7 @@ class CandidateFinder:
             self.positional_allele_frequency[pos][(allele, allele_type)] = 0
 
         # increase the allele frequency of the allele at that position
-        self.positional_allele_frequency[pos][(allele, allele_type)] += 1
+        self.positional_allele_frequency[pos][(allele, allele_type)] += quality_based_freq
         self.allele_dictionary[read_id][pos].append((allele, allele_type))
 
     def parse_match(self, read_id, alignment_position, length, read_sequence, ref_sequence, qualities):
@@ -184,7 +189,7 @@ class CandidateFinder:
 
             if allele != ref:
                 self.mismatch_count[i] += 1
-                self._update_read_allele_dictionary(i, allele, MISMATCH_ALLELE)
+                self._update_read_allele_dictionary(i, allele, MISMATCH_ALLELE, [qualities[i-alignment_position]])
 
     def parse_delete(self, read_id, alignment_position, length, ref_sequence):
         """
@@ -213,7 +218,7 @@ class CandidateFinder:
 
         # record the delete where it first starts
         self.delete_length_info[alignment_position] = max(self.delete_length_info[alignment_position], length)
-        self._update_read_allele_dictionary(alignment_position + 1, allele, DELETE_ALLELE)
+        self._update_read_allele_dictionary(alignment_position + 1, allele, DELETE_ALLELE, [MIN_DELETE_QUALITY])
 
     def parse_insert(self, read_id, alignment_position, read_sequence, qualities):
         """
@@ -231,7 +236,7 @@ class CandidateFinder:
 
         # record the insert where it first starts
         self.mismatch_count[alignment_position] += 1
-        self._update_read_allele_dictionary(alignment_position + 1, allele, INSERT_ALLELE)
+        self._update_read_allele_dictionary(alignment_position + 1, allele, INSERT_ALLELE, qualities)
         self._update_insert_dictionary(read_id, alignment_position, read_sequence, qualities)
 
     def parse_cigar_tuple(self, cigar_code, length, alignment_position, ref_sequence, read_sequence, read_id, quality):
@@ -288,7 +293,7 @@ class CandidateFinder:
                               length=length)
             read_index_increment = 0
         elif cigar_code == 4:
-            # soft clip
+            # soft clip, consider soft_clip as a match
             ref_index_increment = 0
             # print("CIGAR CODE ERROR SC")
         elif cigar_code == 5:
@@ -335,7 +340,11 @@ class CandidateFinder:
                                                        stop=ref_alignment_stop+10)
 
         # save the read information
-        self.read_info[read_id] = (ref_alignment_start, ref_alignment_stop, read.mapping_quality, read.is_reverse)
+        self.read_info[read_id] = (ref_alignment_start, ref_alignment_stop,
+                                   read.mapping_quality, read.is_reverse,
+                                   read.is_duplicate, read.is_qcfail,
+                                   read.is_read1, read.is_read2,
+                                   read.mate_is_reverse)
 
         # update the reference dictionary
         for i, ref_base in enumerate(ref_sequence):
@@ -391,6 +400,7 @@ class CandidateFinder:
             for record in self.read_allele_dictionary[position]:
                 # there can be only one record per position in a read
                 allele, allele_type = record
+                qual_freq = self.read_allele_dictionary[position][record]
 
                 if allele_type == MISMATCH_ALLELE:
                     # If next allele is indel then group it with the current one, don't make a separate one
@@ -398,10 +408,10 @@ class CandidateFinder:
                         next_allele, next_allele_type = list(self.read_allele_dictionary[position + 1].keys())[0]
                         if next_allele_type == INSERT_ALLELE or next_allele_type == DELETE_ALLELE:
                             continue
-                    self._update_positional_allele_frequency(read_id, position, allele, allele_type)
+                    self._update_positional_allele_frequency(read_id, position, allele, allele_type, qual_freq)
                 else:
                     # it's an insert or delete, so, add to the previous position
-                    self._update_positional_allele_frequency(read_id, position - 1, allele, allele_type)
+                    self._update_positional_allele_frequency(read_id, position - 1, allele, allele_type, qual_freq)
 
     def process_interval(self, interval_start, interval_end):
         """
@@ -419,7 +429,7 @@ class CandidateFinder:
         for read in reads:
             # check if the read is usable
             if read.mapping_quality >= DEFAULT_MIN_MAP_QUALITY and read.is_secondary is False \
-                    and read.is_supplementary is False and read.is_unmapped is False and read.is_qcfail is False:
+                    and read.is_unmapped is False:
                 # for paired end make sure read name is unique
                 read.query_name = read.query_name + '_1' if read.is_read1 else read.query_name + '_2'
                 self.process_read(read, interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS)
