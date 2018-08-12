@@ -32,7 +32,7 @@ BOUNDARY_COLUMNS = 50
 # ALL_HOM_BASE_RATIO = 0.005 (this worked great)
 ALL_HOM_BASE_RATIO = 1
 # buffer around boundary to make sure all the bases in the interval is included
-POS_BUFFER = 0
+POS_BUFFER = 5
 
 REF_BAND_LENGTH = 5
 
@@ -560,8 +560,8 @@ class ImageGenerator:
         for i, pos in enumerate(self.top_alleles.keys()):
             allele, freq = self.top_alleles[pos][0]
 
-            if allele[1] == SNP and freq <= 2:
-                continue
+            # if allele[1] == SNP and freq <= 2:
+            #     continue
 
             if pos < interval_start - POS_BUFFER or pos > interval_end + POS_BUFFER:
                 continue
