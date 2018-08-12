@@ -4,11 +4,10 @@ import torch
 import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader
+from modules.core.dataloader_test import SequenceDataset
 from torchvision import transforms
 import multiprocessing
-from torch.autograd import Variable
-from modules.models.Seq2Seq_atn import EncoderCRNN, AttnDecoderRNN
-from modules.core.dataloader_test import SequenceDataset
+from modules.models.ModelHandler import ModelHandler
 from modules.handlers.TextColor import TextColor
 from collections import defaultdict
 from modules.handlers.VcfWriter import VCFWriter
@@ -18,6 +17,7 @@ import pickle
 from tqdm import tqdm
 import os
 import time
+from modules.core.ImageGenerator import CONTEXT_SIZE, WINDOW_SIZE
 """
 This script uses a trained model to call variants on a given set of images generated from the genome.
 The process is:
@@ -31,8 +31,6 @@ INPUT:
 Output:
 - A VCF file containing all the variants.
 """
-FLANK_SIZE = 10
-
 SNP = 1
 IN = 2
 DEL = 3
@@ -60,49 +58,27 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
 
     sys.stderr.write(TextColor.PURPLE + 'Loading data\n' + TextColor.END)
 
-    test_dset = SequenceDataset(test_file, transformations)
-    testloader = DataLoader(test_dset,
-                            batch_size=batch_size,
-                            shuffle=False,
-                            num_workers=num_workers
-                            )
+    # data loader
+    test_data = SequenceDataset(test_file, transformations)
+    test_loader = DataLoader(test_data,
+                             batch_size=batch_size,
+                             shuffle=False,
+                             num_workers=num_workers,
+                             pin_memory=gpu_mode)
+    sys.stderr.write(TextColor.CYAN + 'Test data loaded\n')
 
-    sys.stderr.write(TextColor.PURPLE + 'Data loading finished\n' + TextColor.END)
+    if os.path.isfile(model_path) is False:
+        sys.stderr.write(TextColor.RED + "ERROR: INVALID PATH TO MODEL\n")
+        exit(1)
+    seq_len = 2 * CONTEXT_SIZE + WINDOW_SIZE
+    sys.stderr.write(TextColor.GREEN + "INFO: MODEL LOADING\n" + TextColor.END)
+    encoder_model, decoder_model, hidden_size, gru_layers, epochs = \
+        ModelHandler.load_model_for_training(model_path, input_channels=10, seq_len=seq_len, num_classes=6)
 
-    # load the model
-    checkpoint = torch.load(model_path, map_location='cpu')
-    encoder_state_dict = checkpoint['encoder_state_dict']
-    decoder_state_dict = checkpoint['decoder_state_dict']
-
-    from collections import OrderedDict
-    new_encoder_state_dict = OrderedDict()
-    new_decoder_state_dict = OrderedDict()
-
-    for k, v in encoder_state_dict.items():
-        name = k
-        if k[0:7] == 'module.':
-            name = k[7:]  # remove `module.`
-        new_encoder_state_dict[name] = v
-
-    for k, v in decoder_state_dict.items():
-        name = k
-        if k[0:7] == 'module.':
-            name = k[7:]  # remove `module.`
-        new_decoder_state_dict[name] = v
-
-    hidden_size = 512
-    gru_layers = 3
-    encoder_model = EncoderCRNN(image_channels=10, gru_layers=gru_layers, hidden_size=hidden_size)
-    decoder_model = AttnDecoderRNN(hidden_size=hidden_size, gru_layers=gru_layers, num_classes=6, max_length=1)
-    encoder_model.load_state_dict(new_encoder_state_dict)
-    decoder_model.load_state_dict(new_decoder_state_dict)
-    encoder_model.cpu()
-    decoder_model.cpu()
+    sys.stderr.write(TextColor.GREEN + "INFO: MODEL LOADED\n" + TextColor.END)
 
     if gpu_mode:
-        encoder_model = encoder_model.cuda()
         encoder_model = torch.nn.DataParallel(encoder_model).cuda()
-        decoder_model = decoder_model.cuda()
         decoder_model = torch.nn.DataParallel(decoder_model).cuda()
 
     # Change model to 'eval' mode (BN uses moving mean/var).
@@ -112,43 +88,40 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     sys.stderr.write(TextColor.PURPLE + 'MODEL LOADED\n' + TextColor.END)
     # TO HERE
     with torch.no_grad():
-        for images, labels, positional_info in tqdm(testloader, file=sys.stdout, dynamic_ncols=True):
+        for images, labels, positional_info in tqdm(test_loader, ncols=50):
             if gpu_mode:
                 # encoder_hidden = encoder_hidden.cuda()
                 images = images.cuda()
                 labels = labels.cuda()
 
-            decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
             encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
 
-            # if gpu_mode:
-            #     decoder_input = decoder_input.cuda()
-            #     encoder_hidden = encoder_hidden.cuda()
+            if gpu_mode:
+                encoder_hidden = encoder_hidden.cuda()
+
+            total_seq_length = images.size(2)
+            start_index = CONTEXT_SIZE
+            end_index = CONTEXT_SIZE + WINDOW_SIZE
 
             chr_name, start_positions, reference_seqs, allele_dict_paths = positional_info
-
-            window_size = images.size(2) - 2 * FLANK_SIZE
-            index_start = FLANK_SIZE
-            end_index = index_start + window_size
             unrolling_genomic_position = np.zeros((images.size(0)), dtype=np.int64)
 
-            for seq_index in range(index_start, end_index):
-                # x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
-                #
-                # output_enc, hidden_dec = encoder_model(x, encoder_hidden)
-                # output_dec, decoder_hidden, attn = decoder_model(decoder_input, output_enc, hidden_dec)
-                #
-                # encoder_hidden = decoder_hidden.detach()
-                #
-                # topv, topi = output_dec.topk(1)
-                # decoder_input = topi.squeeze().detach()  # detach from history as input
-
-                # One dimensional softmax is used to convert the logits to probability distribution
-                # m = nn.Softmax(dim=1)
-                # soft_probs = m(output_dec)
-                # output_preds = soft_probs.cpu()
-                # record each of the predictions from a batch prediction
+            context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
+            for seq_index in range(start_index, end_index):
                 batches = images.size(0)
+
+                # current_batch_size = images.size(0)
+                # y = labels[:, seq_index - start_index]
+                # attention_index = torch.from_numpy(np.asarray([seq_index] * current_batch_size)).view(-1, 1)
+                #
+                # attention_index_onehot = torch.FloatTensor(current_batch_size, total_seq_length)
+                #
+                # attention_index_onehot.zero_()
+                # attention_index_onehot.scatter_(1, attention_index, 1)
+                #
+                # output_dec, decoder_hidden, attn = decoder_model(attention_index_onehot,
+                #                                                  context_vector=context_vector,
+                #                                                  encoder_hidden=hidden_encoder)
 
                 for batch in range(batches):
                     allele_dict_path = allele_dict_paths[batch]
@@ -162,7 +135,7 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                     if ref_base == '*':
                         continue
 
-                    true_label = labels[batch, seq_index - index_start]
+                    true_label = labels[batch, seq_index - start_index]
                     fake_probs = [0.0] * 6
                     fake_probs[true_label] = 1.0
                     top_n, top_i = torch.FloatTensor(fake_probs).topk(1)
