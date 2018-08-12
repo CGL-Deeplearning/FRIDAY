@@ -208,7 +208,7 @@ class CandidateFinder:
         self.mismatch_count[alignment_position] += 1
 
         for i in range(start, stop):
-            self._update_base_dictionary(read_id, i, '*', MIN_DELETE_QUALITY)
+            self._update_base_dictionary(read_id, i, '-', MIN_DELETE_QUALITY)
             # increase the coverage
             self.mismatch_count[i] += 1
             self.coverage[i] += 1

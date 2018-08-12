@@ -391,6 +391,70 @@ def analyze_hdf5(img):
         print()
 
 
+def get_ref_base_from_color(base_color):
+    # 'A': 25.0, 'C': 75.0, 'G': 125.0, 'T': 175.0, '*': 225.0
+    if base_color == 0.0:
+        return '.'
+    if base_color == 25.0:
+        return 'A'
+    if base_color == 75.0:
+        return 'C'
+    if base_color == 125.0:
+        return 'G'
+    if base_color == 175.0:
+        return 'T'
+    if base_color == 225.0:
+        return '*'
+
+
+def get_read_base_from_color(base_color):
+    # 'A': 25.0, 'C': 75.0, 'G': 125.0, 'T': 175.0, '*': 225.0
+    if 25.0 <= base_color < 75.0:
+        base_color -= 25.0
+    elif 75.0 <= base_color < 125.0:
+        base_color -= 75.0
+    elif 125.0 <= base_color < 175.0:
+        base_color -= 125.0
+    elif 175.0 <= base_color < 225.0:
+        base_color -= 175.0
+    elif 225.0 <= base_color < 255.0:
+        base_color -= 225.0
+
+    # {'A': 0.0, 'C': 5.0, 'G': 10.0, 'T': 15.0, '*': 20.0, '-': 25.0}
+    if base_color == 0.0:
+        return 'A'
+    if base_color == 5.0:
+        return 'C'
+    if base_color == 10.0:
+        return 'G'
+    if base_color == 15.0:
+        return 'T'
+    if base_color == 20.0:
+        return '*'
+    if base_color == 25.0:
+        return '-'
+
+
+def analyze_v3_images(img):
+    img_h, img_w, img_c = img.shape
+    img_h = 50
+    entire_image = []
+    for i in range(img_h):
+        image_row = []
+        for j in range(img_w):
+            if i < 5:
+                print(get_ref_base_from_color(img[i][j][0]), end='')
+            elif img[i][j][0] == 0:
+                print('.', end='')
+            else:
+                print(get_read_base_from_color(img[i][j][0]), end='')
+
+            image_row.append([img[i][j][0], img[i][j][8], 0, 255])
+        print()
+        entire_image.append(image_row)
+    entire_image = np.array(entire_image)
+    from scipy import misc
+    misc.imsave("Base_visualized_v3" + ".png", entire_image, format="PNG")
 # import h5py
 # hdf5_file = h5py.File("/data/users/kishwar/train_data/image_output/run_08102018_161950/19/19_259396.h5", 'r')
 # image_dataset = hdf5_file['images']

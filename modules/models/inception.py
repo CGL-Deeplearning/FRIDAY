@@ -3,8 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.model_zoo as model_zoo
 
-FLANK_SIZE = 10
-CONTEXT_SIZE = FLANK_SIZE * 2 + 1
 
 __all__ = ['Inception3', 'inception_v3']
 
@@ -34,13 +32,16 @@ def inception_v3(pretrained=False, **kwargs):
 
 class Inception3(nn.Module):
 
-    def __init__(self, in_):
+    def __init__(self, num_classes=3, aux_logits=False, transform_input=False):
         super(Inception3, self).__init__()
-        self.Context_Conv2d_0a = BasicConv2d(in_, 20, kernel_size=3, padding=1, groups=in_)
-        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=3, groups=20, padding=1, stride=(1, 2))
-        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=3, padding=1, groups=40)
-        self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0), stride=(1, 2))
-        self.Mixed_5b = InceptionA(80, pool_features=32)
+        self.aux_logits = aux_logits
+        self.transform_input = transform_input
+        self.Conv2d_1a_3x3 = BasicConv2d(9, 32, kernel_size=3, stride=1)
+        self.Conv2d_2a_3x3 = BasicConv2d(32, 32, kernel_size=3)
+        self.Conv2d_2b_3x3 = BasicConv2d(32, 64, kernel_size=2, padding=1)
+        self.Conv2d_3b_1x1 = BasicConv2d(64, 80, kernel_size=1)
+        self.Conv2d_4a_3x3 = BasicConv2d(80, 192, kernel_size=3)
+        self.Mixed_5b = InceptionA(192, pool_features=32)
         self.Mixed_5c = InceptionA(256, pool_features=64)
         self.Mixed_5d = InceptionA(288, pool_features=64)
         self.Mixed_6a = InceptionB(288)
@@ -48,9 +49,14 @@ class Inception3(nn.Module):
         self.Mixed_6c = InceptionC(768, channels_7x7=160)
         self.Mixed_6d = InceptionC(768, channels_7x7=160)
         self.Mixed_6e = InceptionC(768, channels_7x7=192)
+        if aux_logits:
+            self.AuxLogits = InceptionAux(768, num_classes)
         self.Mixed_7a = InceptionD(768)
         self.Mixed_7b = InceptionE(1280)
         self.Mixed_7c = InceptionE(2048)
+        self.fc = nn.Linear(2048, num_classes)
+        # expected 2048 at end
+
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
@@ -65,44 +71,63 @@ class Inception3(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x):
-        # 10 x 40 x 100
-        x = self.Context_Conv2d_0a(x)
-        # 20 x 20 x 98
-        x = self.Context_Conv2d_0b(x)
-        # 40 x 20 x 96
-        x = self.Context_Conv2d_0c(x)
-        # 80 x 20 x 94
+        x *= 254
+        # 7 x 30 x 100
         x = self.Conv2d_1a_3x3(x)
-        # 80 x 20 x 92
-        x = self.Mixed_5b(x)
-        # 256 x 20 x 92
-        x = self.Mixed_5c(x)
-        # 288 x 20 x 92
-        x = self.Mixed_5d(x)
-        # 288 x 20 x 92
-        x = self.Mixed_6a(x)
+        # 32 x 28 x 98
+        x = self.Conv2d_2a_3x3(x)
+        # 32 x 26 x 96
+        x = self.Conv2d_2b_3x3(x)
+        # 64 x 27 x 97
+        x = F.max_pool2d(x, kernel_size=3, stride=1)
+        # 64 x 25 x 95
 
-        # 768 x 20 x 45
+        x = self.Conv2d_3b_1x1(x)
+        # 80 x 25 x 95
+        x = self.Conv2d_4a_3x3(x)
+        # 192 x 23 x 93
+        x = F.max_pool2d(x, kernel_size=3, stride=1)
+        # 192 x 11 x 46
+
+        x = self.Mixed_5b(x)
+        # 256 x 11 x 46
+        x = self.Mixed_5c(x)
+        # 288 x 11 x 46
+        x = self.Mixed_5d(x)
+        # 288 x 11 x 195
+
+
+        x = self.Mixed_6a(x)
+        # 768 x 5 x 22
         x = self.Mixed_6b(x)
-        # 768 x 20 x 45
+        # 768 x 5 x 22
         x = self.Mixed_6c(x)
-        # 768 x 20 x 45
+        # 768 x 5 x 22
         x = self.Mixed_6d(x)
-        # 768 x 20 x 45
+        # 768 x 5 x 22
         x = self.Mixed_6e(x)
-        # 768 x 20 x 45
+        # 768 x 5 x 22
+        if self.training and self.aux_logits:
+            aux = self.AuxLogits(x)
 
         x = self.Mixed_7a(x)
-        # 1280 x 20 x 22
+        # 1280 x 2 x 10
         x = self.Mixed_7b(x)
-        # 2048 x 20 x 22
+        # 1280 x 2 x 10
         x = self.Mixed_7c(x)
-        # 2048 x 20 x 22
-
-        x = F.avg_pool2d(x, kernel_size=(1, 5))
-        # 2048 x 20 x 1
+        # 1280 x 2 x 10
+        # 2048 x 2 x 10
+        x = F.avg_pool2d(x, kernel_size=(2, 9))
+        # 2048 x 1 x 1
         x = F.dropout(x, training=self.training)
+        x = x.view(x.size(0), -1)
+        # 2048
 
+
+        x = self.fc(x)
+        # 1000 (num_classes)
+        if self.training and self.aux_logits:
+            return x, aux
         return x
 
 
@@ -123,18 +148,19 @@ class InceptionA(nn.Module):
 
     def forward(self, x):
         branch1x1 = self.branch1x1(x)
-
+        #print("branch 1x1",branch1x1.shape)
         branch5x5 = self.branch5x5_1(x)
         branch5x5 = self.branch5x5_2(branch5x5)
 
         branch3x3dbl = self.branch3x3dbl_1(x)
         branch3x3dbl = self.branch3x3dbl_2(branch3x3dbl)
         branch3x3dbl = self.branch3x3dbl_3(branch3x3dbl)
-
+        #print("branch3x3dbl:", branch3x3dbl.shape)
         branch_pool = F.avg_pool2d(x, kernel_size=3, stride=1, padding=1)
         branch_pool = self.branch_pool(branch_pool)
 
         outputs = [branch1x1, branch5x5, branch3x3dbl, branch_pool]
+        #print ("torch cat/return",(torch.cat(outputs,1)).shape)
         return torch.cat(outputs, 1)
 
 
@@ -142,11 +168,11 @@ class InceptionB(nn.Module):
 
     def __init__(self, in_channels):
         super(InceptionB, self).__init__()
-        self.branch3x3 = BasicConv2d(in_channels, 384, kernel_size=3, padding=(1, 0), stride=(1, 2))
+        self.branch3x3 = BasicConv2d(in_channels, 384, kernel_size=3, stride=2)
 
         self.branch3x3dbl_1 = BasicConv2d(in_channels, 64, kernel_size=1)
         self.branch3x3dbl_2 = BasicConv2d(64, 96, kernel_size=3, padding=1)
-        self.branch3x3dbl_3 = BasicConv2d(96, 96, kernel_size=3, stride=(1, 2), padding=(1, 0))
+        self.branch3x3dbl_3 = BasicConv2d(96, 96, kernel_size=3, stride=2)
 
     def forward(self, x):
         branch3x3 = self.branch3x3(x)
@@ -155,7 +181,7 @@ class InceptionB(nn.Module):
         branch3x3dbl = self.branch3x3dbl_2(branch3x3dbl)
         branch3x3dbl = self.branch3x3dbl_3(branch3x3dbl)
 
-        branch_pool = F.max_pool2d(x, kernel_size=(1, 3), stride=(1, 2))
+        branch_pool = F.max_pool2d(x, kernel_size=3, stride=2)
 
         outputs = [branch3x3, branch3x3dbl, branch_pool]
         return torch.cat(outputs, 1)
@@ -205,12 +231,12 @@ class InceptionD(nn.Module):
     def __init__(self, in_channels):
         super(InceptionD, self).__init__()
         self.branch3x3_1 = BasicConv2d(in_channels, 192, kernel_size=1)
-        self.branch3x3_2 = BasicConv2d(192, 320, kernel_size=3, padding=(1, 0), stride=(1, 2))
+        self.branch3x3_2 = BasicConv2d(192, 320, kernel_size=3, stride=2)
 
         self.branch7x7x3_1 = BasicConv2d(in_channels, 192, kernel_size=1)
         self.branch7x7x3_2 = BasicConv2d(192, 192, kernel_size=(1, 7), padding=(0, 3))
         self.branch7x7x3_3 = BasicConv2d(192, 192, kernel_size=(7, 1), padding=(3, 0))
-        self.branch7x7x3_4 = BasicConv2d(192, 192, kernel_size=3, padding=(1, 0), stride=(1, 2))
+        self.branch7x7x3_4 = BasicConv2d(192, 192, kernel_size=3, stride=2)
 
     def forward(self, x):
         branch3x3 = self.branch3x3_1(x)
@@ -221,7 +247,7 @@ class InceptionD(nn.Module):
         branch7x7x3 = self.branch7x7x3_3(branch7x7x3)
         branch7x7x3 = self.branch7x7x3_4(branch7x7x3)
 
-        branch_pool = F.max_pool2d(x, kernel_size=(1, 3), stride=(1, 2))
+        branch_pool = F.max_pool2d(x, kernel_size=3, stride=2)
         outputs = [branch3x3, branch7x7x3, branch_pool]
         return torch.cat(outputs, 1)
 
@@ -280,7 +306,7 @@ class InceptionAux(nn.Module):
 
     def forward(self, x):
         # 17 x 17 x 768
-        x = F.avg_pool2d(x, kernel_size=5, stride=3, ceil_mode=True)
+        x = F.avg_pool2d(x, kernel_size=5, stride=2, ceil_mode=True)
         # 5 x 5 x 768
         x = self.conv0(x)
         # 5 x 5 x 128
@@ -306,3 +332,7 @@ class BasicConv2d(nn.Module):
         x = self.conv(x)
         x = self.bn(x)
         return F.relu(x, inplace=True)
+
+#model = Inception3()
+#pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+#print("pytorch_total_params", pytorch_total_params)

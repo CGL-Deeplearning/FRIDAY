@@ -81,14 +81,14 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
             exit(1)
         sys.stderr.write(TextColor.GREEN + "INFO: RETRAIN MODEL LOADING\n" + TextColor.END)
         encoder_model, decoder_model, hidden_size, gru_layers, prev_ite = \
-            ModelHandler.load_model_for_training(retrain_model_path, input_channels=10, seq_len=seq_len, num_classes=6)
+            ModelHandler.load_model_for_training(retrain_model_path, input_channels=9, seq_len=seq_len, num_classes=6)
 
         if train_mode is True:
             epoch_limit = prev_ite + epoch_limit
 
         sys.stderr.write(TextColor.GREEN + "INFO: RETRAIN MODEL LOADED\n" + TextColor.END)
     else:
-        encoder_model, decoder_model = ModelHandler.get_new_model(input_channels=10,
+        encoder_model, decoder_model = ModelHandler.get_new_model(input_channels=9,
                                                                   gru_layers=gru_layers,
                                                                   hidden_size=hidden_size,
                                                                   seq_len=seq_len,

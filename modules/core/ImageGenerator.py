@@ -6,6 +6,7 @@ import random
 import collections
 import numpy as np
 from modules.handlers.TextColor import TextColor
+from modules.handlers.ImageChannels import MATCH_CIGAR_CODE, INSERT_CIGAR_CODE, DELETE_CIGAR_CODE
 import operator
 """
 Generate image and label of that image given a region. 
@@ -121,11 +122,11 @@ class ImageGenerator:
                             read_allele = read_allele + in_bases
                     elif allele_type == DEL:
                         del_len = len(alt_allele)
-                        alt_allele = alt_allele[0] + '*' * (del_len - 1)
+                        alt_allele = alt_allele[0] + '-' * (del_len - 1)
                         i = pos
                         while i in self.pos_dicts.base_dictionary[read_id]:
                             base, base_q = self.pos_dicts.base_dictionary[read_id][i]
-                            if i > pos and base != '*':
+                            if i > pos and base != '-':
                                 break
                             read_allele = read_allele + base
                             i += 1
@@ -133,10 +134,12 @@ class ImageGenerator:
                     if read_allele == alt_allele:
                         support_candidate_type = allele_type
                         supported_allele = alt_allele
-                        support_dict[pos] = (counter+1, allele_type, alt_allele)
+                        support_dict[pos] = (counter+1, allele_type, alt_allele, len(alt_allele))
                         break
 
                 if support_candidate_type == DEL:
+                    for del_position in range(1, len(supported_allele)):
+                        support_dict[pos + del_position] = support_dict[pos]
                     pos += len(supported_allele) - 1
                 else:
                     pos += 1
@@ -149,11 +152,13 @@ class ImageGenerator:
         """
         After all the inserts are processed, process the reads again to make sure all the in-del lengths match.
         :param read_id_list: List of read ids
+        :param interval_start: Start position of the interval
+        :param interval_end: End position of the interval
         :return:
         """
         for read_id in read_id_list:
             start_pos, end_pos, mapping_quality, strand_direction, is_duplicate, \
-            is_qcfail, is_read1, is_read2, is_mate_reverse = self.pos_dicts.read_info[read_id]
+                is_qc_fail, is_read1, is_read2, is_mate_reverse = self.pos_dicts.read_info[read_id]
             start_pos_new = max(start_pos, interval_start)
             end_pos_new = min(end_pos, interval_end)
             read_to_image_row = []
@@ -172,23 +177,23 @@ class ImageGenerator:
                     continue
 
                 if pos in support_dict:
-                    support_allele_no, support_allele_type, support_allele = support_dict[pos]
-                    # print(pos, support_allele_type, support_allele, support_allele_no)
+                    support_allele_no, support_allele_type, support_allele, allele_length = support_dict[pos]
+                    # print(pos, support_allele_type, support_allele, support_allele_no, allele_length)
                 else:
                     support_allele_type = 0
-                    support_allele_no = 0
+                    allele_length = 0
 
                 # if there is a base in that position for that read
                 if pos in self.pos_dicts.base_dictionary[read_id]:
                     # get the base and the base quality
                     base, base_q = self.pos_dicts.base_dictionary[read_id][pos]
                     # see if the base is a delete
-                    cigar_code = 0 if base != '*' else 1
+                    cigar_code = MATCH_CIGAR_CODE if base != '-' else DELETE_CIGAR_CODE
                     # get the reference base of that position
                     ref_base = self.pos_dicts.reference_dictionary[pos]
                     # combine all the pileup attributes we want to encode in the image
-                    pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction, support_allele_no,
-                                         support_allele_type)
+                    pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction,
+                                         is_duplicate, is_qc_fail, is_read1, is_read2, is_mate_reverse, allele_length)
                     # create a channel object to covert these features to a pixel
                     channel_object = ImageChannels(pileup_attributes, ref_base)
                     # add the pixel to the row
@@ -196,7 +201,7 @@ class ImageGenerator:
                     index_of_position = self.positional_info_position_to_index[pos]
                     # increase the coverage
                     self.index_based_coverage[index_of_position] += 1
-                    if base == '*':
+                    if base == '-':
                         self.base_frequency[index_of_position]['.'] += 1
                     else:
                         self.base_frequency[index_of_position][base] += 1
@@ -206,6 +211,10 @@ class ImageGenerator:
                     # get the length of insert
                     length_of_insert = self.pos_dicts.insert_length_info[pos]
                     total_insert_bases = 0
+                    if support_allele_type == SNP:
+                        insert_allele_length = 0
+                    else:
+                        insert_allele_length = allele_length
                     # if this specific read has an insert
                     if read_id in self.pos_dicts.insert_dictionary and pos in self.pos_dicts.insert_dictionary[read_id]:
                         # insert bases and qualities
@@ -215,9 +224,11 @@ class ImageGenerator:
                         for i in range(total_insert_bases):
                             base = in_bases[i]
                             base_q = in_qualities[i]
-                            cigar_code = 2
-                            ref_base = ''
-                            pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction, 0, 0)
+                            cigar_code = INSERT_CIGAR_CODE
+                            ref_base = '*'
+                            pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction,
+                                                 is_duplicate, is_qc_fail, is_read1, is_read2, is_mate_reverse,
+                                                 insert_allele_length)
                             channel_object = ImageChannels(pileup_attributes, ref_base)
                             read_to_image_row.append(channel_object.get_channels())
 
@@ -232,9 +243,11 @@ class ImageGenerator:
                         for i in range(dot_bases):
                             base = '*'
                             base_q = MIN_DELETE_QUALITY
-                            cigar_code = 2
-                            ref_base = ''
-                            pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction, 0, 0)
+                            cigar_code = INSERT_CIGAR_CODE
+                            ref_base = '*'
+                            pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction,
+                                                 is_duplicate, is_qc_fail, is_read1, is_read2, is_mate_reverse,
+                                                 insert_allele_length)
                             channel_object = ImageChannels(pileup_attributes, ref_base)
                             read_to_image_row.append(channel_object.get_channels())
 
@@ -560,8 +573,8 @@ class ImageGenerator:
         for i, pos in enumerate(self.top_alleles.keys()):
             allele, freq = self.top_alleles[pos][0]
 
-            # if allele[1] == SNP and freq <= 2:
-            #     continue
+            if allele[1] == SNP and freq <= 2:
+                continue
 
             if pos < interval_start - POS_BUFFER or pos > interval_end + POS_BUFFER:
                 continue
@@ -601,9 +614,9 @@ class ImageGenerator:
             sub_label_seq = label_seq[label_left_index:label_right_index]
             sub_ref_seq = ref_seq[img_left_index:img_right_index]
 
-            # hom_bases_count = collections.Counter(sub_label_seq)
-            # other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
-            #
+            hom_bases_count = collections.Counter(sub_label_seq)
+            other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
+
             # if other_bases <= 0:
             #     continue
             #     include_this = True if random.random() < ALL_HOM_BASE_RATIO else False
@@ -621,9 +634,9 @@ class ImageGenerator:
             summary_strings = summary_strings + summary_string
 
             # print(pos, start_pos, end_pos)
-            # from analysis.analyze_png_img import analyze_array
+            # from analysis.analyze_png_img import analyze_v3_images
             # print(' ' * CONTEXT_SIZE + str(sub_label_seq))
-            # analyze_array(sliced_image)
+            # analyze_v3_images(sliced_image)
             # exit()
             image_index += 1
 

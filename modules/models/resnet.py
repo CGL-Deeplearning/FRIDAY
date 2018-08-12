@@ -97,10 +97,10 @@ class ResNet(nn.Module):
     def __init__(self, in_channels, block, layers):
         self.inplanes = 80
         super(ResNet, self).__init__()
-        self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=3, padding=1, groups=in_channels)
-        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=3, groups=20, padding=1, stride=(1, 2))
-        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=3, padding=1, groups=40)
-        self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0), stride=(1, 2))
+        self.Conv2d_1a_3x3 = BasicConv2d(9, 32, kernel_size=3, stride=1, padding=(1, 0))
+        self.Conv2d_2a_3x3 = BasicConv2d(32, 32, kernel_size=3, padding=(1, 0))
+        self.Conv2d_2b_3x3 = BasicConv2d(32, 64, kernel_size=3, padding=(1, 0))
+        self.Conv2d_3b_1x1 = BasicConv2d(64, 80, kernel_size=1)
 
         # self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=3, padding=(1, 0), groups=in_channels)
         # self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=3, padding=(1, 0), groups=20)
@@ -136,15 +136,17 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.Context_Conv2d_0a.forward(x)
-        x = self.Context_Conv2d_0b.forward(x)
-        x = self.Context_Conv2d_0c.forward(x)
         x = self.Conv2d_1a_3x3.forward(x)
+        x = self.Conv2d_2a_3x3.forward(x)
+        x = self.Conv2d_2b_3x3.forward(x)
+        x = self.Conv2d_3b_1x1.forward(x)
 
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
+        x = F.avg_pool2d(x, kernel_size=(1, 4))
+        x = F.dropout(x, training=self.training)
 
         return x
 
