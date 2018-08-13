@@ -9,7 +9,7 @@ DELETE_CIGAR_CODE = 2
 IMAGE_DEPTH_THRESHOLD = 120
 HIGHEST_ALLELE_LENGTH = 10
 
-global_ref_base_values = {'A': 25.0, 'C': 75.0, 'G': 125.0, 'T': 175.0, '*': 225.0}
+global_ref_base_values = {'A': 25.0, 'C': 75.0, 'G': 125.0, 'T': 175.0, '*': 225.0, 'N': 10.0}
 global_read_base_values = {'A': 0.0, 'C': 5.0, 'G': 10.0, 'T': 15.0, '*': 20.0, '-': 25.0}
 
 
