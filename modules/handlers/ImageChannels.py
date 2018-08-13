@@ -85,7 +85,7 @@ class ImageChannels:
         :param ref_base: Reference base
         :return: [color spectrum of channels based on some default values]
         """
-        base_difference = global_ref_base_values[ref_base]
+        base_difference = global_ref_base_values[ref_base] if ref_base in global_read_base_values else 5.0
         # maximum base_quality
         base_quality = MAX_COLOR_VALUE
         # maximum mapping quality
