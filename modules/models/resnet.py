@@ -108,9 +108,9 @@ class ResNet(nn.Module):
         # self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0))
 
         self.layer1 = self._make_layer(block, 128, layers[0])
-        self.layer2 = self._make_layer(block, 192, layers[1])
-        self.layer3 = self._make_layer(block, 256, layers[2])
-        self.layer4 = self._make_layer(block, 512, layers[3])
+        self.layer2 = self._make_layer(block, 192, layers[1], stride=(1, 2))
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=(1, 2))
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=(1, 2))
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -146,7 +146,7 @@ class ResNet(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
 
-        x = F.avg_pool2d(x, kernel_size=(1, 25))
+        x = F.avg_pool2d(x, kernel_size=(1, 4))
         x = F.dropout(x, training=self.training)
 
         return x
