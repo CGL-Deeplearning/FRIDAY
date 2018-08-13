@@ -180,6 +180,7 @@ class ImageGenerator:
                     support_allele_no, support_allele_type, support_allele, allele_length = support_dict[pos]
                     # print(pos, support_allele_type, support_allele, support_allele_no, allele_length)
                 else:
+                    support_allele_no = 0
                     support_allele_type = 0
                     allele_length = 0
 
@@ -193,7 +194,8 @@ class ImageGenerator:
                     ref_base = self.pos_dicts.reference_dictionary[pos]
                     # combine all the pileup attributes we want to encode in the image
                     pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction,
-                                         is_duplicate, is_qc_fail, is_read1, is_read2, is_mate_reverse, allele_length)
+                                         is_duplicate, is_qc_fail, is_read1, is_read2, is_mate_reverse,
+                                         allele_length, support_allele_no)
                     # create a channel object to covert these features to a pixel
                     channel_object = ImageChannels(pileup_attributes, ref_base)
                     # add the pixel to the row
@@ -213,8 +215,10 @@ class ImageGenerator:
                     total_insert_bases = 0
                     if support_allele_type == SNP:
                         insert_allele_length = 0
+                        insert_support_allele_no = 0
                     else:
                         insert_allele_length = allele_length
+                        insert_support_allele_no = support_allele_no
                     # if this specific read has an insert
                     if read_id in self.pos_dicts.insert_dictionary and pos in self.pos_dicts.insert_dictionary[read_id]:
                         # insert bases and qualities
@@ -228,7 +232,7 @@ class ImageGenerator:
                             ref_base = '*'
                             pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction,
                                                  is_duplicate, is_qc_fail, is_read1, is_read2, is_mate_reverse,
-                                                 insert_allele_length)
+                                                 insert_allele_length, insert_support_allele_no)
                             channel_object = ImageChannels(pileup_attributes, ref_base)
                             read_to_image_row.append(channel_object.get_channels())
 
@@ -247,7 +251,7 @@ class ImageGenerator:
                             ref_base = '*'
                             pileup_attributes = (base, base_q, mapping_quality, cigar_code, strand_direction,
                                                  is_duplicate, is_qc_fail, is_read1, is_read2, is_mate_reverse,
-                                                 insert_allele_length)
+                                                 insert_allele_length, insert_support_allele_no)
                             channel_object = ImageChannels(pileup_attributes, ref_base)
                             read_to_image_row.append(channel_object.get_channels())
 
@@ -614,8 +618,8 @@ class ImageGenerator:
             sub_label_seq = label_seq[label_left_index:label_right_index]
             sub_ref_seq = ref_seq[img_left_index:img_right_index]
 
-            hom_bases_count = collections.Counter(sub_label_seq)
-            other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
+            # hom_bases_count = collections.Counter(sub_label_seq)
+            # other_bases = sum(hom_bases_count.values()) - hom_bases_count['0']
 
             # if other_bases <= 0:
             #     continue

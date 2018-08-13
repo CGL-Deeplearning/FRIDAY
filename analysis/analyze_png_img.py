@@ -35,7 +35,9 @@ def get_alt_support_by_color(support_color):
     """
     if 240.0 <= support_color <= 255.0:
         return 1
-    if 0.0 <= support_color <= 10.0:
+    if 125.0 <= support_color <= 135.0:
+        return 2
+    if 0 <= support_color <= 10:
         return 0
 
 
@@ -435,14 +437,21 @@ def analyze_v3_images(img):
         for j in range(img_w):
             if i < 5:
                 print(get_ref_base_from_color(img[i][j][0]), end='')
-            elif img[i][j][0] == 0:
+            elif 0 < img[i][j][0] < 10.0:
                 print('.', end='')
+            elif img[i][j][0] == 0.0:
+                print(' ', end='')
             else:
                 print(get_read_base_from_color(img[i][j][0]), end='')
-
-            image_row.append([img[i][j][0], img[i][j][8], 0, 255])
+            image_row.append([img[i][j][0], 0, 0, img[i][j][9]])
         print()
         entire_image.append(image_row)
+
+    for i in range(img_h):
+        for j in range(img_w):
+            print(get_alt_support_by_color(img[i][j][9]), end='')
+        print()
+
     entire_image = np.array(entire_image)
     from scipy import misc
     misc.imsave("Base_visualized_v3" + ".png", entire_image, format="PNG")

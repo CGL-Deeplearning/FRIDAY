@@ -40,7 +40,7 @@ def do_test(test_file, batch_size, gpu_mode, num_workers, model_path, num_classe
     seq_len = 2 * CONTEXT_SIZE + WINDOW_SIZE
     sys.stderr.write(TextColor.GREEN + "INFO: MODEL LOADING\n" + TextColor.END)
     encoder_model, decoder_model, _size, _layers, epochs = ModelHandler.load_model_for_training(model_path,
-                                                                                                input_channels=9,
+                                                                                                input_channels=10,
                                                                                                 seq_len=seq_len,
                                                                                                 num_classes=6)
 
