@@ -155,8 +155,10 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
 
                 # from analysis.analyze_png_img import analyze_tensor
                 # print(labels[0, :].data.numpy())
-                # analyze_tensor(images[0, :, start_index:end_index, :])
+                # analyze_tensor(images[0, :, :, :])
+                # exit()
                 context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
+
                 for seq_index in range(start_index, end_index):
                     current_batch_size = images.size(0)
                     y = labels[:, seq_index - start_index]
@@ -166,6 +168,8 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
 
                     attention_index_onehot.zero_()
                     attention_index_onehot.scatter_(1, attention_index, 1)
+                    # print("\n", seq_index, attention_index_onehot)
+                    # exit()
 
                     output_dec, decoder_hidden, attn = decoder_model(attention_index_onehot,
                                                                      context_vector=context_vector,

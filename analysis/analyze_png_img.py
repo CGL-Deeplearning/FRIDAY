@@ -348,24 +348,15 @@ def analyze_it(img, shape):
 
 def analyze_tensor(img):
     img_c, img_w, img_h = img.shape
-    print("BASE CHANNEL")
+    print(img.shape)
     for i in range(img_h):
         for j in range(img_w):
-            if img[0][j][i] != 0:
-                # print(img[0][j][i])
-                print(get_base_by_color(img[0][j][i]), end='')
+            if i < 5:
+                print(get_ref_base_from_color(img[0][j][i]), end='')
+            elif img[0][j][i] == 0:
+                print('.', end='')
             else:
-                print(' ', end='')
-                # print(' ')
-        print()
-
-    print("SUPPORT CHANNEL")
-    for i in range(img_h):
-        for j in range(img_w):
-            if img[6][j][i] != 0:
-                print(get_alt_support_by_color(img[6][j][i]), end='')
-            else:
-                print(' ', end='')
+                print(get_read_base_from_color(img[0][j][i]), end='')
         print()
 
 

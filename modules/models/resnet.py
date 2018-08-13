@@ -97,10 +97,10 @@ class ResNet(nn.Module):
     def __init__(self, in_channels, block, layers):
         self.inplanes = 80
         super(ResNet, self).__init__()
-        self.Conv2d_1a_3x3 = BasicConv2d(9, 32, kernel_size=3, stride=1, padding=(1, 0))
-        self.Conv2d_2a_3x3 = BasicConv2d(32, 32, kernel_size=3, padding=(1, 0))
-        self.Conv2d_2b_3x3 = BasicConv2d(32, 64, kernel_size=3, padding=(1, 0))
-        self.Conv2d_3b_1x1 = BasicConv2d(64, 80, kernel_size=1)
+        self.Conv2d_1a_3x3 = BasicConv2d(9, 36, kernel_size=3, stride=1, padding=(1, 0), groups=9)
+        self.Conv2d_2a_3x3 = BasicConv2d(36, 72, kernel_size=3, padding=(1, 0), groups=36)
+        self.Conv2d_2b_3x3 = BasicConv2d(72, 72, kernel_size=3, padding=(1, 0), groups=72)
+        self.Conv2d_3b_1x1 = BasicConv2d(72, 80, kernel_size=3)
 
         # self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=3, padding=(1, 0), groups=in_channels)
         # self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=3, padding=(1, 0), groups=20)
