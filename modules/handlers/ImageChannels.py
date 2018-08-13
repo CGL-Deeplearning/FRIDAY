@@ -54,7 +54,8 @@ class ImageChannels:
         Get a bases's channel construction
         :return: [color spectrum of channels based on base attributes]
         """
-        if self.pileup_base == self.ref_base or self.pileup_base == 'N' or self.ref_base == 'N':
+        if self.pileup_base == self.ref_base or self.pileup_base == 'N' or self.ref_base == 'N'\
+                or self.ref_base not in global_ref_base_values or self.pileup_base not in global_read_base_values:
             base_difference = 0.0
         else:
             base_difference = global_ref_base_values[self.ref_base] + global_read_base_values[self.pileup_base]
