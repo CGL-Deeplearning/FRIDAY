@@ -17,6 +17,7 @@ import pickle
 from tqdm import tqdm
 import os
 import time
+from modules.core.ImageGenerator import CONTEXT_SIZE, WINDOW_SIZE
 """
 This script uses a trained model to call variants on a given set of images generated from the genome.
 The process is:
@@ -104,13 +105,20 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
 
             unrolling_genomic_position = np.zeros((images.size(0)), dtype=np.int64)
 
+            total_seq_length = images.size(2)
+            start_index = CONTEXT_SIZE
+            end_index = CONTEXT_SIZE + WINDOW_SIZE
+
+            # from analysis.analyze_png_img import analyze_tensor
+            # print(labels[0, :].data.numpy())
+            # analyze_tensor(images[0, :, start_index:end_index, :])
+
             context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
-            current_batch_size = images.size(0)
-            seq_length = images.size(2)
-            for seq_index in range(0, seq_length):
+            for seq_index in range(start_index, end_index):
+                current_batch_size = images.size(0)
                 attention_index = torch.from_numpy(np.asarray([seq_index] * current_batch_size)).view(-1, 1)
 
-                attention_index_onehot = torch.FloatTensor(current_batch_size, seq_length)
+                attention_index_onehot = torch.FloatTensor(current_batch_size, total_seq_length)
 
                 attention_index_onehot.zero_()
                 attention_index_onehot.scatter_(1, attention_index, 1)
@@ -145,12 +153,11 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
                     #     predicted_label = top_i[0].item()
                     #     reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
                     #     prediction_dict[current_genomic_position].append((predicted_label, fake_probs))
-                    if seq_index == 5:
-                        preds = output_preds[batch, :].data
-                        top_n, top_i = preds.topk(1)
-                        predicted_label = top_i[0].item()
-                        reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
-                        prediction_dict[current_genomic_position].append((predicted_label, preds))
+                    preds = output_preds[batch, :].data
+                    top_n, top_i = preds.topk(1)
+                    predicted_label = top_i[0].item()
+                    reference_dict[current_genomic_position] = (ref_base, allele_dict_path)
+                    prediction_dict[current_genomic_position].append((predicted_label, preds))
 
                     if ref_base != '*':
                         unrolling_genomic_position[batch] += 1
