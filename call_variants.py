@@ -74,10 +74,10 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
         sys.stderr.write(TextColor.RED + "ERROR: INVALID PATH TO MODEL\n")
         exit(1)
 
+    seq_len = 2 * CONTEXT_SIZE + WINDOW_SIZE
     sys.stderr.write(TextColor.GREEN + "INFO: MODEL LOADING\n" + TextColor.END)
-    encoder_model, decoder_model, hidden_size, gru_layers, epochs = ModelHandler.load_model_for_training(model_path,
-                                                                                                         input_channels=10,
-                                                                                                         num_classes=6)
+    encoder_model, decoder_model, hidden_size, gru_layers, epochs = \
+        ModelHandler.load_model_for_training(model_path, input_channels=10, seq_len=seq_len, num_classes=6)
 
     sys.stderr.write(TextColor.GREEN + "INFO: MODEL LOADED\n" + TextColor.END)
 
