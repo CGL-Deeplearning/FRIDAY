@@ -37,8 +37,9 @@ def get_alt_support_by_color(support_color):
         return 1
     if 125.0 <= support_color <= 135.0:
         return 2
-    if 0 <= support_color <= 10:
+    if 4 <= support_color <= 10:
         return 0
+    return ' '
 
 
 def get_alt_type_by_color(alt_type_color):
@@ -362,28 +363,6 @@ def analyze_tensor(img):
         print()
 
 
-def analyze_hdf5(img):
-    print("BASE CHANNEL")
-    for i in range(img_h):
-        for j in range(img_w):
-            if img[0][j][i] != 0:
-                # print(img[0][j][i])
-                print(get_base_by_color(img[0][j][i]), end='')
-            else:
-                print(' ', end='')
-                # print(' ')
-        print()
-
-    print("SUPPORT CHANNEL")
-    for i in range(img_h):
-        for j in range(img_w):
-            if img[6][j][i] != 0:
-                print(get_alt_support_by_color(img[6][j][i]), end='')
-            else:
-                print(' ', end='')
-        print()
-
-
 def get_ref_base_from_color(base_color):
     # 'A': 25.0, 'C': 75.0, 'G': 125.0, 'T': 175.0, '*': 225.0
     if base_color == 0.0:
@@ -400,61 +379,40 @@ def get_ref_base_from_color(base_color):
         return '*'
 
 
-def get_read_base_from_color(base_color):
-    # 'A': 25.0, 'C': 75.0, 'G': 125.0, 'T': 175.0, '*': 225.0
-    if 25.0 <= base_color < 75.0:
-        base_color -= 25.0
-    elif 75.0 <= base_color < 125.0:
-        base_color -= 75.0
-    elif 125.0 <= base_color < 175.0:
-        base_color -= 125.0
-    elif 175.0 <= base_color < 225.0:
-        base_color -= 175.0
-    elif 225.0 <= base_color < 255.0:
-        base_color -= 225.0
-
-    # {'A': 0.0, 'C': 5.0, 'G': 10.0, 'T': 15.0, '*': 20.0, '-': 25.0}
-    if base_color == 0.0:
-        return 'A'
-    if base_color == 5.0:
-        return 'C'
-    if base_color == 10.0:
-        return 'G'
-    if base_color == 15.0:
-        return 'T'
-    if base_color == 20.0:
-        return '*'
+def get_base_from_color(base_color):
+    # {'A': 25.0, 'C': 75.0, 'G': 125.0, 'T': 175.0, '*': 225.0, '-': 250.0, 'N': 10.0}
     if base_color == 25.0:
+        return 'A'
+    if base_color == 75.0:
+        return 'C'
+    if base_color == 125.0:
+        return 'G'
+    if base_color == 175.0:
+        return 'T'
+    if base_color == 225.0:
+        return '*'
+    if base_color == 250.0:
         return '-'
+    if base_color == 10.0:
+        return 'N'
+    return ' '
 
 
 def analyze_v3_images(img):
     img_h, img_w, img_c = img.shape
     img_h = 50
-    entire_image = []
     for i in range(img_h):
-        image_row = []
         for j in range(img_w):
-            if i < 5:
-                print(get_ref_base_from_color(img[i][j][0]), end='')
-            elif 0 < img[i][j][0] < 10.0:
-                print('.', end='')
-            elif img[i][j][0] == 0.0:
-                print(' ', end='')
-            else:
-                print(get_read_base_from_color(img[i][j][0]), end='')
-            image_row.append([img[i][j][0], 0, 0, img[i][j][9]])
+            print(get_base_from_color(img[i][j][0]), end='')
         print()
-        entire_image.append(image_row)
-
     for i in range(img_h):
         for j in range(img_w):
             print(get_alt_support_by_color(img[i][j][9]), end='')
         print()
 
-    entire_image = np.array(entire_image)
-    from scipy import misc
-    misc.imsave("Base_visualized_v3" + ".png", entire_image, format="PNG")
+    # entire_image = np.array(entire_image)
+    # from scipy import misc
+    # misc.imsave("Base_visualized_v3" + ".png", entire_image, format="PNG")
 # import h5py
 # hdf5_file = h5py.File("/data/users/kishwar/train_data/image_output/run_08102018_161950/19/19_259396.h5", 'r')
 # image_dataset = hdf5_file['images']

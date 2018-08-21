@@ -147,7 +147,7 @@ class View:
         for i in range(start_index, end_index):
             interval_start, interval_end = self.confidence_intervals[i][0] + BED_INDEX_BUFFER, \
                                            self.confidence_intervals[i][1] + BED_INDEX_BUFFER
-            # interval_start, interval_end = 8245575, 8245599
+            # interval_start, interval_end = 319035, 319065
 
             interval_length = interval_end - interval_start
             if interval_length < MIN_SEQUENCE_BASE_LENGTH_THRESHOLD:
