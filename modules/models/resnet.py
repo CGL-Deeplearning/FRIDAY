@@ -97,10 +97,10 @@ class ResNet(nn.Module):
     def __init__(self, in_channels, block, layers):
         self.inplanes = 80
         super(ResNet, self).__init__()
-        self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=(1, 3), padding=(0, 1), groups=in_channels)
-        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=3, padding=1, stride=(1, 2), groups=20)
-        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=(1, 3), padding=(0, 1), groups=40)
-        self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, stride=(1, 2), padding=1)
+        self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=3, padding=1, groups=in_channels)
+        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=3, groups=20, padding=1, stride=(1, 2))
+        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=3, padding=1, groups=40)
+        self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0), stride=(1, 2))
 
         # self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=3, padding=(1, 0), groups=in_channels)
         # self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=3, padding=(1, 0), groups=20)
@@ -108,9 +108,9 @@ class ResNet(nn.Module):
         # self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0))
 
         self.layer1 = self._make_layer(block, 128, layers[0])
-        self.layer2 = self._make_layer(block, 192, layers[1])
+        self.layer2 = self._make_layer(block, 192, layers[1], stride=(1, 2))
         self.layer3 = self._make_layer(block, 256, layers[2], stride=(1, 2))
-        self.layer4 = self._make_layer(block, 512, layers[3])
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=(1, 2))
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -136,33 +136,15 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        # print(x.size())
-        x = self.Context_Conv2d_0a.forward(x)
-        # print(x.size())
-        x = self.Context_Conv2d_0b.forward(x)
-        # print(x.size())
-        x = self.Context_Conv2d_0c.forward(x)
-        # print(x.size())
-        x = self.Conv2d_1a_3x3.forward(x)
-        # print(x.size())
-        x = F.max_pool2d(x, kernel_size=(1, 3), stride=1)
-        # print(x.size())
+        x = self.Context_Conv2d_0a(x)
+        x = self.Context_Conv2d_0b(x)
+        x = self.Context_Conv2d_0c(x)
+        x = self.Conv2d_1a_3x3(x)
 
         x = self.layer1(x)
-        # print(x.size())
         x = self.layer2(x)
-        # print(x.size())
-        x = F.max_pool2d(x, kernel_size=(1, 3), stride=1)
-        # print(x.size())
         x = self.layer3(x)
-        # print(x.size())
         x = self.layer4(x)
-        # print(x.size())
-
-        x = F.avg_pool2d(x, kernel_size=(1, 3))
-        # print(x.size())
-        # exit()
-        x = F.dropout(x, training=self.training)
 
         return x
 
