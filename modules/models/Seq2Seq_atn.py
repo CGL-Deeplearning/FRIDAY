@@ -102,14 +102,14 @@ class EncoderCRNN(nn.Module):
 
 
 class AttnDecoderRNN(nn.Module):
-    def __init__(self, hidden_size, gru_layers, num_classes, max_length, dropout_p=0.1, bidirectional=True):
+    def __init__(self, hidden_size, gru_layers, num_classes, max_length, seq_len=21, dropout_p=0.1, bidirectional=True):
         super(AttnDecoderRNN, self).__init__()
         self.hidden_size = hidden_size
         self.num_classes = num_classes
         self.dropout_p = dropout_p
         self.max_length = max_length
         self.bidirectional = bidirectional
-        self.embedding = nn.Embedding(self.num_classes, self.hidden_size)
+        self.embedding = nn.Embedding(seq_len, self.hidden_size)
         self.attention = Attention(self.hidden_size)
         self.dropout = nn.Dropout(self.dropout_p)
         self.num_layers = gru_layers
@@ -129,7 +129,7 @@ class AttnDecoderRNN(nn.Module):
             output_gru = output_gru.view(output_gru.size(0), output_gru.size(1), 2, -1).sum(2)\
                 .view(output_gru.size(0), output_gru.size(1), -1)
 
-        output, attn = self.attention(output_gru, encoder_output)
+        output, attn = self.attention.forward(output_gru, encoder_output)
 
         class_probabilities = self.out(output.contiguous().view(-1, self.hidden_size))
 

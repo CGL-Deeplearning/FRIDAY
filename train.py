@@ -78,24 +78,21 @@ def test(data_file, batch_size, gru_layers, hidden_size, gpu_mode, encoder_model
                 index_start = FLANK_SIZE
                 end_index = index_start + window_size
 
+                loss = 0
+                output_enc, hidden_dec = encoder_model(images, encoder_hidden)
                 for seq_index in range(index_start, end_index):
-                    x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
                     y = labels[:, seq_index - index_start]
 
-                    output_enc, hidden_dec = encoder_model(x, encoder_hidden)
                     output_dec, decoder_hidden, attn = decoder_model(decoder_input, output_enc, hidden_dec)
 
                     encoder_hidden = decoder_hidden.detach()
-                    topv, topi = output_dec.topk(1)
-                    decoder_input = topi.squeeze().detach()  # detach from history as input
-
-                    # loss
-                    loss = test_criterion(output_dec, y)
-                    confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes), y.data.contiguous().view(-1))
-
-                    total_loss += loss.item()
-                    total_images += labels.size(0)
+                    loss += test_criterion(output_dec, y)
+                    confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes),
+                                         y.data.contiguous().view(-1))
                     del output_enc, hidden_dec, attn
+
+                total_loss += loss.item()
+                total_images += labels.size(0)
 
                 pbar.update(1)
                 cm_value = confusion_matrix.value()
@@ -208,46 +205,38 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                     images = images.cuda()
                     labels = labels.cuda()
 
-                teacher_forcing_ratio = 0.5
-                decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
                 encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
 
-                use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
+                # use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
                 if gpu_mode:
-                    decoder_input = decoder_input.cuda()
                     encoder_hidden = encoder_hidden.cuda()
 
                 window_size = images.size(2) - 2 * FLANK_SIZE
                 index_start = FLANK_SIZE
                 end_index = index_start + window_size
-
+                loss = 0
+                output_enc, hidden_dec = encoder_model(images, encoder_hidden)
                 for seq_index in range(index_start, end_index):
-                    encoder_optimizer.zero_grad()
-                    decoder_optimizer.zero_grad()
-
-                    x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
+                    decoder_input = torch.LongTensor([seq_index-index_start] * images.size(0))
                     y = labels[:, seq_index - index_start]
 
-                    output_enc, hidden_dec = encoder_model(x, encoder_hidden)
                     output_dec, decoder_hidden, attn = decoder_model(decoder_input, output_enc, hidden_dec)
 
                     encoder_hidden = decoder_hidden.detach()
-                    # loss + optimize
-                    loss = criterion(output_dec, y)
-                    loss.backward()
-                    encoder_optimizer.step()
-                    decoder_optimizer.step()
-
-                    if use_teacher_forcing:
-                        decoder_input = y
-                    else:
-                        topv, topi = output_dec.topk(1)
-                        decoder_input = topi.squeeze().detach()
-
-                    total_loss += loss.item()
-                    total_images += labels.size(0)
+                    loss += criterion(output_dec, y)
 
                     del output_enc, hidden_dec, attn
+
+                total_loss += loss.item()
+                total_images += labels.size(0)
+
+                # loss + optimize
+                encoder_optimizer.zero_grad()
+                decoder_optimizer.zero_grad()
+
+                loss.backward()
+                encoder_optimizer.step()
+                decoder_optimizer.step()
 
                 # update the progress bar
                 avg_loss = (total_loss / total_images) if total_images else 0
@@ -257,7 +246,7 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 progress_bar.update(1)
                 batch_no += 1
 
-                del images, labels, decoder_input, encoder_hidden
+                del images, labels, encoder_hidden
             progress_bar.close()
 
         # save the model after each epoch
