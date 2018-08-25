@@ -6,13 +6,14 @@ import random
 import os
 from torchvision import transforms
 from tqdm import tqdm
-
+import numpy as np
 # Custom generator for our dataset
 from torch.utils.data import DataLoader
 from modules.core.dataloader import SequenceDataset
 from modules.handlers.TextColor import TextColor
 from modules.models.ModelHandler import ModelHandler
 from modules.hyperband.test import test
+from modules.core.ImageGenerator import CONTEXT_SIZE
 """
 Train a model and return the model and optimizer trained.
 
@@ -104,7 +105,7 @@ def train(train_file, test_file, batch_size, epoch_limit, prev_ite, gpu_mode, nu
         # make sure the model is in train mode. BN is different in train and eval.
         encoder_model.train()
         decoder_model.train()
-        batch_no = 1
+
         with tqdm(total=len(train_loader), desc='Loss', leave=True, dynamic_ncols=True) as progress_bar:
             for images, labels in train_loader:
                 if gpu_mode:
@@ -112,53 +113,53 @@ def train(train_file, test_file, batch_size, epoch_limit, prev_ite, gpu_mode, nu
                     images = images.cuda()
                     labels = labels.cuda()
 
-                teacher_forcing_ratio = 0.5
-                decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
                 encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
 
-                use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
+                # use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
                 if gpu_mode:
-                    decoder_input = decoder_input.cuda()
                     encoder_hidden = encoder_hidden.cuda()
 
-                window_size = images.size(2) - 2 * FLANK_SIZE
-                index_start = FLANK_SIZE
+                window_size = images.size(2) - 2 * CONTEXT_SIZE
+                index_start = CONTEXT_SIZE
                 end_index = index_start + window_size
-
+                current_batch_size = images.size(0)
+                total_seq_length = window_size
+                loss = 0
+                output_enc, hidden_dec = encoder_model(images, encoder_hidden)
                 for seq_index in range(index_start, end_index):
-                    encoder_optimizer.zero_grad()
-                    decoder_optimizer.zero_grad()
+                    attention_index = torch.from_numpy(np.asarray([seq_index-index_start] * current_batch_size)).view(-1, 1)
 
-                    x = images[:, :, seq_index - FLANK_SIZE:seq_index + FLANK_SIZE + 1, :]
+                    attention_index_onehot = torch.FloatTensor(current_batch_size, total_seq_length)
+
+                    attention_index_onehot.zero_()
+                    attention_index_onehot.scatter_(1, attention_index, 1)
+
                     y = labels[:, seq_index - index_start]
 
-                    output_enc, hidden_dec = encoder_model(x, encoder_hidden)
-                    output_dec, decoder_hidden, attn = decoder_model(decoder_input, output_enc, hidden_dec)
+                    output_dec, decoder_hidden, attn = decoder_model(attention_index_onehot, output_enc, hidden_dec)
 
-                    encoder_hidden = decoder_hidden.detach()
-                    # loss + optimize
-                    loss = criterion(output_dec, y)
-                    loss.backward()
-                    encoder_optimizer.step()
-                    decoder_optimizer.step()
+                    loss += criterion(output_dec, y)
 
-                    if use_teacher_forcing:
-                        decoder_input = y
-                    else:
-                        topv, topi = output_dec.topk(1)
-                        decoder_input = topi.squeeze().detach()
+                    del attn
 
-                    total_loss += loss.item()
-                    total_images += labels.size(0)
+                total_loss += loss.item()
+                total_images += labels.size(0)
+
+                # loss + optimize
+                encoder_optimizer.zero_grad()
+                decoder_optimizer.zero_grad()
+
+                loss.backward()
+                encoder_optimizer.step()
+                decoder_optimizer.step()
 
                 # update the progress bar
                 avg_loss = (total_loss / total_images) if total_images else 0
                 progress_bar.set_description("Loss: " + str(avg_loss))
                 progress_bar.refresh()
                 progress_bar.update(1)
-                batch_no += 1
 
-                del decoder_input, encoder_hidden
+                del images, labels, encoder_hidden
             progress_bar.close()
 
         stats_dictioanry = test(test_file, batch_size, gpu_mode, encoder_model, decoder_model, num_workers,
