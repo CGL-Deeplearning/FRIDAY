@@ -2,7 +2,7 @@ import argparse
 import os
 import sys
 import time
-import random
+import numpy as np
 
 import torch
 import torch.nn.parallel
@@ -14,6 +14,7 @@ from torchvision import transforms
 from modules.core.dataloader import SequenceDataset
 from modules.models.ModelHandler import ModelHandler
 from modules.handlers.TextColor import TextColor
+from modules.core.ImageGenerator import CONTEXT_SIZE
 """
 FREEZE THIS BRANCH TO HAVE 1 WINDOW!!
 Train a model and save the model that performs best.
@@ -25,7 +26,6 @@ Input:
 Output:
 - A trained model
 """
-FLANK_SIZE = 10
 CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 
@@ -67,29 +67,33 @@ def test(data_file, batch_size, gru_layers, hidden_size, gpu_mode, encoder_model
                     images = images.cuda()
                     labels = labels.cuda()
 
-                decoder_input = torch.LongTensor(labels.size(0), 1).zero_()
                 encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
 
                 if gpu_mode:
-                    decoder_input = decoder_input.cuda()
                     encoder_hidden = encoder_hidden.cuda()
 
-                window_size = images.size(2) - 2 * FLANK_SIZE
-                index_start = FLANK_SIZE
+                window_size = images.size(2) - 2 * CONTEXT_SIZE
+                index_start = CONTEXT_SIZE
                 end_index = index_start + window_size
-
+                current_batch_size = images.size(0)
+                total_seq_length = window_size
                 loss = 0
                 output_enc, hidden_dec = encoder_model(images, encoder_hidden)
                 for seq_index in range(index_start, end_index):
+                    attention_index = torch.from_numpy(np.asarray([seq_index-index_start] * current_batch_size)).view(-1, 1)
+
+                    attention_index_onehot = torch.FloatTensor(current_batch_size, total_seq_length)
+
+                    attention_index_onehot.zero_()
+                    attention_index_onehot.scatter_(1, attention_index, 1)
                     y = labels[:, seq_index - index_start]
 
-                    output_dec, decoder_hidden, attn = decoder_model(decoder_input, output_enc, hidden_dec)
+                    output_dec, decoder_hidden, attn = decoder_model(attention_index_onehot, output_enc, hidden_dec)
 
-                    encoder_hidden = decoder_hidden.detach()
                     loss += test_criterion(output_dec, y)
                     confusion_matrix.add(output_dec.data.contiguous().view(-1, num_classes),
                                          y.data.contiguous().view(-1))
-                    del output_enc, hidden_dec, attn
+                    del attn
 
                 total_loss += loss.item()
                 total_images += labels.size(0)
@@ -101,7 +105,7 @@ def test(data_file, batch_size, gru_layers, hidden_size, gpu_mode, encoder_model
                                     cm_value[5][5]) / denom
                 pbar.set_description("Accuracy: " + str(accuracy))
 
-                del images, labels, decoder_input, encoder_hidden
+                del images, labels, encoder_hidden
 
     avg_loss = total_loss / total_images if total_images else 0
     # print('Test Loss: ' + str(avg_loss))
@@ -211,21 +215,28 @@ def train(train_file, test_file, batch_size, epoch_limit, gpu_mode, num_workers,
                 if gpu_mode:
                     encoder_hidden = encoder_hidden.cuda()
 
-                window_size = images.size(2) - 2 * FLANK_SIZE
-                index_start = FLANK_SIZE
+                window_size = images.size(2) - 2 * CONTEXT_SIZE
+                index_start = CONTEXT_SIZE
                 end_index = index_start + window_size
+                current_batch_size = images.size(0)
+                total_seq_length = window_size
                 loss = 0
                 output_enc, hidden_dec = encoder_model(images, encoder_hidden)
                 for seq_index in range(index_start, end_index):
-                    decoder_input = torch.LongTensor([seq_index-index_start] * images.size(0))
+                    attention_index = torch.from_numpy(np.asarray([seq_index-index_start] * current_batch_size)).view(-1, 1)
+
+                    attention_index_onehot = torch.FloatTensor(current_batch_size, total_seq_length)
+
+                    attention_index_onehot.zero_()
+                    attention_index_onehot.scatter_(1, attention_index, 1)
+
                     y = labels[:, seq_index - index_start]
 
-                    output_dec, decoder_hidden, attn = decoder_model(decoder_input, output_enc, hidden_dec)
+                    output_dec, decoder_hidden, attn = decoder_model(attention_index_onehot, output_enc, hidden_dec)
 
-                    encoder_hidden = decoder_hidden.detach()
                     loss += criterion(output_dec, y)
 
-                    del output_enc, hidden_dec, attn
+                    del attn
 
                 total_loss += loss.item()
                 total_images += labels.size(0)

@@ -1,8 +1,8 @@
 import torch.nn as nn
 import torch.nn.functional as F
+from modules.core.ImageGenerator import CONTEXT_SIZE
 
-FLANK_SIZE = 10
-CONTEXT_SIZE = FLANK_SIZE * 2 + 1
+TOTAL_CONTEXT = CONTEXT_SIZE * 2 + 1
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -100,9 +100,9 @@ class ResNet(nn.Module):
     def __init__(self, in_channels, block, layers):
         self.inplanes = 80
         super(ResNet, self).__init__()
-        self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=(CONTEXT_SIZE, 3), groups=in_channels)
-        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1), groups=20)
-        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=(CONTEXT_SIZE, 5), padding=(FLANK_SIZE, 1), groups=40)
+        self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=(TOTAL_CONTEXT, 3), groups=in_channels)
+        self.Context_Conv2d_0b = BasicConv2d(20, 40, kernel_size=(TOTAL_CONTEXT, 5), padding=(CONTEXT_SIZE, 1), groups=20)
+        self.Context_Conv2d_0c = BasicConv2d(40, 80, kernel_size=(TOTAL_CONTEXT, 5), padding=(CONTEXT_SIZE, 1), groups=40)
         self.Conv2d_1a_3x3 = BasicConv2d(80, 80, kernel_size=3, padding=(1, 0))
 
         # self.Context_Conv2d_0a = BasicConv2d(in_channels, 20, kernel_size=3, padding=(1, 0), groups=in_channels)

@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 from modules.models.resnet import resnet18_custom
+from modules.core.ImageGenerator import WINDOW_SIZE
 
 
 class Attention(nn.Module):
@@ -102,42 +103,42 @@ class EncoderCRNN(nn.Module):
 
 
 class AttnDecoderRNN(nn.Module):
-    def __init__(self, hidden_size, gru_layers, num_classes, max_length, seq_len=21, dropout_p=0.1, bidirectional=True):
+    def __init__(self, hidden_size, gru_layers, num_classes, max_length, seq_len=10, dropout_p=0.1, bidirectional=True):
         super(AttnDecoderRNN, self).__init__()
         self.hidden_size = hidden_size
         self.num_classes = num_classes
         self.dropout_p = dropout_p
         self.max_length = max_length
         self.bidirectional = bidirectional
-        self.embedding = nn.Embedding(seq_len, self.hidden_size)
+        # self.embedding = nn.Embedding(seq_len, self.hidden_size)
         self.attention = Attention(self.hidden_size)
         self.dropout = nn.Dropout(self.dropout_p)
         self.num_layers = gru_layers
-        self.gru = nn.GRU(self.hidden_size, self.hidden_size, num_layers=self.num_layers, batch_first=True,
+        self.gru = nn.GRU(WINDOW_SIZE, self.hidden_size, num_layers=self.num_layers, batch_first=True,
                           bidirectional=True)
         self.out = nn.Linear(self.hidden_size, self.num_classes)
 
-    def forward_step(self, x, encoder_output, encoder_hidden):
-        embedded = self.embedding(x).view(x.size(0), 1, -1)
-        embedded = self.dropout(embedded)
-
-        # self.gru.flatten_parameters()
-        output_gru, hidden_gru = self.gru(embedded, encoder_hidden)
+    def forward_step(self, attention_index_onehot, context_vector, encoder_hidden):
+        batch_size = attention_index_onehot.size(0)
+        output_gru, hidden_gru = self.gru(attention_index_onehot.view(batch_size, 1, -1), encoder_hidden)
+        # print("Attention", attention_index_onehot)
+        # exit()
 
         if self.bidirectional:
             output_gru = output_gru.contiguous()
-            output_gru = output_gru.view(output_gru.size(0), output_gru.size(1), 2, -1).sum(2)\
+            output_gru = output_gru.view(output_gru.size(0), output_gru.size(1), 2, -1).sum(2) \
                 .view(output_gru.size(0), output_gru.size(1), -1)
 
-        output, attn = self.attention.forward(output_gru, encoder_output)
+        output, attn = self.attention.forward(output_gru, context_vector)
 
         class_probabilities = self.out(output.contiguous().view(-1, self.hidden_size))
 
         return class_probabilities, hidden_gru, attn
 
-    def forward(self, decoder_input, encoder_output, encoder_hidden):
+    def forward(self, attention_index_onehot, context_vector, encoder_hidden):
         encoder_hidden = encoder_hidden.transpose(0, 1).contiguous()
-        class_probabilities, hidden, attn = self.forward_step(decoder_input, encoder_output, encoder_hidden)
+        class_probabilities, hidden, attn = self.forward_step(attention_index_onehot, context_vector,
+                                                              encoder_hidden)
 
         hidden = hidden.transpose(0, 1).contiguous()
 
