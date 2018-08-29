@@ -27,7 +27,7 @@ CONTEXT_SIZE = 20
 # jump window size so the last 50 bases will be overlapping
 WINDOW_OVERLAP_JUMP = 10
 # image size
-WINDOW_SIZE = 1
+WINDOW_SIZE = 2
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
 # ALL_HOM_BASE_RATIO = 0.005 (this worked great)
@@ -583,21 +583,25 @@ class ImageGenerator:
             if pos < interval_start - POS_BUFFER or pos > interval_end + POS_BUFFER:
                 continue
 
+            left_window_size = int(WINDOW_SIZE / 2)
+            right_window_size = int(WINDOW_SIZE / 2) if WINDOW_SIZE % 2 == 0 else int(WINDOW_SIZE / 2) + 1
+
+            left_window_size = random.randint(0, WINDOW_SIZE - 1)
+            right_window_size = WINDOW_SIZE - left_window_size
+
             start_index = self.positional_info_position_to_index[pos] - \
                           self.positional_info_position_to_index[ref_start]
-            left_window_index = start_index - int(WINDOW_SIZE / 2) - CONTEXT_SIZE
-            right_window_index = start_index + int(WINDOW_SIZE / 2) + CONTEXT_SIZE
 
-            if WINDOW_SIZE == 1:
-                right_window_index = start_index + int(WINDOW_SIZE / 2) + CONTEXT_SIZE + 1
+            left_window_index = start_index - left_window_size - CONTEXT_SIZE
+            right_window_index = start_index + right_window_size + CONTEXT_SIZE
 
-            start_pos_is_insert = self.positional_info_index_to_position[start_index - int(WINDOW_SIZE / 2)][1]
-            start_pos = self.positional_info_index_to_position[start_index - int(WINDOW_SIZE / 2)][0]
+            start_pos_is_insert = self.positional_info_index_to_position[start_index - left_window_size][1]
+            start_pos = self.positional_info_index_to_position[start_index - left_window_size][0]
 
             if start_pos_is_insert:
                 start_pos += 1
 
-            end_pos = self.positional_info_index_to_position[start_index + int(WINDOW_SIZE / 2) - 1][0]
+            end_pos = self.positional_info_index_to_position[start_index + right_window_size - 1][0]
 
             if end_pos < interval_start - POS_BUFFER or end_pos > interval_end + POS_BUFFER:
                 continue
@@ -609,11 +613,9 @@ class ImageGenerator:
 
             img_left_index = left_window_index - img_started_in_indx
             img_right_index = right_window_index - img_started_in_indx
-            label_left_index = start_index - int(WINDOW_SIZE / 2)
-            label_right_index = start_index + int(WINDOW_SIZE / 2)
 
-            if WINDOW_SIZE == 1:
-                label_right_index = start_index + int(WINDOW_SIZE / 2) + 1
+            label_left_index = start_index - left_window_size
+            label_right_index = start_index + right_window_size
 
             sub_label_seq = label_seq[label_left_index:label_right_index]
             sub_ref_seq = ref_seq[img_left_index:img_right_index]
