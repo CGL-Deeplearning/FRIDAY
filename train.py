@@ -33,12 +33,15 @@ class TrainModule:
         self.stats_dir = stats_dir
         # {'decoder_lr': 7.020638355820418e-05, 'decoder_l2': 8.806341254262352e-05,
         # 'encoder_lr': 0.0003090327459310237,  'encoder_l2': 0.0006757277458529228}
+        # window =1
+        # Params: {'decoder_l2': 0.0002892824841962342, 'encoder_l2': 0.00010703410259778772,
+        #          'encoder_lr': 0.0003001654397610769, 'decoder_lr': 0.00013044660278148493}
         self.hidden_size = 512
         self.gru_layers = 3
-        self.encoder_lr = 0.0003090327459310237
-        self.encoder_l2 = 0.0006757277458529228
-        self.decoder_lr = 7.020638355820418e-05
-        self.decoder_l2 = 8.806341254262352e-05
+        self.encoder_lr = 0.0003001654397610769
+        self.encoder_l2 = 0.00010703410259778772
+        self.decoder_lr = 0.00013044660278148493
+        self.decoder_l2 = 0.0002892824841962342
 
     def train_model(self):
         # train a model
