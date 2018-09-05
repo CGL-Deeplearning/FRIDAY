@@ -38,6 +38,6 @@ ax.bar(range(len(dictionary2)), dictionary2.values(), align='center')
 plt.xticks(range(len(dictionary2)), x_ticks)
 
 for i, v in enumerate(dictionary2.values()):
-    ax.text(i, v + 500, str(v) + ": " + str(round(v*100/sum(dictionary2.values()), 2)) + "%",
+    ax.text(i, v + 500, str(round(v*100/sum(dictionary2.values()), 2)) + "%",
             fontweight='bold', ha='center', fontsize=8)
 plt.savefig(file_name.split('/')[-1].split('.')[0]+"_Visualized.png", dpi=400)
