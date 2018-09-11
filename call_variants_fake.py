@@ -42,7 +42,7 @@ prediction_dict = defaultdict(list)
 reference_dict = defaultdict(tuple)
 
 
-def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
+def predict(test_file, batch_size, num_workers):
     """
     Create a prediction table/dictionary of an images set using a trained model.
     :param test_file: File to predict on
@@ -63,50 +63,20 @@ def predict(test_file, batch_size, model_path, gpu_mode, num_workers):
     test_loader = DataLoader(test_data,
                              batch_size=batch_size,
                              shuffle=False,
-                             num_workers=num_workers,
-                             pin_memory=gpu_mode)
+                             num_workers=num_workers)
     sys.stderr.write(TextColor.CYAN + 'Test data loaded\n')
-
-    if os.path.isfile(model_path) is False:
-        sys.stderr.write(TextColor.RED + "ERROR: INVALID PATH TO MODEL\n")
-        exit(1)
     seq_len = 2 * CONTEXT_SIZE + WINDOW_SIZE
-    sys.stderr.write(TextColor.GREEN + "INFO: MODEL LOADING\n" + TextColor.END)
-    encoder_model, decoder_model, hidden_size, gru_layers, epochs = \
-        ModelHandler.load_model_for_training(model_path, input_channels=10, seq_len=seq_len, num_classes=6)
 
-    sys.stderr.write(TextColor.GREEN + "INFO: MODEL LOADED\n" + TextColor.END)
-
-    if gpu_mode:
-        encoder_model = torch.nn.DataParallel(encoder_model).cuda()
-        decoder_model = torch.nn.DataParallel(decoder_model).cuda()
-
-    # Change model to 'eval' mode (BN uses moving mean/var).
-    encoder_model.eval()
-    decoder_model.eval()
-
-    sys.stderr.write(TextColor.PURPLE + 'MODEL LOADED\n' + TextColor.END)
     # TO HERE
     with torch.no_grad():
         for images, labels, positional_info in tqdm(test_loader, ncols=50):
-            if gpu_mode:
-                # encoder_hidden = encoder_hidden.cuda()
-                images = images.cuda()
-                labels = labels.cuda()
 
-            encoder_hidden = torch.FloatTensor(labels.size(0), gru_layers * 2, hidden_size).zero_()
-
-            if gpu_mode:
-                encoder_hidden = encoder_hidden.cuda()
-
-            total_seq_length = images.size(2)
             start_index = CONTEXT_SIZE
             end_index = CONTEXT_SIZE + WINDOW_SIZE
 
             chr_name, start_positions, reference_seqs, allele_dict_paths = positional_info
             unrolling_genomic_position = np.zeros((images.size(0)), dtype=np.int64)
 
-            context_vector, hidden_encoder = encoder_model(images, encoder_hidden)
             for seq_index in range(start_index, end_index):
                 batches = images.size(0)
 
@@ -236,13 +206,13 @@ def merge_call_files(vcf_file_directory):
     return all_records
 
 
-def call_variant(csv_file, batch_size, model_path, gpu_mode, num_workers, bam_file_path, sample_name, output_dir,
+def call_variant(csv_file, batch_size, num_workers, bam_file_path, sample_name, output_dir,
                  vcf_dir, max_threads):
     program_start_time = time.time()
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "SAMPLE NAME: " + sample_name + "\n")
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PLEASE USE --sample_name TO CHANGE SAMPLE NAME.\n")
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "OUTPUT DIRECTORY: " + output_dir + "\n")
-    chr_name = predict(csv_file, batch_size, model_path, gpu_mode, num_workers)
+    chr_name = predict(csv_file, batch_size, num_workers)
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "PREDICTION GENERATED SUCCESSFULLY.\n")
     sys.stderr.write(TextColor.GREEN + "INFO: " + TextColor.END + "COMPILING PREDICTIONS TO CALL VARIANTS.\n")
 
@@ -352,18 +322,6 @@ if __name__ == '__main__':
         help="Batch size for testing, default is 100."
     )
     parser.add_argument(
-        "--model_path",
-        type=str,
-        default='./CNN.pkl',
-        help="Saved model path."
-    )
-    parser.add_argument(
-        "--gpu_mode",
-        type=bool,
-        default=False,
-        help="If true then cuda is on."
-    )
-    parser.add_argument(
         "--sample_name",
         type=str,
         required=False,
@@ -387,8 +345,6 @@ if __name__ == '__main__':
     FLAGS.output_dir, vcf_dir = handle_output_directory(FLAGS.output_dir)
     call_variant(FLAGS.csv_file,
                  FLAGS.batch_size,
-                 FLAGS.model_path,
-                 FLAGS.gpu_mode,
                  FLAGS.num_workers,
                  FLAGS.bam_file,
                  FLAGS.sample_name,
