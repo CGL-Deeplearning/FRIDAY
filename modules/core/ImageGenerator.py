@@ -613,7 +613,7 @@ class ImageGenerator:
             sliced_image = image[:, img_left_index:img_right_index, :]
             img_h, img_w, img_c = sliced_image.shape
 
-            sliced_images.append(np.array(sliced_image, dtype=np.int32))
+            sliced_images.append(np.array(sliced_image, dtype=np.uint8))
             index_info = str(image_index)
             sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(sub_label_seq)
             sequence_info = sequence_info + "," + str(sub_ref_seq)
@@ -630,6 +630,8 @@ class ImageGenerator:
             if pos + WINDOW_OVERLAP_JUMP < end_pos:
                 pos += WINDOW_OVERLAP_JUMP
             else:
+                if end_pos == pos:
+                    end_pos += 1
                 pos = end_pos
 
         return sliced_images, summary_strings, img_h, img_w, img_c

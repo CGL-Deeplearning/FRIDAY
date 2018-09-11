@@ -198,7 +198,7 @@ class View:
 
                 hdf5_file = h5py.File(hdf5_filename, mode='w')
                 # the image dataset we save. The index name in h5py is "images".
-                img_dset = hdf5_file.create_dataset("images", (len(sliced_images),) + (img_h, img_w, img_c), np.int32,
+                img_dset = hdf5_file.create_dataset("images", (len(sliced_images),) + (img_h, img_w, img_c), np.uint8,
                                                     compression='gzip')
                 # save the images and labels to the h5py file
                 img_dset[...] = sliced_images
