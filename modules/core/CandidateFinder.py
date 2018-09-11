@@ -116,8 +116,9 @@ class CandidateFinder:
         :param qualities: List of qualities of those bases
         :return:
         """
-        self.insert_dictionary[read_id][pos] = (bases, qualities)
-        self.insert_length_info[pos] = max(self.insert_length_info[pos], len(bases))
+        pass
+        # self.insert_dictionary[read_id][pos] = (bases, qualities)
+        # self.insert_length_info[pos] = max(self.insert_length_info[pos], len(bases))
 
     def _update_reference_dictionary(self, position, ref_base):
         """
@@ -142,10 +143,10 @@ class CandidateFinder:
         if (allele, allele_type) not in self.read_allele_dictionary[pos]:
             self.read_allele_dictionary[pos][(allele, allele_type)] = 0
 
-        quality = sum(qualities) / len(qualities)
-        prob = 1.0 - (10.0 ** (-quality/10.0))
+        # quality = sum(qualities) / len(qualities)
+        # prob = 1.0 - (10.0 ** (-quality/10.0))
 
-        self.read_allele_dictionary[pos][(allele, allele_type)] += prob
+        self.read_allele_dictionary[pos][(allele, allele_type)] += 1.0
 
     def _update_positional_allele_frequency(self, read_id, pos, allele, allele_type, quality_based_freq):
         """
