@@ -25,9 +25,9 @@ VCF_INDEX_BUFFER = -1
 # context to take on each side for each base
 CONTEXT_SIZE = 5
 # jump window size so the last 80 bases will be overlapping
-WINDOW_OVERLAP_JUMP = 80
+WINDOW_OVERLAP_JUMP = 295
 # window size
-WINDOW_SIZE = 100
+WINDOW_SIZE = 300
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
 # ALL_HOM_BASE_RATIO = 0.005 (this worked great)
@@ -630,6 +630,6 @@ class ImageGenerator:
             if pos + WINDOW_OVERLAP_JUMP < end_pos:
                 pos += WINDOW_OVERLAP_JUMP
             else:
-                pos = end_pos - 2
+                pos = end_pos
 
         return sliced_images, summary_strings, img_h, img_w, img_c
