@@ -621,10 +621,10 @@ class ImageGenerator:
             summary_strings = summary_strings + summary_string
 
             # print(pos, start_pos, end_pos)
-            from analysis.analyze_png_img import analyze_v3_images
-            print(' ' * CONTEXT_SIZE + str(sub_label_seq))
-            analyze_v3_images(sliced_image)
-            exit()
+            # from analysis.analyze_png_img import analyze_v3_images
+            # print(' ' * CONTEXT_SIZE + str(sub_label_seq))
+            # analyze_v3_images(sliced_image)
+            # exit()
             image_index += 1
 
             if pos + WINDOW_OVERLAP_JUMP < end_pos:
