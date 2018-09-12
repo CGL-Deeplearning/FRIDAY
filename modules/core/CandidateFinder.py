@@ -116,9 +116,9 @@ class CandidateFinder:
         :param qualities: List of qualities of those bases
         :return:
         """
-        pass
         # self.insert_dictionary[read_id][pos] = (bases, qualities)
         # self.insert_length_info[pos] = max(self.insert_length_info[pos], len(bases))
+        pass
 
     def _update_reference_dictionary(self, position, ref_base):
         """
@@ -163,7 +163,7 @@ class CandidateFinder:
             self.positional_allele_frequency[pos][(allele, allele_type)] = 0
 
         # increase the allele frequency of the allele at that position
-        self.positional_allele_frequency[pos][(allele, allele_type)] += quality_based_freq
+        self.positional_allele_frequency[pos][(allele, allele_type)] += 1.0
         self.allele_dictionary[read_id][pos].append((allele, allele_type))
 
     def parse_match(self, read_id, alignment_position, length, read_sequence, ref_sequence, qualities):
