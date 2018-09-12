@@ -2,6 +2,7 @@ from collections import defaultdict
 from modules.handlers.BamHandler import BamHandler
 from modules.handlers.FastaHandler import FastaHandler
 import sys
+import operator
 from modules.handlers.TextColor import TextColor
 
 """
@@ -66,6 +67,7 @@ class CandidateFinder:
         read_allele_dictionary: alleles found in a read while processing that read
         '''
         self.positional_allele_frequency = {}
+        self.filtered_positional_alleles = {}
         self.reference_dictionary = {}
         self.coverage = defaultdict(int)
         self.rms_mq = defaultdict(int)
@@ -116,7 +118,7 @@ class CandidateFinder:
         :param qualities: List of qualities of those bases
         :return:
         """
-        # self.insert_dictionary[read_id][pos] = (bases, qualities)
+        self.insert_dictionary[read_id][pos] = (bases, qualities)
         # self.insert_length_info[pos] = max(self.insert_length_info[pos], len(bases))
         pass
 
@@ -414,6 +416,28 @@ class CandidateFinder:
                     # it's an insert or delete, so, add to the previous position
                     self._update_positional_allele_frequency(read_id, position - 1, allele, allele_type, qual_freq)
 
+    def _filter_alleles(self):
+        """
+        Apply filter to alleles. The filter we use now are:
+        MIN_MISMATCH_THRESHOLD: The count of the allele has to be greater than this value
+        MIN_MISMATCH_PERCENT_THRESHOLD: The percent to the coverage has to be greater than this
+        MIN_COVERAGE_THRESHOLD: Coverage of the threshold has to be greater than this
+        :param position: genomic position
+        :param allele_frequency_list: list of tuples containing allele sequence and their frequency
+        :return: A filtered list of alleles
+        """
+        for pos in self.positional_allele_frequency:
+            for allele, allele_freq in list(self.positional_allele_frequency[pos].items()):
+                allele_seq, allele_type = allele
+                allele_freq_percent = (100.0 * (allele_freq / self.coverage[pos]))
+                if allele_freq_percent <= 10.0:
+                    continue
+                if pos not in self.filtered_positional_alleles:
+                    self.filtered_positional_alleles[pos] = {}
+                self.filtered_positional_alleles[pos][(allele_seq, allele_type)] = allele_freq
+                if allele_type == INSERT_ALLELE:
+                    self.insert_length_info[pos] = max(self.insert_length_info[pos], len(allele_seq) - 1)
+
     def process_interval(self, interval_start, interval_end):
         """
         Processes all reads and reference for this interval
@@ -436,7 +460,7 @@ class CandidateFinder:
                 self.process_read(read, interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS)
                 read_id_list.append(read.query_name)
                 total_reads += 1
-
+        self._filter_alleles()
         if DEBUG_MESSAGE:
             sys.stderr.write(TextColor.BLUE)
             sys.stderr.write("INFO: TOTAL READ IN REGION: " + self.chromosome_name + " " + str(interval_start) + " " +

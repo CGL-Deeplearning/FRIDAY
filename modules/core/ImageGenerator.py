@@ -27,7 +27,7 @@ CONTEXT_SIZE = 5
 # jump window size so the last 80 bases will be overlapping
 WINDOW_OVERLAP_JUMP = 80
 # window size
-WINDOW_SIZE = 100
+WINDOW_SIZE = 1
 # boundary columns is the number of bases we process for safety
 BOUNDARY_COLUMNS = 50
 # ALL_HOM_BASE_RATIO = 0.005 (this worked great)
@@ -90,13 +90,15 @@ class ImageGenerator:
         support_dict = defaultdict(tuple)
         pos = read_start_pos
         while pos < read_end_pos:
-            candidate_alleles = self.pos_dicts.positional_allele_frequency[pos] \
-                if pos in self.pos_dicts.positional_allele_frequency else None
+            candidate_alleles = self.pos_dicts.filtered_positional_alleles[pos] \
+                if pos in self.pos_dicts.filtered_positional_alleles else None
+
             if candidate_alleles is not None:
                 if pos not in self.top_alleles:
                     self.top_alleles[pos] = \
-                        sorted(self.pos_dicts.positional_allele_frequency[pos].items(), key=operator.itemgetter(1, 0),
+                        sorted(self.pos_dicts.filtered_positional_alleles[pos].items(), key=operator.itemgetter(1, 0),
                                reverse=True)[:PLOIDY]
+
                 support_candidate_type = SNP
                 supported_allele = ''
                 for counter, allele_info in enumerate(self.top_alleles[pos]):
@@ -572,31 +574,48 @@ class ImageGenerator:
         image_index = 0
         img_w, img_h, img_c = 0, 0, 0
 
-        pos = interval_start
-        while pos < interval_end:
-            if pos > interval_end + POS_BUFFER:
-                break
+        for i, pos in enumerate(self.top_alleles.keys()):
+            allele, freq = self.top_alleles[pos][0]
+
+            if allele[1] == SNP and freq <= 2:
+                continue
+
+            if pos < interval_start - POS_BUFFER or pos > interval_end + POS_BUFFER:
+                continue
+
+            left_window_size = int(WINDOW_SIZE / 2)
+            right_window_size = int(WINDOW_SIZE / 2) if WINDOW_SIZE % 2 == 0 else int(WINDOW_SIZE / 2) + 1
+
+            # left_window_size = random.randint(0, WINDOW_SIZE - 1)
+            # right_window_size = WINDOW_SIZE - left_window_size
+
             start_index = self.positional_info_position_to_index[pos] - \
                           self.positional_info_position_to_index[ref_start]
 
-            left_window_index = start_index - CONTEXT_SIZE
-            right_window_index = start_index + WINDOW_SIZE + CONTEXT_SIZE
+            left_window_index = start_index - left_window_size - CONTEXT_SIZE
+            right_window_index = start_index + right_window_size + CONTEXT_SIZE
+
+            start_pos_is_insert = self.positional_info_index_to_position[start_index - left_window_size][1]
+            start_pos = self.positional_info_index_to_position[start_index - left_window_size][0]
+
+            if start_pos_is_insert:
+                start_pos += 1
+
+            end_pos = self.positional_info_index_to_position[start_index + right_window_size - 1][0]
+
+            if end_pos < interval_start - POS_BUFFER or end_pos > interval_end + POS_BUFFER:
+                continue
 
             if left_window_index < img_started_in_indx:
                 continue
             if right_window_index > img_ended_in_indx:
                 break
 
-            end_pos = self.positional_info_index_to_position[start_index + WINDOW_SIZE - 1][0]
-
-            if end_pos > interval_end + POS_BUFFER:
-                break
-
             img_left_index = left_window_index - img_started_in_indx
             img_right_index = right_window_index - img_started_in_indx
 
-            label_left_index = start_index
-            label_right_index = start_index + WINDOW_SIZE
+            label_left_index = start_index - left_window_size
+            label_right_index = start_index + right_window_size
 
             sub_label_seq = label_seq[label_left_index:label_right_index]
             sub_ref_seq = ref_seq[img_left_index:img_right_index]
@@ -615,7 +634,7 @@ class ImageGenerator:
 
             sliced_images.append(np.array(sliced_image, dtype=np.int32))
             index_info = str(image_index)
-            sequence_info = str(self.chromosome_name) + " " + str(pos) + "," + str(sub_label_seq)
+            sequence_info = str(self.chromosome_name) + " " + str(start_pos) + "," + str(sub_label_seq)
             sequence_info = sequence_info + "," + str(sub_ref_seq)
             summary_string = file_info + "," + index_info + "," + sequence_info + "\n"
             summary_strings = summary_strings + summary_string
@@ -626,10 +645,5 @@ class ImageGenerator:
             # analyze_v3_images(sliced_image)
             # exit()
             image_index += 1
-
-            if pos + WINDOW_OVERLAP_JUMP < end_pos:
-                pos += WINDOW_OVERLAP_JUMP
-            else:
-                pos = end_pos - 1
 
         return sliced_images, summary_strings, img_h, img_w, img_c
