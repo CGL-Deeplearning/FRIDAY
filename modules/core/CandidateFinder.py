@@ -430,7 +430,7 @@ class CandidateFinder:
             for allele, allele_freq in list(self.positional_allele_frequency[pos].items()):
                 allele_seq, allele_type = allele
                 allele_freq_percent = (100.0 * (allele_freq / self.coverage[pos]))
-                if allele_freq_percent <= 10.0:
+                if allele_freq_percent <= 5.0 or allele_type == INSERT_ALLELE or allele_type == DELETE_ALLELE:
                     continue
                 if pos not in self.filtered_positional_alleles:
                     self.filtered_positional_alleles[pos] = {}
