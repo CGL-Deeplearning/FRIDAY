@@ -2,7 +2,6 @@ from collections import defaultdict
 from modules.handlers.BamHandler import BamHandler
 from modules.handlers.FastaHandler import FastaHandler
 import sys
-import operator
 from modules.handlers.TextColor import TextColor
 
 """
@@ -29,6 +28,7 @@ class CandidateFinder:
     """
     Process a genomic region of a BAM file and populate dictionaries that can be used for tensor/image generation
     """
+
     def __init__(self, bam_file, ref_file, chr_name):
         """
         Initialize handlers and dictionaries
@@ -47,7 +47,7 @@ class CandidateFinder:
         present given a read's id. So, base_dictionary[read_id][genomic_position] should return (base, quality)
         which is the base and the base quality of that base in that genomic position for that read. Same works
         for insert dictionary, but it's a list of bases and qualities instead of a single base.
-        
+
         insert_length_info saves the maximum length insert given a genomic position.
         '''
         self.base_dictionary = defaultdict(lambda: defaultdict(tuple))
@@ -67,7 +67,6 @@ class CandidateFinder:
         read_allele_dictionary: alleles found in a read while processing that read
         '''
         self.positional_allele_frequency = {}
-        self.filtered_positional_alleles = {}
         self.reference_dictionary = {}
         self.coverage = defaultdict(int)
         self.rms_mq = defaultdict(int)
@@ -119,8 +118,7 @@ class CandidateFinder:
         :return:
         """
         self.insert_dictionary[read_id][pos] = (bases, qualities)
-        # self.insert_length_info[pos] = max(self.insert_length_info[pos], len(bases))
-        pass
+        self.insert_length_info[pos] = max(self.insert_length_info[pos], len(bases))
 
     def _update_reference_dictionary(self, position, ref_base):
         """
@@ -145,10 +143,10 @@ class CandidateFinder:
         if (allele, allele_type) not in self.read_allele_dictionary[pos]:
             self.read_allele_dictionary[pos][(allele, allele_type)] = 0
 
-        # quality = sum(qualities) / len(qualities)
-        # prob = 1.0 - (10.0 ** (-quality/10.0))
+        quality = sum(qualities) / len(qualities)
+        prob = 1.0 - (10.0 ** (-quality / 10.0))
 
-        self.read_allele_dictionary[pos][(allele, allele_type)] += 1.0
+        self.read_allele_dictionary[pos][(allele, allele_type)] += prob
 
     def _update_positional_allele_frequency(self, read_id, pos, allele, allele_type, quality_based_freq):
         """
@@ -165,7 +163,7 @@ class CandidateFinder:
             self.positional_allele_frequency[pos][(allele, allele_type)] = 0
 
         # increase the allele frequency of the allele at that position
-        self.positional_allele_frequency[pos][(allele, allele_type)] += 1.0
+        self.positional_allele_frequency[pos][(allele, allele_type)] += quality_based_freq
         self.allele_dictionary[read_id][pos].append((allele, allele_type))
 
     def parse_match(self, read_id, alignment_position, length, read_sequence, ref_sequence, qualities):
@@ -184,15 +182,15 @@ class CandidateFinder:
         start = alignment_position
         stop = start + length
         for i in range(start, stop):
-            allele = read_sequence[i-alignment_position]
-            ref = ref_sequence[i-alignment_position]
+            allele = read_sequence[i - alignment_position]
+            ref = ref_sequence[i - alignment_position]
 
             self.coverage[i] += 1
-            self._update_base_dictionary(read_id, i, allele, qualities[i-alignment_position])
+            self._update_base_dictionary(read_id, i, allele, qualities[i - alignment_position])
 
             if allele != ref:
                 self.mismatch_count[i] += 1
-                self._update_read_allele_dictionary(i, allele, MISMATCH_ALLELE, [qualities[i-alignment_position]])
+                self._update_read_allele_dictionary(i, allele, MISMATCH_ALLELE, [qualities[i - alignment_position]])
 
     def parse_delete(self, read_id, alignment_position, length, ref_sequence):
         """
@@ -282,7 +280,7 @@ class CandidateFinder:
             # alignment position is where the next alignment starts, for insert and delete this
             # position should be the anchor point hence we use a -1 to refer to the anchor point
             self.parse_insert(read_id=read_id,
-                              alignment_position=alignment_position-1,
+                              alignment_position=alignment_position - 1,
                               read_sequence=read_sequence,
                               qualities=quality)
             ref_index_increment = 0
@@ -291,7 +289,7 @@ class CandidateFinder:
             # alignment position is where the next alignment starts, for insert and delete this
             # position should be the anchor point hence we use a -1 to refer to the anchor point
             self.parse_delete(read_id=read_id,
-                              alignment_position=alignment_position-1,
+                              alignment_position=alignment_position - 1,
                               ref_sequence=ref_sequence,
                               length=length)
             read_index_increment = 0
@@ -310,7 +308,7 @@ class CandidateFinder:
             read_index_increment = 0
             # print("CIGAR CODE ERROR PAD")
         else:
-            raise("INVALID CIGAR CODE: %s" % cigar_code)
+            raise ("INVALID CIGAR CODE: %s" % cigar_code)
 
         return ref_index_increment, read_index_increment
 
@@ -340,7 +338,7 @@ class CandidateFinder:
         # reference sequence of the read
         ref_sequence = self.fasta_handler.get_sequence(chromosome_name=self.chromosome_name,
                                                        start=ref_alignment_start,
-                                                       stop=ref_alignment_stop+10)
+                                                       stop=ref_alignment_stop + 10)
 
         # save the read information
         self.read_info[read_id] = (ref_alignment_start, ref_alignment_stop,
@@ -369,9 +367,9 @@ class CandidateFinder:
             length = cigar[1]
 
             # get the sequence segments that are effected by this operation
-            ref_sequence_segment = ref_sequence[ref_index:ref_index+length]
-            read_quality_segment = read_quality[read_index:read_index+length]
-            read_sequence_segment = read_sequence[read_index:read_index+length]
+            ref_sequence_segment = ref_sequence[ref_index:ref_index + length]
+            read_quality_segment = read_quality[read_index:read_index + length]
+            read_sequence_segment = read_sequence[read_index:read_index + length]
 
             # in few cases read may start with an invalid CIGAR, the first cigar base has to be a match
             if cigar_code != 0 and found_valid_cigar is False:
@@ -385,7 +383,7 @@ class CandidateFinder:
             ref_index_increment, read_index_increment = \
                 self.parse_cigar_tuple(cigar_code=cigar_code,
                                        length=length,
-                                       alignment_position=ref_alignment_start+ref_index,
+                                       alignment_position=ref_alignment_start + ref_index,
                                        ref_sequence=ref_sequence_segment,
                                        read_sequence=read_sequence_segment,
                                        read_id=read_id,
@@ -416,28 +414,6 @@ class CandidateFinder:
                     # it's an insert or delete, so, add to the previous position
                     self._update_positional_allele_frequency(read_id, position - 1, allele, allele_type, qual_freq)
 
-    def _filter_alleles(self):
-        """
-        Apply filter to alleles. The filter we use now are:
-        MIN_MISMATCH_THRESHOLD: The count of the allele has to be greater than this value
-        MIN_MISMATCH_PERCENT_THRESHOLD: The percent to the coverage has to be greater than this
-        MIN_COVERAGE_THRESHOLD: Coverage of the threshold has to be greater than this
-        :param position: genomic position
-        :param allele_frequency_list: list of tuples containing allele sequence and their frequency
-        :return: A filtered list of alleles
-        """
-        for pos in self.positional_allele_frequency:
-            for allele, allele_freq in list(self.positional_allele_frequency[pos].items()):
-                allele_seq, allele_type = allele
-                allele_freq_percent = (100.0 * (allele_freq / self.coverage[pos]))
-                if allele_freq <= 10.0 and allele_type == INSERT_ALLELE:
-                    continue
-                if pos not in self.filtered_positional_alleles:
-                    self.filtered_positional_alleles[pos] = {}
-                self.filtered_positional_alleles[pos][(allele_seq, allele_type)] = allele_freq
-                if allele_type == INSERT_ALLELE:
-                    self.insert_length_info[pos] = max(self.insert_length_info[pos], len(allele_seq) - 1)
-
     def process_interval(self, interval_start, interval_end):
         """
         Processes all reads and reference for this interval
@@ -460,7 +436,7 @@ class CandidateFinder:
                 self.process_read(read, interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS)
                 read_id_list.append(read.query_name)
                 total_reads += 1
-        self._filter_alleles()
+
         if DEBUG_MESSAGE:
             sys.stderr.write(TextColor.BLUE)
             sys.stderr.write("INFO: TOTAL READ IN REGION: " + self.chromosome_name + " " + str(interval_start) + " " +
