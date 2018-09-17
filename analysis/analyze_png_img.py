@@ -8,22 +8,23 @@ def get_base_by_color(base):
     """
     Get color based on a base.
     - Uses different band of the same channel.
+    global_base_values = {'A': 25.0, 'C': 75.0, 'G': 125.0, 'T': 175.0, '*': 225.0, '-': 250.0, 'N': 10.0}
     :param base:
     :return:
     """
-    if 250.0 <= base <= 255.0:
+    if 20.0 <= base <= 30.0:
         return 'A'
-    if 99.0 <= base <= 105.0:
+    if 70.0 <= base <= 80.0:
         return 'C'
-    if 180.0 <= base <= 185.0:
+    if 115.0 <= base <= 135.0:
         return 'G'
-    if 25.0 <= base <= 35.0:
+    if 165.0 <= base <= 185.0:
         return 'T'
-    if 55.0 <= base <= 65.0:
+    if 220.0 <= base <= 235.0:
         return '*'
-    if 145.0 <= base <= 155.0:
-        return '.'
-    if 4.0 <= base <= 6.0:
+    if 245.0 <= base <= 255.0:
+        return '-'
+    if 5.0 <= base <= 10.0:
         return 'N'
     if 0.0 <= base <= 3.0:
         return ' '
@@ -103,7 +104,7 @@ def get_cigar_by_color(cigar_code):
 
 def visualize_match_channel(img):
     img_h, img_w, img_c = img.shape
-    img_h = 28
+    img_h = 50
     entire_image = []
     for i in range(img_h):
         image_row = []
@@ -248,14 +249,14 @@ def visualize_map_quality_channel(img):
 
 def visualize_base_channel(img):
     img_h, img_w, img_c = img.shape
-    img_h = 28
+    img_h = 100
     entire_image = []
     for i in range(img_h):
         image_row = []
         for j in range(img_w):
             if img[i][j][0] != 0:
                 print(get_base_by_color(img[i][j][0]), end='')
-                if get_base_by_color(img[i][j][0]) == get_base_by_color(img[0][j][0]) and i > 0:
+                if get_base_by_color(img[i][j][0]) != '*' and get_base_by_color(img[i][j][0]) == get_base_by_color(img[0][j][0]) and i > 0:
                     image_row.append([255, 255, 255, 255])
                 elif get_base_by_color(img[i][j][0]) == 'A':
                     image_row.append([0, 0, 255, 255])
@@ -267,7 +268,7 @@ def visualize_base_channel(img):
                     image_row.append([255, 255, 0, 255])
                 else:
                     # purple
-                    image_row.append([160, 32, 240, 255])
+                    image_row.append([255, 105, 180, 255])
             else:
                 print(' ', end='')
                 image_row.append([0, 0, 0, 255])
@@ -413,12 +414,14 @@ def analyze_v3_images(img):
     # entire_image = np.array(entire_image)
     # from scipy import misc
     # misc.imsave("Base_visualized_v3" + ".png", entire_image, format="PNG")
-# import h5py
-# hdf5_file = h5py.File("/data/users/kishwar/train_data/image_output/run_08102018_161950/19/19_259396.h5", 'r')
-# image_dataset = hdf5_file['images']
-# img = np.array(image_dataset[0], dtype=np.int32)
+import h5py
+hdf5_file = h5py.File("./outputs/labeled_images/run_09172018_001828/chr19/chr19_259396.h5", 'r')
+image_dataset = hdf5_file['images']
+img = np.array(image_dataset[0], dtype=np.int32)
+
 # from torchvision import transforms
 # transformations = transforms.Compose([transforms.ToTensor()])
 # img = transformations(img)
 # img = img.transpose(1, 2)
+visualize_base_channel(img)
 # analyze_tensor(img)

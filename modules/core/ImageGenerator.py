@@ -23,7 +23,7 @@ VCF_INDEX_BUFFER = -1
 
 # Per sequence threshold
 # context to take on each side for each base
-CONTEXT_SIZE = 2
+CONTEXT_SIZE = 50
 # jump window size so the last 80 bases will be overlapping
 WINDOW_OVERLAP_JUMP = 80
 # window size
@@ -90,13 +90,13 @@ class ImageGenerator:
         support_dict = defaultdict(tuple)
         pos = read_start_pos
         while pos < read_end_pos:
-            candidate_alleles = self.pos_dicts.positional_allele_frequency[pos] \
-                if pos in self.pos_dicts.positional_allele_frequency else None
+            candidate_alleles = self.pos_dicts.filtered_positional_alleles[pos] \
+                if pos in self.pos_dicts.filtered_positional_alleles else None
 
             if candidate_alleles is not None:
                 if pos not in self.top_alleles:
                     self.top_alleles[pos] = \
-                        sorted(self.pos_dicts.positional_allele_frequency[pos].items(), key=operator.itemgetter(1, 0),
+                        sorted(self.pos_dicts.filtered_positional_alleles[pos].items(), key=operator.itemgetter(1, 0),
                                reverse=True)[:PLOIDY]
 
                 support_candidate_type = SNP
@@ -577,8 +577,8 @@ class ImageGenerator:
         for i, pos in enumerate(self.top_alleles.keys()):
             allele, freq = self.top_alleles[pos][0]
 
-            # if allele[1] == SNP and freq <= 2:
-            #     continue
+            if allele[1] == SNP and freq <= 2:
+                continue
 
             if pos < interval_start - POS_BUFFER or pos > interval_end + POS_BUFFER:
                 continue
