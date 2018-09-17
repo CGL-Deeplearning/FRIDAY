@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader
-from modules.core.dataloader_test import SequenceDataset
+from modules.core.dataloader_fake import SequenceDataset
 from torchvision import transforms
 import multiprocessing
 from modules.models.ModelHandler import ModelHandler
@@ -69,16 +69,16 @@ def predict(test_file, batch_size, num_workers):
 
     # TO HERE
     with torch.no_grad():
-        for images, labels, positional_info in tqdm(test_loader, ncols=50):
+        for labels, positional_info in tqdm(test_loader, ncols=50):
 
             start_index = CONTEXT_SIZE
             end_index = CONTEXT_SIZE + WINDOW_SIZE
 
             chr_name, start_positions, reference_seqs, allele_dict_paths = positional_info
-            unrolling_genomic_position = np.zeros((images.size(0)), dtype=np.int64)
+            unrolling_genomic_position = np.zeros((labels.size(0)), dtype=np.int64)
 
             for seq_index in range(start_index, end_index):
-                batches = images.size(0)
+                batches = labels.size(0)
 
                 # current_batch_size = images.size(0)
                 # y = labels[:, seq_index - start_index]
