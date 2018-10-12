@@ -504,12 +504,12 @@ class ImageGenerator:
 
         # the SNP is not there
         if allele not in self.base_frequency[indx]:
-            sys.stderr.write("0\tSNP\t" + str(position) + "\t" + str(allele) + "\t" + "0" + "\n")
+            print("0\tSNP\t" + str(position) + "\t" + str(allele) + "\t" + "0" + "\n")
             return None
 
         coverage = self.index_based_coverage[indx]
         freq = (100 * self.base_frequency[indx][allele]) / coverage
-        sys.stderr.write("1\tSNP\t" + str(position) + "\t" + str(allele) + "\t" + str(freq) + "\n")
+        print("1\tSNP\t" + str(position) + "\t" + str(allele) + "\t" + str(freq) + "\n")
 
         return True, freq
 
@@ -518,7 +518,7 @@ class ImageGenerator:
         insert_length = self.pos_dicts.insert_length_info[position]
 
         if insert_length < len(allele):
-            sys.stderr.write("0\tIN\t" + str(position) + "\t" + str(allele) + "\t" + "0\t" + "INSERT LENGTH\n")
+            print("0\tIN\t" + str(position) + "\t" + str(allele) + "\t" + "0\t" + "INSERT LENGTH\n")
             return None
 
         original_allele = allele
@@ -540,10 +540,10 @@ class ImageGenerator:
             insert_indx += 1
 
         if allele_indx < len(allele):
-            sys.stderr.write("0\tIN\t" + str(position) + "\t" + str(original_allele) + "\t" + "0\t" + "DID NOT MATCH\n")
+            print("0\tIN\t" + str(position) + "\t" + str(original_allele) + "\t" + "0\t" + "DID NOT MATCH\n")
             return None
 
-        sys.stderr.write("1\tIN\t" + str(position) + "\t" + str(original_allele) + "\t" + str(freq) + "\n")
+        print("1\tIN\t" + str(position) + "\t" + str(original_allele) + "\t" + str(freq) + "\n")
 
         return True, freq
 
@@ -554,13 +554,15 @@ class ImageGenerator:
         freq = 110
         for del_position in range(position_start, position_end):
             indx = self.positional_info_position_to_index[del_position]
-            coverage = self.index_based_coverage[indx]
-            freq = min(freq, (100 * self.base_frequency[indx]['.']) / coverage)
+
             if '.' not in self.base_frequency[indx]:
-                sys.stderr.write("0\tDEL\t" + str(position) + "\t" + str(del_allele) + "\t" + "0" + "\n")
+                print("0\tDEL\t" + str(position) + "\t" + str(del_allele) + "\t" + "0" + "\n")
                 return None
 
-        sys.stderr.write("1\tDEL\t" + str(position) + "\t" + str(allele) + "\t" + str(freq) + "\n")
+            coverage = self.index_based_coverage[indx]
+            freq = min(freq, (100 * self.base_frequency[indx]['.']) / coverage)
+
+        print("1\tDEL\t" + str(position) + "\t" + str(allele) + "\t" + str(freq) + "\n")
         return True, freq
 
     def populate_vcf_alleles(self, positional_vcf):
