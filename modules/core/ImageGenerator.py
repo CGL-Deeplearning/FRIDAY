@@ -175,7 +175,7 @@ class ImageGenerator:
 
                 if pos not in self.pos_dicts.base_dictionary[read_id] and \
                         pos not in self.pos_dicts.insert_dictionary[read_id]:
-                    print(pos, read_id)
+                    # print(pos, read_id)
                     continue
 
                 if pos in support_dict:
