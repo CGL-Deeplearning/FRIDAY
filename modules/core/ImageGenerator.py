@@ -517,12 +517,14 @@ class ImageGenerator:
         indx = self.positional_info_position_to_index[position]
         insert_length = self.pos_dicts.insert_length_info[position]
 
+        original_allele = allele
+        allele = allele[1:]
+
         if insert_length < len(allele):
             print("0\tIN\t" + str(position) + "\t" + str(allele) + "\t" + "0\t" + "INSERT LENGTH\n")
             return None
 
-        original_allele = allele
-        allele = allele[1:]
+
         insert_index_start = indx + 1
         insert_index_end = insert_index_start + insert_length
 
