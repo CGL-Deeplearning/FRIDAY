@@ -68,7 +68,6 @@ class CandidateFinder:
         read_allele_dictionary: alleles found in a read while processing that read
         '''
         self.positional_allele_frequency = {}
-        self.filtered_positional_alleles = {}
         self.reference_dictionary = {}
         self.coverage = defaultdict(int)
         self.rms_mq = defaultdict(int)
@@ -120,8 +119,7 @@ class CandidateFinder:
         :return:
         """
         self.insert_dictionary[read_id][pos] = (bases, qualities)
-        # self.insert_length_info[pos] = max(self.insert_length_info[pos], len(bases))
-        pass
+        self.insert_length_info[pos] = max(self.insert_length_info[pos], len(bases))
 
     def _update_reference_dictionary(self, position, ref_base):
         """
@@ -417,7 +415,7 @@ class CandidateFinder:
                     # it's an insert or delete, so, add to the previous position
                     self._update_positional_allele_frequency(read_id, position - 1, allele, allele_type, qual_freq)
 
-    def _filter_alleles(self):
+    '''def _filter_alleles(self):
         """
         Apply filter to alleles. The filter we use now are:
         MIN_MISMATCH_THRESHOLD: The count of the allele has to be greater than this value
@@ -430,14 +428,14 @@ class CandidateFinder:
         for pos in self.positional_allele_frequency:
             for allele, allele_freq in list(self.positional_allele_frequency[pos].items()):
                 allele_seq, allele_type = allele
-                allele_freq_percent = (100.0 * (allele_freq / self.coverage[pos]))
-                if allele_type == INSERT_ALLELE:
-                    continue
+                # allele_freq_percent = (100.0 * (allele_freq / self.coverage[pos]))
+                # if allele_type == INSERT_ALLELE:
+                #     continue
                 if pos not in self.filtered_positional_alleles:
                     self.filtered_positional_alleles[pos] = {}
                 self.filtered_positional_alleles[pos][(allele_seq, allele_type)] = allele_freq
-                if allele_type == INSERT_ALLELE:
-                    self.insert_length_info[pos] = max(self.insert_length_info[pos], len(allele_seq) - 1)
+                # if allele_type == INSERT_ALLELE:
+                #     self.insert_length_info[pos] = max(self.insert_length_info[pos], len(allele_seq) - 1)'''
 
     def process_interval(self, interval_start, interval_end):
         """
@@ -452,16 +450,19 @@ class CandidateFinder:
 
         total_reads = 0
         read_id_list = []
+
+        uniqueness_id = 1
         for read in reads:
             # check if the read is usable
             if read.mapping_quality >= DEFAULT_MIN_MAP_QUALITY and read.is_secondary is False \
                     and read.is_unmapped is False:
                 # for paired end make sure read name is unique
-                read.query_name = read.query_name + '_1' if read.is_read1 else read.query_name + '_2'
+                read.query_name = read.query_name + "_" + str(uniqueness_id)
                 self.process_read(read, interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS)
                 read_id_list.append(read.query_name)
                 total_reads += 1
-        self._filter_alleles()
+                uniqueness_id += 1
+        # self._filter_alleles()
         if DEBUG_MESSAGE:
             sys.stderr.write(TextColor.BLUE)
             sys.stderr.write("INFO: TOTAL READ IN REGION: " + self.chromosome_name + " " + str(interval_start) + " " +

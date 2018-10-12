@@ -46,7 +46,7 @@ TEST_MODE = 2
 
 
 MIN_SEQUENCE_BASE_LENGTH_THRESHOLD = 0
-MIN_VARIANT_IN_WINDOW_THRESHOLD = 0
+MIN_VARIANT_IN_WINDOW_THRESHOLD = 1
 BED_INDEX_BUFFER = -1
 SAFE_BOUNDARY_BASES = 50
 
@@ -147,8 +147,6 @@ class View:
         for i in range(start_index, end_index):
             interval_start, interval_end = self.confidence_intervals[i][0] + BED_INDEX_BUFFER, \
                                            self.confidence_intervals[i][1] + BED_INDEX_BUFFER
-            # interval_start, interval_end = 260969, 261969
-
             interval_length = interval_end - interval_start
             if interval_length < MIN_SEQUENCE_BASE_LENGTH_THRESHOLD:
                 warn_msg = "REGION SKIPPED, TOO SMALL OF A WINDOW " + self.chromosome_name + " "
@@ -183,6 +181,13 @@ class View:
             read_id_list = self.candidate_finder.process_interval(interval_start - SAFE_BOUNDARY_BASES,
                                                                   interval_end + SAFE_BOUNDARY_BASES)
 
+            # remove 2 lines
+            image_generator = ImageGenerator(self.candidate_finder)
+
+            image_generator.get_segmented_image_sequences(interval_start, interval_end, positional_variants,
+                                                          read_id_list, file_info)
+            continue
+
             image_generator = ImageGenerator(self.candidate_finder)
             # get trainable sequences
             sliced_images, summary_strings, img_h, img_w, img_c = \
@@ -210,7 +215,7 @@ def test(view_object):
     :return:
     """
     start_time = time.time()
-    view_object.parse_region(start_index=0, end_index=1)
+    view_object.parse_region(start_index=0, end_index=5)
     print("TOTAL TIME ELAPSED: ", time.time()-start_time)
 
 

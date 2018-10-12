@@ -414,14 +414,14 @@ def analyze_v3_images(img):
     # entire_image = np.array(entire_image)
     # from scipy import misc
     # misc.imsave("Base_visualized_v3" + ".png", entire_image, format="PNG")
-import h5py
-hdf5_file = h5py.File("./outputs/labeled_images/run_09172018_001828/chr19/chr19_259396.h5", 'r')
-image_dataset = hdf5_file['images']
-img = np.array(image_dataset[0], dtype=np.int32)
+# import h5py
+# hdf5_file = h5py.File("./outputs/labeled_images/run_09172018_001828/chr19/chr19_259396.h5", 'r')
+# image_dataset = hdf5_file['images']
+# img = np.array(image_dataset[0], dtype=np.int32)
 
 # from torchvision import transforms
 # transformations = transforms.Compose([transforms.ToTensor()])
 # img = transformations(img)
 # img = img.transpose(1, 2)
-visualize_base_channel(img)
+# visualize_base_channel(img)
 # analyze_tensor(img)

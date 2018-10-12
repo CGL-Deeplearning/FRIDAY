@@ -29,11 +29,11 @@ WINDOW_OVERLAP_JUMP = 80
 # window size
 WINDOW_SIZE = 1
 # boundary columns is the number of bases we process for safety
-BOUNDARY_COLUMNS = 50
+BOUNDARY_COLUMNS = 0
 # ALL_HOM_BASE_RATIO = 0.005 (this worked great)
 ALL_HOM_BASE_RATIO = 1
 # buffer around boundary to make sure all the bases in the interval is included
-POS_BUFFER = 5
+POS_BUFFER = 0
 
 REF_BAND_LENGTH = 5
 
@@ -90,13 +90,13 @@ class ImageGenerator:
         support_dict = defaultdict(tuple)
         pos = read_start_pos
         while pos < read_end_pos:
-            candidate_alleles = self.pos_dicts.filtered_positional_alleles[pos] \
-                if pos in self.pos_dicts.filtered_positional_alleles else None
+            candidate_alleles = self.pos_dicts.positional_allele_frequency[pos] \
+                if pos in self.pos_dicts.positional_allele_frequency else None
 
             if candidate_alleles is not None:
                 if pos not in self.top_alleles:
                     self.top_alleles[pos] = \
-                        sorted(self.pos_dicts.filtered_positional_alleles[pos].items(), key=operator.itemgetter(1, 0),
+                        sorted(self.pos_dicts.positional_allele_frequency[pos].items(), key=operator.itemgetter(1, 0),
                                reverse=True)[:PLOIDY]
 
                 support_candidate_type = SNP
@@ -221,6 +221,7 @@ class ImageGenerator:
                     else:
                         insert_allele_length = allele_length
                         insert_support_allele_no = support_allele_no
+
                     # if this specific read has an insert
                     if read_id in self.pos_dicts.insert_dictionary and pos in self.pos_dicts.insert_dictionary[read_id]:
                         # insert bases and qualities
@@ -498,6 +499,70 @@ class ImageGenerator:
         elif allele_tuple[1] == HOM_ALT and allele_tuple[2] == HOM_ALT:
             sys.stderr.write("WARN: INVALID VCF RECORD FOUND " + str(pos) + " " + str(allele_tuple) + "\n")
 
+    def _match_snp_allele(self, position, allele):
+        indx = self.positional_info_position_to_index[position]
+
+        # the SNP is not there
+        if allele not in self.base_frequency[indx]:
+            sys.stderr.write("0\tSNP\t" + str(position) + "\t" + str(allele) + "\t" + "0" + "\n")
+            return None
+
+        coverage = self.index_based_coverage[indx]
+        freq = (100 * self.base_frequency[indx][allele]) / coverage
+        sys.stderr.write("1\tSNP\t" + str(position) + "\t" + str(allele) + "\t" + str(freq) + "\n")
+
+        return True, freq
+
+    def _match_insert_allele(self, position, allele):
+        indx = self.positional_info_position_to_index[position]
+        insert_length = self.pos_dicts.insert_length_info[position]
+
+        if insert_length < len(allele):
+            sys.stderr.write("0\tIN\t" + str(position) + "\t" + str(allele) + "\t" + "0\t" + "INSERT LENGTH\n")
+            return None
+
+        original_allele = allele
+        allele = allele[1:]
+        insert_index_start = indx + 1
+        insert_index_end = insert_index_start + insert_length
+
+        allele_indx = 0
+        insert_indx = insert_index_start
+        freq = 110
+        while allele_indx < len(allele) and insert_indx < insert_index_end:
+            if allele[allele_indx] not in self.base_frequency[insert_indx]:
+                insert_indx += 1
+                continue
+
+            coverage = self.index_based_coverage[insert_indx]
+            freq = min(freq, (100 * self.base_frequency[insert_indx][allele[allele_indx]]) / coverage)
+            allele_indx += 1
+            insert_indx += 1
+
+        if allele_indx < len(allele):
+            sys.stderr.write("0\tIN\t" + str(position) + "\t" + str(original_allele) + "\t" + "0\t" + "DID NOT MATCH\n")
+            return None
+
+        sys.stderr.write("1\tIN\t" + str(position) + "\t" + str(original_allele) + "\t" + str(freq) + "\n")
+
+        return True, freq
+
+    def _match_delete_allele(self, position, allele):
+        del_allele = allele[1:]
+        position_start = position + 1
+        position_end = position_start + len(del_allele)
+        freq = 110
+        for del_position in range(position_start, position_end):
+            indx = self.positional_info_position_to_index[del_position]
+            coverage = self.index_based_coverage[indx]
+            freq = min(freq, (100 * self.base_frequency[indx]['.']) / coverage)
+            if '.' not in self.base_frequency[indx]:
+                sys.stderr.write("0\tDEL\t" + str(position) + "\t" + str(del_allele) + "\t" + "0" + "\n")
+                return None
+
+        sys.stderr.write("1\tDEL\t" + str(position) + "\t" + str(allele) + "\t" + str(freq) + "\n")
+        return True, freq
+
     def populate_vcf_alleles(self, positional_vcf):
         """
         From positional VCF alleles, populate the positional dictionary.
@@ -511,10 +576,6 @@ class ImageGenerator:
             # we we haven't processed the position, we can't assign alleles
             if bam_pos not in self.positional_info_position_to_index:
                 continue
-            indx = self.positional_info_position_to_index[bam_pos]
-
-            alt_alleles_found = self.top_alleles[bam_pos] \
-                if bam_pos in self.top_alleles else []
 
             vcf_alts = []
 
@@ -522,25 +583,27 @@ class ImageGenerator:
             # SNP records
             for snp_rec in snp_recs:
                 vcf_alts.append((snp_rec.alt[0], SNP, snp_rec.genotype))
+                self._match_snp_allele(bam_pos, snp_rec.alt[0])
 
             # insert record
             for in_rec in in_recs:
                 vcf_alts.append((in_rec.alt, IN, in_rec.genotype))
+                self._match_insert_allele(bam_pos, in_rec.alt)
 
             # delete record
             for del_rec in del_recs:
                 # for delete reference holds which bases are deleted hence that's the alt allele
                 vcf_alts.append((del_rec.ref, DEL, del_rec.genotype))
+                self._match_delete_allele(bam_pos, del_rec.ref)
 
-            alts_with_genotype = {1: 0, 2: 0}
+            '''alts_with_genotype = {1: 0, 2: 0}
             for counter, allele in enumerate(alt_alleles_found):
                 allele_tuple = (allele[0])
                 for vcf_allele in vcf_alts:
                     vcf_tuple = (vcf_allele[0], vcf_allele[1])
                     if allele_tuple == vcf_tuple:
                         alts_with_genotype[counter+1] = self.get_genotype_from_vcf_tuple(vcf_allele[2])
-
-            self.vcf_positional_dict[indx] = self.get_site_label_from_allele_tuple(pos, alts_with_genotype)
+            self.vcf_positional_dict[indx] = self.get_site_label_from_allele_tuple(pos, alts_with_genotype)'''
 
     def get_segmented_image_sequences(self, interval_start, interval_end, positional_variants, read_id_list,
                                       file_info):
@@ -557,6 +620,8 @@ class ImageGenerator:
         self.post_process_reference(interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS)
         self.post_process_reads(read_id_list, interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS)
         self.populate_vcf_alleles(positional_variants)
+        return
+
         # get the image
         image = self.create_image(interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS, read_id_list)
         label_seq, ref_seq = self.get_label_sequence(interval_start - BOUNDARY_COLUMNS, interval_end + BOUNDARY_COLUMNS)
@@ -570,16 +635,17 @@ class ImageGenerator:
         img_ended_in_indx = self.positional_info_position_to_index[interval_end + BOUNDARY_COLUMNS] - \
                             self.positional_info_position_to_index[ref_start]
 
+        print(interval_start, interval_end)
+        from analysis.analyze_png_img import analyze_v3_images
+        print(str(label_seq))
+        analyze_v3_images(image)
+        exit()
+
         # this is sliding window based approach
         image_index = 0
         img_w, img_h, img_c = 0, 0, 0
 
         for i, pos in enumerate(self.top_alleles.keys()):
-            allele, freq = self.top_alleles[pos][0]
-
-            if allele[1] == SNP and freq <= 2:
-                continue
-
             if pos < interval_start - POS_BUFFER or pos > interval_end + POS_BUFFER:
                 continue
 
